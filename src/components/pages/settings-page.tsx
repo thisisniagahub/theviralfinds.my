@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
   Settings,
@@ -23,6 +23,8 @@ import {
   Globe,
   Clock,
   Package,
+  Unplug,
+  ShoppingBag,
 } from 'lucide-react'
 import {
   Card,
@@ -45,6 +47,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -66,6 +69,17 @@ const fadeIn = {
   transition: { duration: 0.4 },
 }
 
+// ─── Shopee Regions ───────────────────────────────────────────────────────────
+
+const SHOPEE_REGIONS = [
+  { value: 'my', label: 'Malaysia' },
+  { value: 'sg', label: 'Singapore' },
+  { value: 'id', label: 'Indonesia' },
+  { value: 'th', label: 'Thailand' },
+  { value: 'ph', label: 'Philippines' },
+  { value: 'vn', label: 'Vietnam' },
+]
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function SettingsPage() {
@@ -81,12 +95,103 @@ export function SettingsPage() {
   const [campaignAlert, setCampaignAlert] = useState(false)
   const [weeklyDigest, setWeeklyDigest] = useState(true)
 
+  // Shopee Affiliate API Connection
+  const [shopeeAppId, setShopeeAppId] = useState('')
+  const [shopeeSecret, setShopeeSecret] = useState('')
+  const [shopeeRegion, setShopeeRegion] = useState('my')
+  const [shopeeAccessToken, setShopeeAccessToken] = useState('')
+  const [shopeeConnected, setShopeeConnected] = useState(false)
+  const [shopeeTesting, setShopeeTesting] = useState(false)
+  const [shopeeLastConnected, setShopeeLastConnected] = useState<string | null>(null)
+  const [shopeeTestMessage, setShopeeTestMessage] = useState<string | null>(null)
+  const [shopeeMaskedAppId, setShopeeMaskedAppId] = useState<string | null>(null)
+
   // HERMES Connection
   const [hermesEndpoint, setHermesEndpoint] = useState('https://api.openai.com/v1')
   const [hermesApiKey, setHermesApiKey] = useState('sk-***************')
   const [hermesModel, setHermesModel] = useState('gpt-4o')
   const [hermesConnected, setHermesConnected] = useState(true)
   const [testingConnection, setTestingConnection] = useState(false)
+
+  // Load Shopee connection status on mount
+  useEffect(() => {
+    fetch('/api/shopee/connect')
+      .then((res) => res.json())
+      .then((data) => {
+        setShopeeConnected(data.connected === true)
+        setShopeeMaskedAppId(data.appId || null)
+        setShopeeRegion(data.region || 'my')
+        setShopeeLastConnected(data.lastConnected || null)
+      })
+      .catch(() => {
+        setShopeeConnected(false)
+      })
+  }, [])
+
+  // Test Shopee connection
+  const handleTestShopeeConnection = async () => {
+    if (!shopeeAppId || !shopeeSecret) {
+      setShopeeTestMessage('App ID and Secret are required')
+      return
+    }
+
+    setShopeeTesting(true)
+    setShopeeTestMessage(null)
+
+    try {
+      const res = await fetch('/api/shopee/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          appId: shopeeAppId,
+          secret: shopeeSecret,
+          region: shopeeRegion,
+          accessToken: shopeeAccessToken || undefined,
+        }),
+      })
+
+      const data = await res.json()
+
+      setShopeeConnected(data.success === true)
+      setShopeeTestMessage(data.message || (data.success ? 'Connected!' : 'Connection failed'))
+
+      if (data.success) {
+        setShopeeLastConnected(new Date().toISOString())
+        setShopeeMaskedAppId(`${shopeeAppId.slice(0, 4)}****`)
+      }
+    } catch (error) {
+      setShopeeConnected(false)
+      setShopeeTestMessage('Failed to connect. Please check your credentials.')
+    } finally {
+      setShopeeTesting(false)
+    }
+  }
+
+  // Disconnect Shopee
+  const handleDisconnectShopee = async () => {
+    try {
+      // Clear credentials by saving empty values
+      await fetch('/api/shopee/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          appId: 'DISCONNECTED',
+          secret: 'DISCONNECTED',
+          region: shopeeRegion,
+        }),
+      })
+
+      setShopeeConnected(false)
+      setShopeeAppId('')
+      setShopeeSecret('')
+      setShopeeAccessToken('')
+      setShopeeMaskedAppId(null)
+      setShopeeLastConnected(null)
+      setShopeeTestMessage(null)
+    } catch (error) {
+      console.error('Disconnect error:', error)
+    }
+  }
 
   const handleTestConnection = () => {
     setTestingConnection(true)
@@ -241,96 +346,259 @@ export function SettingsPage() {
             </Card>
           </motion.div>
 
-          {/* HERMES Connection */}
+          {/* API Connections - Dual Tabs */}
           <motion.div {...fadeIn}>
             <Card className="card-hover">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-base">
-                  <Bot className="size-4 text-hermes" />
-                  HERMES Connection
+                  <Globe className="size-4 text-shopee" />
+                  API Connections
                 </CardTitle>
-                <CardDescription>Configure your AI assistant integration</CardDescription>
+                <CardDescription>Configure your external API integrations</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Connection Status */}
-                <div className={cn(
-                  'flex items-center gap-2 rounded-lg border p-3',
-                  hermesConnected ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-red-500/20 bg-red-500/5'
-                )}>
-                  {hermesConnected ? (
-                    <Wifi className="size-4 text-emerald-500" />
-                  ) : (
-                    <WifiOff className="size-4 text-red-500" />
-                  )}
-                  <span className={cn('text-sm font-medium', hermesConnected ? 'text-emerald-600' : 'text-red-600')}>
-                    {hermesConnected ? 'Connected' : 'Disconnected'}
-                  </span>
-                  {hermesConnected && (
-                    <Badge variant="outline" className="ml-auto text-[10px]">
-                      Latency: 120ms
-                    </Badge>
-                  )}
-                </div>
+              <CardContent>
+                <Tabs defaultValue="shopee" className="w-full">
+                  <TabsList className="w-full mb-4">
+                    <TabsTrigger value="shopee" className="flex-1 gap-1.5">
+                      <ShoppingBag className="size-3.5" />
+                      Shopee Affiliate API
+                    </TabsTrigger>
+                    <TabsTrigger value="hermes" className="flex-1 gap-1.5">
+                      <Bot className="size-3.5" />
+                      HERMES Agent
+                    </TabsTrigger>
+                  </TabsList>
 
-                <div className="grid gap-2">
-                  <Label htmlFor="hermes-endpoint">Endpoint URL</Label>
-                  <div className="relative">
-                    <Globe className="text-muted-foreground absolute left-3 top-1/2 size-4 -translate-y-1/2" />
-                    <Input
-                      id="hermes-endpoint"
-                      value={hermesEndpoint}
-                      onChange={(e) => setHermesEndpoint(e.target.value)}
-                      className="pl-9 font-mono text-sm"
-                    />
-                  </div>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="hermes-key">API Key</Label>
-                  <div className="relative">
-                    <Key className="text-muted-foreground absolute left-3 top-1/2 size-4 -translate-y-1/2" />
-                    <Input
-                      id="hermes-key"
-                      type="password"
-                      value={hermesApiKey}
-                      onChange={(e) => setHermesApiKey(e.target.value)}
-                      className="pl-9 font-mono text-sm"
-                    />
-                  </div>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="hermes-model">Model</Label>
-                  <Select value={hermesModel} onValueChange={setHermesModel}>
-                    <SelectTrigger id="hermes-model">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="gpt-4o">GPT-4o</SelectItem>
-                      <SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem>
-                      <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
-                      <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem>
-                      <SelectItem value="claude-3-haiku">Claude 3 Haiku</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant="outline"
-                    className="gap-2"
-                    onClick={handleTestConnection}
-                    disabled={testingConnection}
-                  >
-                    {testingConnection ? (
-                      <RefreshCw className="size-4 animate-spin" />
-                    ) : (
-                      <Wifi className="size-4" />
+                  {/* Tab 1: Shopee Affiliate API */}
+                  <TabsContent value="shopee" className="space-y-4">
+                    {/* Connection Status */}
+                    <div className={cn(
+                      'flex items-center gap-2 rounded-lg border p-3',
+                      shopeeConnected
+                        ? 'border-emerald-500/20 bg-emerald-500/5'
+                        : 'border-red-500/20 bg-red-500/5'
+                    )}>
+                      {shopeeConnected ? (
+                        <Wifi className="size-4 text-emerald-500" />
+                      ) : (
+                        <WifiOff className="size-4 text-red-500" />
+                      )}
+                      <span className={cn(
+                        'text-sm font-medium',
+                        shopeeConnected ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
+                      )}>
+                        {shopeeConnected ? 'Connected' : 'Disconnected'}
+                      </span>
+                      {shopeeConnected && shopeeMaskedAppId && (
+                        <Badge variant="outline" className="ml-auto text-[10px] font-mono">
+                          App: {shopeeMaskedAppId}
+                        </Badge>
+                      )}
+                      {shopeeLastConnected && (
+                        <Badge variant="outline" className="ml-auto text-[10px] gap-1">
+                          <Clock className="size-3" />
+                          {new Date(shopeeLastConnected).toLocaleDateString()}
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* Test Result Message */}
+                    {shopeeTestMessage && (
+                      <div className={cn(
+                        'flex items-center gap-2 rounded-lg border p-3 text-sm',
+                        shopeeConnected
+                          ? 'border-emerald-500/20 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400'
+                          : 'border-red-500/20 bg-red-500/5 text-red-600 dark:text-red-400'
+                      )}>
+                        {shopeeConnected ? (
+                          <Check className="size-4" />
+                        ) : (
+                          <AlertTriangle className="size-4" />
+                        )}
+                        {shopeeTestMessage}
+                      </div>
                     )}
-                    {testingConnection ? 'Testing...' : 'Test Connection'}
-                  </Button>
-                  <Button className="gap-2">
-                    <Save className="size-4" />
-                    Save Connection
-                  </Button>
-                </div>
+
+                    <div className="grid gap-2">
+                      <Label htmlFor="shopee-app-id">App ID</Label>
+                      <div className="relative">
+                        <Key className="text-muted-foreground absolute left-3 top-1/2 size-4 -translate-y-1/2" />
+                        <Input
+                          id="shopee-app-id"
+                          placeholder="Enter your Shopee App ID"
+                          value={shopeeAppId}
+                          onChange={(e) => setShopeeAppId(e.target.value)}
+                          className="pl-9 font-mono text-sm"
+                        />
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        Found in Shopee Affiliate Portal → Account → API → Open API
+                      </p>
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label htmlFor="shopee-secret">Secret</Label>
+                      <div className="relative">
+                        <Key className="text-muted-foreground absolute left-3 top-1/2 size-4 -translate-y-1/2" />
+                        <Input
+                          id="shopee-secret"
+                          type="password"
+                          placeholder="Enter your Shopee Secret"
+                          value={shopeeSecret}
+                          onChange={(e) => setShopeeSecret(e.target.value)}
+                          className="pl-9 font-mono text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label htmlFor="shopee-region">Region</Label>
+                      <Select value={shopeeRegion} onValueChange={setShopeeRegion}>
+                        <SelectTrigger id="shopee-region">
+                          <SelectValue placeholder="Select region" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SHOPEE_REGIONS.map((region) => (
+                            <SelectItem key={region.value} value={region.value}>
+                              {region.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label htmlFor="shopee-access-token">Access Token (Optional)</Label>
+                      <div className="relative">
+                        <Key className="text-muted-foreground absolute left-3 top-1/2 size-4 -translate-y-1/2" />
+                        <Input
+                          id="shopee-access-token"
+                          type="password"
+                          placeholder="Optional - for authorized API calls"
+                          value={shopeeAccessToken}
+                          onChange={(e) => setShopeeAccessToken(e.target.value)}
+                          className="pl-9 font-mono text-sm"
+                        />
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        Required for some endpoints. Generate from Shopee OAuth flow.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        className="gap-2"
+                        onClick={handleTestShopeeConnection}
+                        disabled={shopeeTesting || (!shopeeAppId && !shopeeConnected)}
+                      >
+                        {shopeeTesting ? (
+                          <RefreshCw className="size-4 animate-spin" />
+                        ) : (
+                          <Wifi className="size-4" />
+                        )}
+                        {shopeeTesting ? 'Testing...' : 'Test Connection'}
+                      </Button>
+                      {shopeeConnected && (
+                        <Button
+                          variant="outline"
+                          className="gap-2 text-destructive hover:text-destructive"
+                          onClick={handleDisconnectShopee}
+                        >
+                          <Unplug className="size-4" />
+                          Disconnect
+                        </Button>
+                      )}
+                      <Button className="gap-2">
+                        <Save className="size-4" />
+                        Save Connection
+                      </Button>
+                    </div>
+                  </TabsContent>
+
+                  {/* Tab 2: HERMES Agent */}
+                  <TabsContent value="hermes" className="space-y-4">
+                    {/* Connection Status */}
+                    <div className={cn(
+                      'flex items-center gap-2 rounded-lg border p-3',
+                      hermesConnected ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-red-500/20 bg-red-500/5'
+                    )}>
+                      {hermesConnected ? (
+                        <Wifi className="size-4 text-emerald-500" />
+                      ) : (
+                        <WifiOff className="size-4 text-red-500" />
+                      )}
+                      <span className={cn('text-sm font-medium', hermesConnected ? 'text-emerald-600' : 'text-red-600')}>
+                        {hermesConnected ? 'Connected' : 'Disconnected'}
+                      </span>
+                      {hermesConnected && (
+                        <Badge variant="outline" className="ml-auto text-[10px]">
+                          Latency: 120ms
+                        </Badge>
+                      )}
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label htmlFor="hermes-endpoint">Endpoint URL</Label>
+                      <div className="relative">
+                        <Globe className="text-muted-foreground absolute left-3 top-1/2 size-4 -translate-y-1/2" />
+                        <Input
+                          id="hermes-endpoint"
+                          value={hermesEndpoint}
+                          onChange={(e) => setHermesEndpoint(e.target.value)}
+                          className="pl-9 font-mono text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="hermes-key">API Key</Label>
+                      <div className="relative">
+                        <Key className="text-muted-foreground absolute left-3 top-1/2 size-4 -translate-y-1/2" />
+                        <Input
+                          id="hermes-key"
+                          type="password"
+                          value={hermesApiKey}
+                          onChange={(e) => setHermesApiKey(e.target.value)}
+                          className="pl-9 font-mono text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="hermes-model">Model</Label>
+                      <Select value={hermesModel} onValueChange={setHermesModel}>
+                        <SelectTrigger id="hermes-model">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="gpt-4o">GPT-4o</SelectItem>
+                          <SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem>
+                          <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
+                          <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem>
+                          <SelectItem value="claude-3-haiku">Claude 3 Haiku</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        className="gap-2"
+                        onClick={handleTestConnection}
+                        disabled={testingConnection}
+                      >
+                        {testingConnection ? (
+                          <RefreshCw className="size-4 animate-spin" />
+                        ) : (
+                          <Wifi className="size-4" />
+                        )}
+                        {testingConnection ? 'Testing...' : 'Test Connection'}
+                      </Button>
+                      <Button className="gap-2">
+                        <Save className="size-4" />
+                        Save Connection
+                      </Button>
+                    </div>
+                  </TabsContent>
+                </Tabs>
               </CardContent>
             </Card>
           </motion.div>
@@ -451,6 +719,16 @@ export function SettingsPage() {
                   Last Sync
                 </span>
                 <span className="font-medium">2 min ago</span>
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground flex items-center gap-1.5">
+                  <ShoppingBag className="size-3.5" />
+                  Shopee API
+                </span>
+                <Badge variant={shopeeConnected ? 'default' : 'destructive'} className="text-[10px]">
+                  {shopeeConnected ? 'Online' : 'Offline'}
+                </Badge>
               </div>
               <Separator />
               <div className="flex items-center justify-between text-sm">

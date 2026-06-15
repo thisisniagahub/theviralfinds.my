@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Search,
@@ -13,6 +13,11 @@ import {
   SlidersHorizontal,
   Package,
   Loader2,
+  Copy,
+  Check,
+  AlertTriangle,
+  RefreshCw,
+  Zap,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -28,13 +33,13 @@ import {
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 
-// --- Mock Data ---
+// --- Types ---
 interface Product {
   id: string
+  itemId: number
   name: string
   price: number
   originalPrice?: number
-  commission: number
   commissionRate: number
   rating: number
   soldCount: number
@@ -42,6 +47,19 @@ interface Product {
   category: string
   isAiPick?: boolean
   color: string
+  source?: 'shopee_api' | 'web_search' | 'demo'
+  affiliateLink?: string | null
+  deepLink?: string | null
+  productLink?: string
+}
+
+interface SearchResult {
+  products: Product[]
+  total: number
+  query: string
+  source: 'shopee_api' | 'web_search' | 'demo'
+  connected: boolean
+  message?: string
 }
 
 const CATEGORIES = [
@@ -61,13 +79,30 @@ const SORT_OPTIONS = [
   { value: 'rating', label: 'Best Rating' },
 ] as const
 
-const MOCK_PRODUCTS: Product[] = [
+// Color palette for product cards
+const CARD_COLORS = [
+  'bg-orange-100 dark:bg-orange-900/30',
+  'bg-pink-100 dark:bg-pink-900/30',
+  'bg-purple-100 dark:bg-purple-900/30',
+  'bg-rose-100 dark:bg-rose-900/30',
+  'bg-sky-100 dark:bg-sky-900/30',
+  'bg-emerald-100 dark:bg-emerald-900/30',
+  'bg-lime-100 dark:bg-lime-900/30',
+  'bg-amber-100 dark:bg-amber-900/30',
+  'bg-teal-100 dark:bg-teal-900/30',
+  'bg-fuchsia-100 dark:bg-fuchsia-900/30',
+  'bg-yellow-100 dark:bg-yellow-900/30',
+  'bg-cyan-100 dark:bg-cyan-900/30',
+]
+
+// AI Picks (still use curated mock data for the AI recommendations section)
+const AI_PICKS: Product[] = [
   {
-    id: '1',
+    id: 'ai-1',
+    itemId: 1001,
     name: 'Xiaomi Redmi Note 13 Pro 5G - 256GB',
     price: 899,
     originalPrice: 1199,
-    commission: 89.9,
     commissionRate: 10,
     rating: 4.8,
     soldCount: 15200,
@@ -77,11 +112,11 @@ const MOCK_PRODUCTS: Product[] = [
     color: 'bg-orange-100 dark:bg-orange-900/30',
   },
   {
-    id: '2',
+    id: 'ai-2',
+    itemId: 1002,
     name: 'Korean Style Oversized Hoodie - Unisex',
     price: 45,
     originalPrice: 89,
-    commission: 9,
     commissionRate: 20,
     rating: 4.5,
     soldCount: 28300,
@@ -91,11 +126,11 @@ const MOCK_PRODUCTS: Product[] = [
     color: 'bg-pink-100 dark:bg-pink-900/30',
   },
   {
-    id: '3',
+    id: 'ai-3',
+    itemId: 1003,
     name: 'Dyson V12 Detect Slim Cordless Vacuum',
     price: 2199,
     originalPrice: 2699,
-    commission: 219.9,
     commissionRate: 10,
     rating: 4.9,
     soldCount: 3200,
@@ -105,11 +140,11 @@ const MOCK_PRODUCTS: Product[] = [
     color: 'bg-purple-100 dark:bg-purple-900/30',
   },
   {
-    id: '4',
+    id: 'ai-4',
+    itemId: 1004,
     name: 'LANEIGE Lip Sleeping Mask - Berry',
     price: 68,
     originalPrice: 85,
-    commission: 13.6,
     commissionRate: 20,
     rating: 4.7,
     soldCount: 41500,
@@ -117,110 +152,6 @@ const MOCK_PRODUCTS: Product[] = [
     category: 'Beauty',
     isAiPick: true,
     color: 'bg-rose-100 dark:bg-rose-900/30',
-  },
-  {
-    id: '5',
-    name: 'Samsung Galaxy Buds FE Pro',
-    price: 299,
-    originalPrice: 399,
-    commission: 44.85,
-    commissionRate: 15,
-    rating: 4.6,
-    soldCount: 8700,
-    shopName: 'Samsung Malaysia',
-    category: 'Electronics',
-    color: 'bg-sky-100 dark:bg-sky-900/30',
-  },
-  {
-    id: '6',
-    name: 'NIKE Air Max 90 - Classic Retro',
-    price: 549,
-    originalPrice: 699,
-    commission: 82.35,
-    commissionRate: 15,
-    rating: 4.8,
-    soldCount: 5400,
-    shopName: 'Nike Official MY',
-    category: 'Sports',
-    color: 'bg-emerald-100 dark:bg-emerald-900/30',
-  },
-  {
-    id: '7',
-    name: 'Portable Blender USB Rechargeable 400ml',
-    price: 35,
-    originalPrice: 59,
-    commission: 10.5,
-    commissionRate: 30,
-    rating: 4.3,
-    soldCount: 35600,
-    shopName: 'KitchenMate MY',
-    category: 'Home & Living',
-    color: 'bg-lime-100 dark:bg-lime-900/30',
-  },
-  {
-    id: '8',
-    name: 'COSRX Advanced Snail 96 Mucin Power Essence',
-    price: 52,
-    originalPrice: 68,
-    commission: 15.6,
-    commissionRate: 30,
-    rating: 4.9,
-    soldCount: 62000,
-    shopName: 'COSRX Official',
-    category: 'Beauty',
-    color: 'bg-amber-100 dark:bg-amber-900/30',
-  },
-  {
-    id: '9',
-    name: 'Adidas Ultraboost Light Running Shoes',
-    price: 699,
-    originalPrice: 899,
-    commission: 104.85,
-    commissionRate: 15,
-    rating: 4.7,
-    soldCount: 3100,
-    shopName: 'Adidas MY',
-    category: 'Sports',
-    color: 'bg-teal-100 dark:bg-teal-900/30',
-  },
-  {
-    id: '10',
-    name: 'JBL Tune 230NC TWS Earbuds',
-    price: 199,
-    originalPrice: 299,
-    commission: 29.85,
-    commissionRate: 15,
-    rating: 4.5,
-    soldCount: 12400,
-    shopName: 'JBL Official',
-    category: 'Electronics',
-    color: 'bg-indigo-100 dark:bg-indigo-900/30',
-  },
-  {
-    id: '11',
-    name: 'Baju Kurung Moden - Rayon Premium',
-    price: 89,
-    originalPrice: 129,
-    commission: 17.8,
-    commissionRate: 20,
-    rating: 4.6,
-    soldCount: 19800,
-    shopName: 'Hijabista Fashion',
-    category: 'Fashion',
-    color: 'bg-fuchsia-100 dark:bg-fuchsia-900/30',
-  },
-  {
-    id: '12',
-    name: 'Tongkat Ali Coffee - 15 Sachets',
-    price: 38,
-    originalPrice: 55,
-    commission: 9.5,
-    commissionRate: 25,
-    rating: 4.4,
-    soldCount: 27300,
-    shopName: 'Kopitiam Heritage',
-    category: 'Food',
-    color: 'bg-yellow-100 dark:bg-yellow-900/30',
   },
 ]
 
@@ -248,11 +179,55 @@ function StarRating({ rating }: { rating: number }) {
   )
 }
 
+// Map API product to our Product interface
+function mapApiProduct(raw: Record<string, unknown>, index: number): Product {
+  const price = Number(raw.price || 0)
+  const commissionRate = Number(raw.commissionRate || 0)
+  return {
+    id: (raw.id as string) || `api-${index}`,
+    itemId: Number(raw.itemId || raw.item_id || 0),
+    name: (raw.name as string) || (raw.item_name as string) || 'Unknown Product',
+    price,
+    originalPrice: raw.originalPrice ? Number(raw.originalPrice) : raw.original_price ? Number(raw.original_price) : undefined,
+    commissionRate,
+    rating: Number(raw.rating || raw.ratingStar || raw.rating_star || 0),
+    soldCount: Number(raw.soldCount || raw.sales || 0),
+    shopName: (raw.shopName as string) || (raw.shop_name as string) || 'Shopee Seller',
+    category: (raw.category as string) || 'general',
+    color: CARD_COLORS[index % CARD_COLORS.length],
+    source: (raw.source as 'shopee_api' | 'web_search' | 'demo') || 'demo',
+    affiliateLink: (raw.affiliateLink as string | null) ?? null,
+    deepLink: (raw.deepLink as string | null) ?? null,
+    productLink: (raw.productLink as string) || (raw.product_link as string),
+  }
+}
+
 // --- Product Card ---
-function ProductCard({ product }: { product: Product }) {
+function ProductCard({
+  product,
+  onGenerateLink,
+  generatingLinkId,
+}: {
+  product: Product
+  onGenerateLink: (product: Product) => void
+  generatingLinkId: string | null
+}) {
   const discount = product.originalPrice
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : 0
+
+  const [copied, setCopied] = useState(false)
+  const commission = product.price * product.commissionRate / 100
+
+  const handleCopyLink = () => {
+    if (product.affiliateLink) {
+      navigator.clipboard?.writeText(product.affiliateLink).catch(() => {})
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
+  const isGenerating = generatingLinkId === product.id
 
   return (
     <motion.div
@@ -270,6 +245,12 @@ function ProductCard({ product }: { product: Product }) {
             <Badge className="absolute top-2 left-2 bg-hermes text-white border-0 text-[10px] px-1.5 py-0.5 gap-1">
               <Sparkles className="size-3" />
               AI Pick
+            </Badge>
+          )}
+          {product.source === 'shopee_api' && (
+            <Badge className="absolute top-2 left-2 bg-emerald-500 text-white border-0 text-[10px] px-1.5 py-0.5 gap-1">
+              <Zap className="size-3" />
+              Live
             </Badge>
           )}
           {discount > 0 && (
@@ -301,7 +282,7 @@ function ProductCard({ product }: { product: Product }) {
                 variant="secondary"
                 className="text-[10px] px-1.5 py-0 bg-shopee/10 text-shopee border-0 font-semibold"
               >
-                RM{product.commission.toFixed(2)}
+                RM{commission.toFixed(2)}
               </Badge>
               <span className="text-[10px] text-muted-foreground">
                 {product.commissionRate}% comm
@@ -320,13 +301,50 @@ function ProductCard({ product }: { product: Product }) {
             {product.shopName}
           </p>
 
-          <Button
-            size="sm"
-            className="w-full mt-1 bg-shopee hover:bg-shopee-dark text-white"
-          >
-            <Link2 className="size-3.5" />
-            Generate Link
-          </Button>
+          {product.affiliateLink ? (
+            <div className="flex gap-2 mt-1">
+              <Button
+                size="sm"
+                className="flex-1 bg-shopee hover:bg-shopee-dark text-white"
+                onClick={handleCopyLink}
+              >
+                {copied ? (
+                  <Check className="size-3.5" />
+                ) : (
+                  <Copy className="size-3.5" />
+                )}
+                {copied ? 'Copied!' : 'Copy Link'}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1"
+                onClick={() => onGenerateLink(product)}
+                disabled={isGenerating}
+              >
+                {isGenerating ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Link2 className="size-3.5" />
+                )}
+                Regenerate
+              </Button>
+            </div>
+          ) : (
+            <Button
+              size="sm"
+              className="w-full mt-1 bg-shopee hover:bg-shopee-dark text-white"
+              onClick={() => onGenerateLink(product)}
+              disabled={isGenerating}
+            >
+              {isGenerating ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Link2 className="size-3.5" />
+              )}
+              {isGenerating ? 'Generating...' : 'Generate Link'}
+            </Button>
+          )}
         </CardContent>
       </Card>
     </motion.div>
@@ -341,22 +359,122 @@ export function ProductsPage() {
   const [visibleCount, setVisibleCount] = useState(8)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
 
-  const aiPicks = useMemo(() => MOCK_PRODUCTS.filter((p) => p.isAiPick), [])
+  // API integration state
+  const [apiProducts, setApiProducts] = useState<Product[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [isConnected, setIsConnected] = useState<boolean | null>(null)
+  const [apiSource, setApiSource] = useState<'shopee_api' | 'web_search' | 'demo' | null>(null)
+  const [apiMessage, setApiMessage] = useState<string | null>(null)
+  const [generatingLinkId, setGeneratingLinkId] = useState<string | null>(null)
+  const [hasSearched, setHasSearched] = useState(false)
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
-  const filteredProducts = useMemo(() => {
-    let result = MOCK_PRODUCTS.filter((p) => !p.isAiPick)
+  // Check connection status on mount
+  useEffect(() => {
+    fetch('/api/shopee/connect')
+      .then((res) => res.json())
+      .then((data) => {
+        setIsConnected(data.connected === true)
+      })
+      .catch(() => {
+        setIsConnected(false)
+      })
+  }, [])
 
-    if (activeCategory !== 'All') {
-      result = result.filter((p) => p.category === activeCategory)
+  // Search products from API
+  const searchProducts = useCallback(async (query: string) => {
+    if (!query.trim()) {
+      setApiProducts([])
+      setHasSearched(false)
+      setApiSource(null)
+      setApiMessage(null)
+      return
     }
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase()
+    setIsSearching(true)
+    setHasSearched(true)
+
+    try {
+      const res = await fetch(`/api/shopee/products?q=${encodeURIComponent(query)}&limit=20`)
+      const data: SearchResult = await res.json()
+
+      const mapped = (data.products || []).map((p: Record<string, unknown>, i: number) =>
+        mapApiProduct(p, i)
+      )
+
+      setApiProducts(mapped)
+      setIsConnected(data.connected)
+      setApiSource(data.source)
+      setApiMessage(data.message || null)
+    } catch (error) {
+      console.error('Product search error:', error)
+      setApiProducts([])
+      setApiSource('demo')
+      setApiMessage('Failed to search products. Please try again.')
+    } finally {
+      setIsSearching(false)
+    }
+  }, [])
+
+  // Debounced search
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value)
+    setVisibleCount(8)
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current)
+    }
+
+    searchTimeoutRef.current = setTimeout(() => {
+      searchProducts(value)
+    }, 500)
+  }
+
+  // Generate affiliate link for a product
+  const handleGenerateLink = async (product: Product) => {
+    setGeneratingLinkId(product.id)
+
+    try {
+      const res = await fetch('/api/shopee/generate-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          itemId: product.itemId || undefined,
+          productUrl: product.productLink || undefined,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (data.link) {
+        // Update the product with the generated link
+        setApiProducts((prev) =>
+          prev.map((p) =>
+            p.id === product.id
+              ? {
+                  ...p,
+                  affiliateLink: data.link.shortUrl || data.link.longUrl,
+                  deepLink: data.link.deepLink,
+                  source: data.source === 'shopee_api' ? 'shopee_api' : p.source,
+                }
+              : p
+          )
+        )
+      }
+    } catch (error) {
+      console.error('Generate link error:', error)
+    } finally {
+      setGeneratingLinkId(null)
+    }
+  }
+
+  // Filter and sort products
+  const filteredProducts = useMemo(() => {
+    let result = apiProducts
+
+    if (activeCategory !== 'All') {
       result = result.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          p.shopName.toLowerCase().includes(q) ||
-          p.category.toLowerCase().includes(q)
+        (p) => p.category.toLowerCase() === activeCategory.toLowerCase()
       )
     }
 
@@ -375,7 +493,7 @@ export function ProductsPage() {
     }
 
     return result
-  }, [activeCategory, searchQuery, sortBy])
+  }, [apiProducts, activeCategory, sortBy])
 
   const visibleProducts = filteredProducts.slice(0, visibleCount)
   const hasMore = visibleCount < filteredProducts.length
@@ -388,6 +506,8 @@ export function ProductsPage() {
     }, 600)
   }
 
+  const aiPicks = useMemo(() => AI_PICKS, [])
+
   return (
     <div className="space-y-6">
       {/* Page Header */}
@@ -397,6 +517,66 @@ export function ProductsPage() {
           Discover products and generate affiliate links
         </p>
       </div>
+
+      {/* API Not Connected Banner */}
+      {isConnected === false && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <Card className="border-amber-500/30 bg-amber-50 dark:bg-amber-950/20 py-3">
+            <CardContent className="p-4 flex items-start gap-3">
+              <AlertTriangle className="size-5 text-amber-500 mt-0.5 shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+                  Shopee API not connected
+                </p>
+                <p className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">
+                  Results are from web search. Connect your API in{' '}
+                  <span className="font-semibold">Settings</span> for real affiliate links and commission data.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0 text-amber-600 border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900/30"
+                onClick={() => {
+                  // Navigate to settings - handled by parent component
+                  window.dispatchEvent(new CustomEvent('navigate', { detail: 'settings' }))
+                }}
+              >
+                Go to Settings
+              </Button>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* Source indicator when results are loaded */}
+      {apiSource && hasSearched && !isSearching && (
+        <div className="flex items-center gap-2">
+          {apiSource === 'shopee_api' ? (
+            <Badge className="bg-emerald-500 text-white border-0 gap-1 text-[10px]">
+              <Zap className="size-3" />
+              Live Shopee API
+            </Badge>
+          ) : apiSource === 'web_search' ? (
+            <Badge variant="outline" className="text-amber-600 border-amber-300 dark:border-amber-700 gap-1 text-[10px]">
+              <Search className="size-3" />
+              Web Search Results
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="text-muted-foreground gap-1 text-[10px]">
+              <Package className="size-3" />
+              Demo Data
+            </Badge>
+          )}
+          {apiMessage && (
+            <span className="text-xs text-muted-foreground">{apiMessage}</span>
+          )}
+        </div>
+      )}
 
       {/* AI Recommendations */}
       <motion.div
@@ -449,7 +629,7 @@ export function ProductsPage() {
                       </div>
                       <div className="flex items-center justify-between">
                         <Badge className="text-[9px] px-1.5 py-0 bg-shopee/10 text-shopee border-0 font-semibold">
-                          +RM{product.commission.toFixed(2)}
+                          +RM{(product.price * product.commissionRate / 100).toFixed(2)}
                         </Badge>
                         <span className="text-[10px] text-muted-foreground">
                           {product.commissionRate}%
@@ -471,14 +651,14 @@ export function ProductsPage() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
-            placeholder="Search products, shops, categories..."
+            placeholder="Search Shopee products..."
             className="pl-10 h-10"
             value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value)
-              setVisibleCount(8)
-            }}
+            onChange={(e) => handleSearchChange(e.target.value)}
           />
+          {isSearching && (
+            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 animate-spin text-muted-foreground" />
+          )}
         </div>
         <Select
           value={sortBy}
@@ -519,7 +699,22 @@ export function ProductsPage() {
 
         {/* We only need one TabsContent since we filter manually */}
         <TabsContent value={activeCategory} className="mt-4">
-          {filteredProducts.length === 0 ? (
+          {!hasSearched ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="flex flex-col items-center justify-center py-16 text-muted-foreground"
+            >
+              <Search className="size-12 mb-3 opacity-40" />
+              <p className="text-sm font-medium">Search for products</p>
+              <p className="text-xs mt-1">Enter a keyword to search Shopee products</p>
+            </motion.div>
+          ) : isSearching ? (
+            <div className="flex flex-col items-center justify-center py-16">
+              <Loader2 className="size-8 animate-spin text-shopee mb-3" />
+              <p className="text-sm text-muted-foreground">Searching Shopee...</p>
+            </div>
+          ) : filteredProducts.length === 0 ? (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -534,7 +729,12 @@ export function ProductsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 <AnimatePresence mode="popLayout">
                   {visibleProducts.map((product) => (
-                    <ProductCard key={product.id} product={product} />
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      onGenerateLink={handleGenerateLink}
+                      generatingLinkId={generatingLinkId}
+                    />
                   ))}
                 </AnimatePresence>
               </div>

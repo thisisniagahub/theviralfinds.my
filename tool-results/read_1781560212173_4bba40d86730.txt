@@ -1,0 +1,1238 @@
+     1→'use client'
+     2→
+     3→import { useState, useMemo } from 'react'
+     4→import { motion, AnimatePresence } from 'framer-motion'
+     5→import {
+     6→  Plus,
+     7→  Search,
+     8→  MoreHorizontal,
+     9→  Copy,
+    10→  QrCode,
+    11→  Pencil,
+    12→  Pause,
+    13→  Play,
+    14→  Trash2,
+    15→  ExternalLink,
+    16→  Download,
+    17→  Tag,
+    18→  Link2,
+    19→  BarChart3,
+    20→  MousePointerClick,
+    21→  Target,
+    22→  DollarSign,
+    23→  TrendingUp,
+    24→  X,
+    25→  Check,
+    26→} from 'lucide-react'
+    27→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    28→import { Button } from '@/components/ui/button'
+    29→import { Input } from '@/components/ui/input'
+    30→import { Badge } from '@/components/ui/badge'
+    31→import { Checkbox } from '@/components/ui/checkbox'
+    32→import { Label } from '@/components/ui/label'
+    33→import { Separator } from '@/components/ui/separator'
+    34→import {
+    35→  Table,
+    36→  TableBody,
+    37→  TableCell,
+    38→  TableHead,
+    39→  TableHeader,
+    40→  TableRow,
+    41→} from '@/components/ui/table'
+    42→import {
+    43→  Dialog,
+    44→  DialogContent,
+    45→  DialogDescription,
+    46→  DialogFooter,
+    47→  DialogHeader,
+    48→  DialogTitle,
+    49→  DialogTrigger,
+    50→} from '@/components/ui/dialog'
+    51→import {
+    52→  DropdownMenu,
+    53→  DropdownMenuContent,
+    54→  DropdownMenuItem,
+    55→  DropdownMenuSeparator,
+    56→  DropdownMenuTrigger,
+    57→} from '@/components/ui/dropdown-menu'
+    58→import {
+    59→  Select,
+    60→  SelectContent,
+    61→  SelectItem,
+    62→  SelectTrigger,
+    63→  SelectValue,
+    64→} from '@/components/ui/select'
+    65→import { Textarea } from '@/components/ui/textarea'
+    66→
+    67→// --- Types ---
+    68→type LinkStatus = 'active' | 'paused' | 'expired'
+    69→
+    70→interface AffiliateLink {
+    71→  id: string
+    72→  name: string
+    73→  productName: string
+    74→  shortCode: string
+    75→  fullUrl: string
+    76→  clicks: number
+    77→  conversions: number
+    78→  earnings: number
+    79→  ctr: number
+    80→  status: LinkStatus
+    81→  campaign: string
+    82→  tags: string[]
+    83→  createdAt: string
+    84→  expiresAt?: string
+    85→  category: string
+    86→}
+    87→
+    88→// --- Mock Data ---
+    89→const MOCK_LINKS: AffiliateLink[] = [
+    90→  {
+    91→    id: '1',
+    92→    name: 'Xiaomi Redmi Promo',
+    93→    productName: 'Xiaomi Redmi Note 13 Pro 5G - 256GB',
+    94→    shortCode: 'shopee.my/xm13p',
+    95→    fullUrl: 'https://shopee.my/aff/xm13p?ref=affpro',
+    96→    clicks: 3420,
+    97→    conversions: 187,
+    98→    earnings: 1680.13,
+    99→    ctr: 5.47,
+   100→    status: 'active',
+   101→    campaign: 'Chinese New Year',
+   102→    tags: ['electronics', 'xiaomi'],
+   103→    createdAt: '2024-12-15',
+   104→    expiresAt: '2025-06-15',
+   105→    category: 'Electronics',
+   106→  },
+   107→  {
+   108→    id: '2',
+   109→    name: 'K-Fashion Hoodie',
+   110→    productName: 'Korean Style Oversized Hoodie - Unisex',
+   111→    shortCode: 'shopee.my/kfh01',
+   112→    fullUrl: 'https://shopee.my/aff/kfh01?ref=affpro',
+   113→    clicks: 1850,
+   114→    conversions: 95,
+   115→    earnings: 855.0,
+   116→    ctr: 5.14,
+   117→    status: 'active',
+   118→    campaign: 'Winter Collection',
+   119→    tags: ['fashion', 'hoodie'],
+   120→    createdAt: '2025-01-03',
+   121→    category: 'Fashion',
+   122→  },
+   123→  {
+   124→    id: '3',
+   125→    name: 'Dyson Vacuum Deal',
+   126→    productName: 'Dyson V12 Detect Slim Cordless Vacuum',
+   127→    shortCode: 'shopee.my/dv12d',
+   128→    fullUrl: 'https://shopee.my/aff/dv12d?ref=affpro',
+   129→    clicks: 980,
+   130→    conversions: 23,
+   131→    earnings: 5057.7,
+   132→    ctr: 2.35,
+   133→    status: 'active',
+   134→    campaign: 'Home Makeover',
+   135→    tags: ['home', 'appliance'],
+   136→    createdAt: '2025-01-10',
+   137→    category: 'Home & Living',
+   138→  },
+   139→  {
+   140→    id: '4',
+   141→    name: 'LANEIGE Lip Mask',
+   142→    productName: 'LANEIGE Lip Sleeping Mask - Berry',
+   143→    shortCode: 'shopee.my/llm01',
+   144→    fullUrl: 'https://shopee.my/aff/llm01?ref=affpro',
+   145→    clicks: 4210,
+   146→    conversions: 312,
+   147→    earnings: 4243.2,
+   148→    ctr: 7.41,
+   149→    status: 'active',
+   150→    campaign: 'Valentine Beauty',
+   151→    tags: ['beauty', 'skincare'],
+   152→    createdAt: '2025-02-01',
+   153→    category: 'Beauty',
+   154→  },
+   155→  {
+   156→    id: '5',
+   157→    name: 'Samsung Buds Promo',
+   158→    productName: 'Samsung Galaxy Buds FE Pro',
+   159→    shortCode: 'shopee.my/sgbp',
+   160→    fullUrl: 'https://shopee.my/aff/sgbp?ref=affpro',
+   161→    clicks: 560,
+   162→    conversions: 18,
+   163→    earnings: 807.3,
+   164→    ctr: 3.21,
+   165→    status: 'paused',
+   166→    campaign: 'Chinese New Year',
+   167→    tags: ['electronics', 'samsung'],
+   168→    createdAt: '2024-12-20',
+   169→    category: 'Electronics',
+   170→  },
+   171→  {
+   172→    id: '6',
+   173→    name: 'Nike Air Max 90',
+   174→    productName: 'NIKE Air Max 90 - Classic Retro',
+   175→    shortCode: 'shopee.my/nam90',
+   176→    fullUrl: 'https://shopee.my/aff/nam90?ref=affpro',
+   177→    clicks: 1200,
+   178→    conversions: 42,
+   179→    earnings: 3458.7,
+   180→    ctr: 3.5,
+   181→    status: 'active',
+   182→    campaign: 'Sports Week',
+   183→    tags: ['sports', 'nike'],
+   184→    createdAt: '2025-01-25',
+   185→    category: 'Sports',
+   186→  },
+   187→  {
+   188→    id: '7',
+   189→    name: 'COSRX Snail Essence',
+   190→    productName: 'COSRX Advanced Snail 96 Mucin Power Essence',
+   191→    shortCode: 'shopee.my/cs96',
+   192→    fullUrl: 'https://shopee.my/aff/cs96?ref=affpro',
+   193→    clicks: 680,
+   194→    conversions: 0,
+   195→    earnings: 0,
+   196→    ctr: 0,
+   197→    status: 'expired',
+   198→    campaign: '11.11 Sale',
+   199→    tags: ['beauty', 'skincare'],
+   200→    createdAt: '2024-10-20',
+   201→    expiresAt: '2024-11-12',
+   202→    category: 'Beauty',
+   203→  },
+   204→  {
+   205→    id: '8',
+   206→    name: 'Adidas Ultraboost',
+   207→    productName: 'Adidas Ultraboost Light Running Shoes',
+   208→    shortCode: 'shopee.my/aulb',
+   209→    fullUrl: 'https://shopee.my/aff/aulb?ref=affpro',
+   210→    clicks: 890,
+   211→    conversions: 31,
+   212→    earnings: 3250.35,
+   213→    ctr: 3.48,
+   214→    status: 'paused',
+   215→    campaign: 'Marathon Season',
+   216→    tags: ['sports', 'adidas'],
+   217→    createdAt: '2025-02-05',
+   218→    category: 'Sports',
+   219→  },
+   220→]
+   221→
+   222→const STATUS_STYLES: Record<
+   223→  LinkStatus,
+   224→  { className: string; label: string }
+   225→> = {
+   226→  active: {
+   227→    className:
+   228→      'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0',
+   229→    label: 'Active',
+   230→  },
+   231→  paused: {
+   232→    className:
+   233→      'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0',
+   234→    label: 'Paused',
+   235→  },
+   236→  expired: {
+   237→    className:
+   238→      'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0',
+   239→    label: 'Expired',
+   240→  },
+   241→}
+   242→
+   243→// --- QR Code SVG Placeholder ---
+   244→function QRCodePlaceholder({ size = 160 }: { size?: number }) {
+   245→  // Simple QR code visual pattern
+   246→  const cells = 21
+   247→  const cellSize = size / cells
+   248→
+   249→  // Generate a deterministic pattern that looks like a QR code
+   250→  const pattern: boolean[][] = []
+   251→  for (let r = 0; r < cells; r++) {
+   252→    pattern[r] = []
+   253→    for (let c = 0; c < cells; c++) {
+   254→      // Position detection patterns (corners)
+   255→      const isTopLeft = r < 7 && c < 7
+   256→      const isTopRight = r < 7 && c >= cells - 7
+   257→      const isBottomLeft = r >= cells - 7 && c < 7
+   258→
+   259→      if (isTopLeft || isTopRight || isBottomLeft) {
+   260→        const lr = isTopLeft ? r : isBottomLeft ? r - (cells - 7) : r
+   261→        const lc = isTopLeft ? c : isTopRight ? c - (cells - 7) : c
+   262→        const isOuterBorder = lr === 0 || lr === 6 || lc === 0 || lc === 6
+   263→        const isInnerSquare = lr >= 2 && lr <= 4 && lc >= 2 && lc <= 4
+   264→        pattern[r][c] = isOuterBorder || isInnerSquare
+   265→      } else {
+   266→        // Seeded pseudo-random pattern
+   267→        const seed = (r * 31 + c * 17 + 42) % 100
+   268→        pattern[r][c] = seed < 40
+   269→      }
+   270→    }
+   271→  }
+   272→
+   273→  return (
+   274→    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+   275→      <rect width={size} height={size} fill="white" rx={4} />
+   276→      {pattern.map((row, r) =>
+   277→        row.map((cell, c) =>
+   278→          cell ? (
+   279→            <rect
+   280→              key={`${r}-${c}`}
+   281→              x={c * cellSize}
+   282→              y={r * cellSize}
+   283→              width={cellSize}
+   284→              height={cellSize}
+   285→              fill="black"
+   286→            />
+   287→          ) : null
+   288→        )
+   289→      )}
+   290→    </svg>
+   291→  )
+   292→}
+   293→
+   294→// --- Main Component ---
+   295→export function LinksPage() {
+   296→  const [links, setLinks] = useState<AffiliateLink[]>(MOCK_LINKS)
+   297→  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+   298→  const [searchQuery, setSearchQuery] = useState('')
+   299→  const [statusFilter, setStatusFilter] = useState<string>('all')
+   300→  const [categoryFilter, setCategoryFilter] = useState<string>('all')
+   301→  const [copiedId, setCopiedId] = useState<string | null>(null)
+   302→
+   303→  // Create Link Dialog
+   304→  const [createOpen, setCreateOpen] = useState(false)
+   305→  const [newLink, setNewLink] = useState({
+   306→    productUrl: '',
+   307→    customName: '',
+   308→    campaign: '',
+   309→    tags: '',
+   310→    expiryDate: '',
+   311→  })
+   312→
+   313→  // QR Code Dialog
+   314→  const [qrOpen, setQrOpen] = useState(false)
+   315→  const [qrLink, setQrLink] = useState<AffiliateLink | null>(null)
+   316→
+   317→  // Detail Dialog
+   318→  const [detailOpen, setDetailOpen] = useState(false)
+   319→  const [detailLink, setDetailLink] = useState<AffiliateLink | null>(null)
+   320→
+   321→  // Stats
+   322→  const stats = useMemo(() => {
+   323→    const total = links.length
+   324→    const active = links.filter((l) => l.status === 'active').length
+   325→    const paused = links.filter((l) => l.status === 'paused').length
+   326→    const expired = links.filter((l) => l.status === 'expired').length
+   327→    return { total, active, paused, expired }
+   328→  }, [links])
+   329→
+   330→  // Filtered links
+   331→  const filteredLinks = useMemo(() => {
+   332→    let result = links
+   333→
+   334→    if (statusFilter !== 'all') {
+   335→      result = result.filter((l) => l.status === statusFilter)
+   336→    }
+   337→
+   338→    if (categoryFilter !== 'all') {
+   339→      result = result.filter((l) => l.category === categoryFilter)
+   340→    }
+   341→
+   342→    if (searchQuery.trim()) {
+   343→      const q = searchQuery.toLowerCase()
+   344→      result = result.filter(
+   345→        (l) =>
+   346→          l.name.toLowerCase().includes(q) ||
+   347→          l.productName.toLowerCase().includes(q) ||
+   348→          l.shortCode.toLowerCase().includes(q) ||
+   349→          l.campaign.toLowerCase().includes(q)
+   350→      )
+   351→    }
+   352→
+   353→    return result
+   354→  }, [links, statusFilter, categoryFilter, searchQuery])
+   355→
+   356→  // Bulk actions
+   357→  const allFilteredSelected =
+   358→    filteredLinks.length > 0 &&
+   359→    filteredLinks.every((l) => selectedIds.has(l.id))
+   360→
+   361→  const handleToggleAll = () => {
+   362→    if (allFilteredSelected) {
+   363→      setSelectedIds(new Set())
+   364→    } else {
+   365→      setSelectedIds(new Set(filteredLinks.map((l) => l.id)))
+   366→    }
+   367→  }
+   368→
+   369→  const handleToggleOne = (id: string) => {
+   370→    setSelectedIds((prev) => {
+   371→      const next = new Set(prev)
+   372→      if (next.has(id)) next.delete(id)
+   373→      else next.add(id)
+   374→      return next
+   375→    })
+   376→  }
+   377→
+   378→  const handleCopyLink = (link: AffiliateLink) => {
+   379→    navigator.clipboard?.writeText(link.fullUrl).catch(() => {})
+   380→    setCopiedId(link.id)
+   381→    setTimeout(() => setCopiedId(null), 2000)
+   382→  }
+   383→
+   384→  const handleTogglePause = (id: string) => {
+   385→    setLinks((prev) =>
+   386→      prev.map((l) =>
+   387→        l.id === id
+   388→          ? { ...l, status: l.status === 'paused' ? 'active' : 'paused' }
+   389→          : l
+   390→      )
+   391→    )
+   392→  }
+   393→
+   394→  const handleDelete = (id: string) => {
+   395→    setLinks((prev) => prev.filter((l) => l.id !== id))
+   396→    setSelectedIds((prev) => {
+   397→      const next = new Set(prev)
+   398→      next.delete(id)
+   399→      return next
+   400→    })
+   401→  }
+   402→
+   403→  const handleBulkPause = () => {
+   404→    setLinks((prev) =>
+   405→      prev.map((l) =>
+   406→        selectedIds.has(l.id) && l.status === 'active'
+   407→          ? { ...l, status: 'paused' }
+   408→          : l
+   409→      )
+   410→    )
+   411→    setSelectedIds(new Set())
+   412→  }
+   413→
+   414→  const handleBulkDelete = () => {
+   415→    setLinks((prev) => prev.filter((l) => !selectedIds.has(l.id)))
+   416→    setSelectedIds(new Set())
+   417→  }
+   418→
+   419→  const handleCreateLink = () => {
+   420→    const newId = String(Date.now())
+   421→    const newAffLink: AffiliateLink = {
+   422→      id: newId,
+   423→      name: newLink.customName || 'Untitled Link',
+   424→      productName: newLink.productUrl || 'Custom Product',
+   425→      shortCode: `shopee.my/${Math.random().toString(36).slice(2, 7)}`,
+   426→      fullUrl: `https://shopee.my/aff/${Math.random().toString(36).slice(2, 7)}?ref=affpro`,
+   427→      clicks: 0,
+   428→      conversions: 0,
+   429→      earnings: 0,
+   430→      ctr: 0,
+   431→      status: 'active',
+   432→      campaign: newLink.campaign || 'Default',
+   433→      tags: newLink.tags
+   434→        .split(',')
+   435→        .map((t) => t.trim())
+   436→        .filter(Boolean),
+   437→      createdAt: new Date().toISOString().split('T')[0],
+   438→      expiresAt: newLink.expiryDate || undefined,
+   439→      category: 'Electronics',
+   440→    }
+   441→    setLinks((prev) => [newAffLink, ...prev])
+   442→    setNewLink({
+   443→      productUrl: '',
+   444→      customName: '',
+   445→      campaign: '',
+   446→      tags: '',
+   447→      expiryDate: '',
+   448→    })
+   449→    setCreateOpen(false)
+   450→  }
+   451→
+   452→  const openQrDialog = (link: AffiliateLink) => {
+   453→    setQrLink(link)
+   454→    setQrOpen(true)
+   455→  }
+   456→
+   457→  const openDetailDialog = (link: AffiliateLink) => {
+   458→    setDetailLink(link)
+   459→    setDetailOpen(true)
+   460→  }
+   461→
+   462→  const categories = useMemo(() => {
+   463→    const cats = new Set(links.map((l) => l.category))
+   464→    return Array.from(cats).sort()
+   465→  }, [links])
+   466→
+   467→  return (
+   468→    <div className="space-y-6">
+   469→      {/* Page Header */}
+   470→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+   471→        <div>
+   472→          <h1 className="text-2xl font-bold tracking-tight">Affiliate Links</h1>
+   473→          <p className="text-muted-foreground text-sm mt-1">
+   474→            Manage and track your affiliate links
+   475→          </p>
+   476→        </div>
+   477→      </div>
+   478→
+   479→      {/* Stats Bar */}
+   480→      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+   481→        {[
+   482→          {
+   483→            label: 'Total Links',
+   484→            value: stats.total,
+   485→            icon: Link2,
+   486→            color: 'text-shopee',
+   487→            bg: 'bg-shopee/10',
+   488→          },
+   489→          {
+   490→            label: 'Active',
+   491→            value: stats.active,
+   492→            icon: TrendingUp,
+   493→            color: 'text-emerald-600 dark:text-emerald-400',
+   494→            bg: 'bg-emerald-100 dark:bg-emerald-900/30',
+   495→          },
+   496→          {
+   497→            label: 'Paused',
+   498→            value: stats.paused,
+   499→            icon: Pause,
+   500→            color: 'text-amber-600 dark:text-amber-400',
+   501→            bg: 'bg-amber-100 dark:bg-amber-900/30',
+   502→          },
+   503→          {
+   504→            label: 'Expired',
+   505→            value: stats.expired,
+   506→            icon: X,
+   507→            color: 'text-red-600 dark:text-red-400',
+   508→            bg: 'bg-red-100 dark:bg-red-900/30',
+   509→          },
+   510→        ].map((stat) => (
+   511→          <motion.div
+   512→            key={stat.label}
+   513→            initial={{ opacity: 0, y: 8 }}
+   514→            animate={{ opacity: 1, y: 0 }}
+   515→            transition={{ duration: 0.3 }}
+   516→          >
+   517→            <Card className="py-4">
+   518→              <CardContent className="flex items-center gap-3 p-4">
+   519→                <div
+   520→                  className={`flex items-center justify-center size-10 rounded-lg ${stat.bg}`}
+   521→                >
+   522→                  <stat.icon className={`size-5 ${stat.color}`} />
+   523→                </div>
+   524→                <div>
+   525→                  <p className="text-2xl font-bold">{stat.value}</p>
+   526→                  <p className="text-xs text-muted-foreground">{stat.label}</p>
+   527→                </div>
+   528→              </CardContent>
+   529→            </Card>
+   530→          </motion.div>
+   531→        ))}
+   532→      </div>
+   533→
+   534→      {/* Action Bar */}
+   535→      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+   536→        {/* Create New Link */}
+   537→        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+   538→          <DialogTrigger asChild>
+   539→            <Button className="bg-shopee hover:bg-shopee-dark text-white">
+   540→              <Plus className="size-4" />
+   541→              Create New Link
+   542→            </Button>
+   543→          </DialogTrigger>
+   544→          <DialogContent className="sm:max-w-[500px]">
+   545→            <DialogHeader>
+   546→              <DialogTitle>Create Affiliate Link</DialogTitle>
+   547→              <DialogDescription>
+   548→                Generate a new affiliate link for a product
+   549→              </DialogDescription>
+   550→            </DialogHeader>
+   551→            <div className="grid gap-4 py-4">
+   552→              <div className="grid gap-2">
+   553→                <Label htmlFor="product-url">Product URL</Label>
+   554→                <Input
+   555→                  id="product-url"
+   556→                  placeholder="https://shopee.com.my/product/..."
+   557→                  value={newLink.productUrl}
+   558→                  onChange={(e) =>
+   559→                    setNewLink((prev) => ({
+   560→                      ...prev,
+   561→                      productUrl: e.target.value,
+   562→                    }))
+   563→                  }
+   564→                />
+   565→              </div>
+   566→              <div className="grid gap-2">
+   567→                <Label htmlFor="custom-name">Custom Name</Label>
+   568→                <Input
+   569→                  id="custom-name"
+   570→                  placeholder="e.g., Xiaomi CNY Promo"
+   571→                  value={newLink.customName}
+   572→                  onChange={(e) =>
+   573→                    setNewLink((prev) => ({
+   574→                      ...prev,
+   575→                      customName: e.target.value,
+   576→                    }))
+   577→                  }
+   578→                />
+   579→              </div>
+   580→              <div className="grid gap-2">
+   581→                <Label htmlFor="campaign">Campaign</Label>
+   582→                <Select
+   583→                  value={newLink.campaign}
+   584→                  onValueChange={(val) =>
+   585→                    setNewLink((prev) => ({ ...prev, campaign: val }))
+   586→                  }
+   587→                >
+   588→                  <SelectTrigger id="campaign" className="w-full">
+   589→                    <SelectValue placeholder="Select campaign" />
+   590→                  </SelectTrigger>
+   591→                  <SelectContent>
+   592→                    <SelectItem value="Chinese New Year">
+   593→                      Chinese New Year
+   594→                    </SelectItem>
+   595→                    <SelectItem value="Valentine Beauty">
+   596→                      Valentine Beauty
+   597→                    </SelectItem>
+   598→                    <SelectItem value="11.11 Sale">11.11 Sale</SelectItem>
+   599→                    <SelectItem value="12.12 Sale">12.12 Sale</SelectItem>
+   600→                    <SelectItem value="Home Makeover">Home Makeover</SelectItem>
+   601→                    <SelectItem value="Sports Week">Sports Week</SelectItem>
+   602→                    <SelectItem value="Default">Default</SelectItem>
+   603→                  </SelectContent>
+   604→                </Select>
+   605→              </div>
+   606→              <div className="grid gap-2">
+   607→                <Label htmlFor="tags">Tags (comma-separated)</Label>
+   608→                <Input
+   609→                  id="tags"
+   610→                  placeholder="electronics, promo, xiaomi"
+   611→                  value={newLink.tags}
+   612→                  onChange={(e) =>
+   613→                    setNewLink((prev) => ({ ...prev, tags: e.target.value }))
+   614→                  }
+   615→                />
+   616→              </div>
+   617→              <div className="grid gap-2">
+   618→                <Label htmlFor="expiry">Expiry Date</Label>
+   619→                <Input
+   620→                  id="expiry"
+   621→                  type="date"
+   622→                  value={newLink.expiryDate}
+   623→                  onChange={(e) =>
+   624→                    setNewLink((prev) => ({
+   625→                      ...prev,
+   626→                      expiryDate: e.target.value,
+   627→                    }))
+   628→                  }
+   629→                />
+   630→              </div>
+   631→            </div>
+   632→            <DialogFooter>
+   633→              <Button
+   634→                variant="outline"
+   635→                onClick={() => setCreateOpen(false)}
+   636→              >
+   637→                Cancel
+   638→              </Button>
+   639→              <Button
+   640→                className="bg-shopee hover:bg-shopee-dark text-white"
+   641→                onClick={handleCreateLink}
+   642→                disabled={!newLink.productUrl && !newLink.customName}
+   643→              >
+   644→                Create Link
+   645→              </Button>
+   646→            </DialogFooter>
+   647→          </DialogContent>
+   648→        </Dialog>
+   649→
+   650→        {/* Bulk Actions */}
+   651→        {selectedIds.size > 0 && (
+   652→          <motion.div
+   653→            initial={{ opacity: 0, scale: 0.95 }}
+   654→            animate={{ opacity: 1, scale: 1 }}
+   655→            className="flex items-center gap-2"
+   656→          >
+   657→            <Badge variant="secondary" className="gap-1">
+   658→              {selectedIds.size} selected
+   659→            </Badge>
+   660→            <Button variant="outline" size="sm" onClick={handleBulkPause}>
+   661→              <Pause className="size-3.5" />
+   662→              Pause
+   663→            </Button>
+   664→            <Button
+   665→              variant="outline"
+   666→              size="sm"
+   667→              className="text-destructive hover:text-destructive"
+   668→              onClick={handleBulkDelete}
+   669→            >
+   670→              <Trash2 className="size-3.5" />
+   671→              Delete
+   672→            </Button>
+   673→          </motion.div>
+   674→        )}
+   675→
+   676→        <div className="flex-1" />
+   677→
+   678→        {/* Search */}
+   679→        <div className="relative w-full sm:w-auto">
+   680→          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+   681→          <Input
+   682→            placeholder="Search links..."
+   683→            className="pl-10 h-9 w-full sm:w-[200px] lg:w-[260px]"
+   684→            value={searchQuery}
+   685→            onChange={(e) => setSearchQuery(e.target.value)}
+   686→          />
+   687→        </div>
+   688→
+   689→        {/* Status filter */}
+   690→        <Select value={statusFilter} onValueChange={setStatusFilter}>
+   691→          <SelectTrigger className="w-full sm:w-[130px] h-9">
+   692→            <SelectValue placeholder="Status" />
+   693→          </SelectTrigger>
+   694→          <SelectContent>
+   695→            <SelectItem value="all">All Status</SelectItem>
+   696→            <SelectItem value="active">Active</SelectItem>
+   697→            <SelectItem value="paused">Paused</SelectItem>
+   698→            <SelectItem value="expired">Expired</SelectItem>
+   699→          </SelectContent>
+   700→        </Select>
+   701→
+   702→        {/* Category filter */}
+   703→        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+   704→          <SelectTrigger className="w-full sm:w-[150px] h-9">
+   705→            <SelectValue placeholder="Category" />
+   706→          </SelectTrigger>
+   707→          <SelectContent>
+   708→            <SelectItem value="all">All Categories</SelectItem>
+   709→            {categories.map((cat) => (
+   710→              <SelectItem key={cat} value={cat}>
+   711→                {cat}
+   712→              </SelectItem>
+   713→            ))}
+   714→          </SelectContent>
+   715→        </Select>
+   716→      </div>
+   717→
+   718→      {/* Links Table */}
+   719→      <motion.div
+   720→        initial={{ opacity: 0, y: 8 }}
+   721→        animate={{ opacity: 1, y: 0 }}
+   722→        transition={{ duration: 0.4, delay: 0.1 }}
+   723→      >
+   724→        <Card>
+   725→          <CardContent className="p-0">
+   726→            <div className="overflow-x-auto">
+   727→              <Table>
+   728→                <TableHeader>
+   729→                  <TableRow>
+   730→                    <TableHead className="w-[40px] pl-4">
+   731→                      <Checkbox
+   732→                        checked={allFilteredSelected}
+   733→                        onCheckedChange={handleToggleAll}
+   734→                      />
+   735→                    </TableHead>
+   736→                    <TableHead>Name</TableHead>
+   737→                    <TableHead>Short Code</TableHead>
+   738→                    <TableHead className="text-right">Clicks</TableHead>
+   739→                    <TableHead className="text-right">Conversions</TableHead>
+   740→                    <TableHead className="text-right">Earnings</TableHead>
+   741→                    <TableHead className="text-right">CTR</TableHead>
+   742→                    <TableHead>Status</TableHead>
+   743→                    <TableHead className="w-[50px] pr-4" />
+   744→                  </TableRow>
+   745→                </TableHeader>
+   746→                <TableBody>
+   747→                  <AnimatePresence>
+   748→                    {filteredLinks.length === 0 ? (
+   749→                      <TableRow>
+   750→                        <TableCell
+   751→                          colSpan={9}
+   752→                          className="text-center py-12 text-muted-foreground"
+   753→                        >
+   754→                          No links found matching your filters
+   755→                        </TableCell>
+   756→                      </TableRow>
+   757→                    ) : (
+   758→                      filteredLinks.map((link) => (
+   759→                        <motion.tr
+   760→                          key={link.id}
+   761→                          initial={{ opacity: 0 }}
+   762→                          animate={{ opacity: 1 }}
+   763→                          exit={{ opacity: 0 }}
+   764→                          className="hover:bg-muted/50 border-b transition-colors"
+   765→                          data-state={
+   766→                            selectedIds.has(link.id) ? 'selected' : undefined
+   767→                          }
+   768→                        >
+   769→                          <TableCell className="pl-4">
+   770→                            <Checkbox
+   771→                              checked={selectedIds.has(link.id)}
+   772→                              onCheckedChange={() => handleToggleOne(link.id)}
+   773→                            />
+   774→                          </TableCell>
+   775→                          <TableCell>
+   776→                            <button
+   777→                              className="text-left hover:underline cursor-pointer"
+   778→                              onClick={() => openDetailDialog(link)}
+   779→                            >
+   780→                              <div className="font-medium text-sm">
+   781→                                {link.name}
+   782→                              </div>
+   783→                              <div className="text-xs text-muted-foreground line-clamp-1 max-w-[200px]">
+   784→                                {link.productName}
+   785→                              </div>
+   786→                            </button>
+   787→                          </TableCell>
+   788→                          <TableCell>
+   789→                            <div className="flex items-center gap-1.5">
+   790→                              <code className="text-xs bg-muted px-1.5 py-0.5 rounded">
+   791→                                {link.shortCode}
+   792→                              </code>
+   793→                              <button
+   794→                                onClick={() => handleCopyLink(link)}
+   795→                                className="p-1 hover:bg-muted rounded transition-colors"
+   796→                                title="Copy link"
+   797→                              >
+   798→                                {copiedId === link.id ? (
+   799→                                  <Check className="size-3 text-emerald-500" />
+   800→                                ) : (
+   801→                                  <Copy className="size-3 text-muted-foreground" />
+   802→                                )}
+   803→                              </button>
+   804→                            </div>
+   805→                          </TableCell>
+   806→                          <TableCell className="text-right tabular-nums">
+   807→                            {link.clicks.toLocaleString()}
+   808→                          </TableCell>
+   809→                          <TableCell className="text-right tabular-nums">
+   810→                            {link.conversions.toLocaleString()}
+   811→                          </TableCell>
+   812→                          <TableCell className="text-right tabular-nums font-medium">
+   813→                            <span className="text-shopee">
+   814→                              RM{link.earnings.toFixed(2)}
+   815→                            </span>
+   816→                          </TableCell>
+   817→                          <TableCell className="text-right tabular-nums">
+   818→                            {link.ctr.toFixed(2)}%
+   819→                          </TableCell>
+   820→                          <TableCell>
+   821→                            <Badge
+   822→                              className={`text-[10px] px-1.5 py-0.5 ${
+   823→                                STATUS_STYLES[link.status].className
+   824→                              }`}
+   825→                            >
+   826→                              {STATUS_STYLES[link.status].label}
+   827→                            </Badge>
+   828→                          </TableCell>
+   829→                          <TableCell className="pr-4">
+   830→                            <DropdownMenu>
+   831→                              <DropdownMenuTrigger asChild>
+   832→                                <Button variant="ghost" size="icon" className="size-8">
+   833→                                  <MoreHorizontal className="size-4" />
+   834→                                </Button>
+   835→                              </DropdownMenuTrigger>
+   836→                              <DropdownMenuContent align="end">
+   837→                                <DropdownMenuItem
+   838→                                  onClick={() => openDetailDialog(link)}
+   839→                                >
+   840→                                  <BarChart3 className="size-4" />
+   841→                                  View Details
+   842→                                </DropdownMenuItem>
+   843→                                <DropdownMenuItem
+   844→                                  onClick={() =>
+   845→                                    setLinks((prev) =>
+   846→                                      prev.map((l) =>
+   847→                                        l.id === link.id
+   848→                                          ? { ...l, name: l.name + ' (edited)' }
+   849→                                          : l
+   850→                                      )
+   851→                                    )
+   852→                                  }
+   853→                                >
+   854→                                  <Pencil className="size-4" />
+   855→                                  Edit
+   856→                                </DropdownMenuItem>
+   857→                                <DropdownMenuItem
+   858→                                  onClick={() =>
+   859→                                    handleTogglePause(link.id)
+   860→                                  }
+   861→                                  disabled={link.status === 'expired'}
+   862→                                >
+   863→                                  {link.status === 'paused' ? (
+   864→                                    <>
+   865→                                      <Play className="size-4" />
+   866→                                      Resume
+   867→                                    </>
+   868→                                  ) : (
+   869→                                    <>
+   870→                                      <Pause className="size-4" />
+   871→                                      Pause
+   872→                                    </>
+   873→                                  )}
+   874→                                </DropdownMenuItem>
+   875→                                <DropdownMenuItem
+   876→                                  onClick={() => openQrDialog(link)}
+   877→                                >
+   878→                                  <QrCode className="size-4" />
+   879→                                  QR Code
+   880→                                </DropdownMenuItem>
+   881→                                <DropdownMenuItem
+   882→                                  onClick={() => handleCopyLink(link)}
+   883→                                >
+   884→                                  <Copy className="size-4" />
+   885→                                  Copy Link
+   886→                                </DropdownMenuItem>
+   887→                                <DropdownMenuSeparator />
+   888→                                <DropdownMenuItem
+   889→                                  variant="destructive"
+   890→                                  onClick={() => handleDelete(link.id)}
+   891→                                >
+   892→                                  <Trash2 className="size-4" />
+   893→                                  Delete
+   894→                                </DropdownMenuItem>
+   895→                              </DropdownMenuContent>
+   896→                            </DropdownMenu>
+   897→                          </TableCell>
+   898→                        </motion.tr>
+   899→                      ))
+   900→                    )}
+   901→                  </AnimatePresence>
+   902→                </TableBody>
+   903→              </Table>
+   904→            </div>
+   905→          </CardContent>
+   906→        </Card>
+   907→      </motion.div>
+   908→
+   909→      {/* QR Code Dialog */}
+   910→      <Dialog open={qrOpen} onOpenChange={setQrOpen}>
+   911→        <DialogContent className="sm:max-w-[400px]">
+   912→          <DialogHeader>
+   913→            <DialogTitle>QR Code</DialogTitle>
+   914→            <DialogDescription>
+   915→              {qrLink?.name || 'Scan to open affiliate link'}
+   916→            </DialogDescription>
+   917→          </DialogHeader>
+   918→          {qrLink && (
+   919→            <div className="flex flex-col items-center gap-4 py-4">
+   920→              <div className="border rounded-lg p-4 bg-white">
+   921→                <QRCodePlaceholder size={200} />
+   922→              </div>
+   923→              <div className="text-center w-full">
+   924→                <p className="text-sm font-medium">{qrLink.productName}</p>
+   925→                <code className="text-xs text-muted-foreground break-all">
+   926→                  {qrLink.fullUrl}
+   927→                </code>
+   928→              </div>
+   929→              <Button
+   930→                variant="outline"
+   931→                className="w-full"
+   932→                onClick={() => {
+   933→                  // In a real app, download the QR code as image
+   934→                  const svgEl = document.querySelector(
+   935→                    '#qr-dialog svg'
+   936→                  ) as SVGElement | null
+   937→                  if (svgEl) {
+   938→                    const svgData = new XMLSerializer().serializeToString(svgEl)
+   939→                    const blob = new Blob([svgData], {
+   940→                      type: 'image/svg+xml',
+   941→                    })
+   942→                    const url = URL.createObjectURL(blob)
+   943→                    const a = document.createElement('a')
+   944→                    a.href = url
+   945→                    a.download = `qr-${qrLink.shortCode}.svg`
+   946→                    a.click()
+   947→                    URL.revokeObjectURL(url)
+   948→                  }
+   949→                }}
+   950→              >
+   951→                <Download className="size-4" />
+   952→                Download QR Code
+   953→              </Button>
+   954→            </div>
+   955→          )}
+   956→        </DialogContent>
+   957→      </Dialog>
+   958→
+   959→      {/* Link Detail Dialog */}
+   960→      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+   961→        <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
+   962→          <DialogHeader>
+   963→            <DialogTitle className="flex items-center gap-2">
+   964→              {detailLink?.name}
+   965→              {detailLink && (
+   966→                <Badge
+   967→                  className={`text-[10px] ${
+   968→                    STATUS_STYLES[detailLink.status].className
+   969→                  }`}
+   970→                >
+   971→                  {STATUS_STYLES[detailLink.status].label}
+   972→                </Badge>
+   973→              )}
+   974→            </DialogTitle>
+   975→            <DialogDescription>{detailLink?.productName}</DialogDescription>
+   976→          </DialogHeader>
+   977→          {detailLink && (
+   978→            <div className="space-y-6">
+   979→              {/* Stats Grid */}
+   980→              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+   981→                {[
+   982→                  {
+   983→                    icon: MousePointerClick,
+   984→                    label: 'Clicks',
+   985→                    value: detailLink.clicks.toLocaleString(),
+   986→                    color: 'text-shopee',
+   987→                    bg: 'bg-shopee/10',
+   988→                  },
+   989→                  {
+   990→                    icon: Target,
+   991→                    label: 'Conversions',
+   992→                    value: detailLink.conversions.toLocaleString(),
+   993→                    color: 'text-hermes',
+   994→                    bg: 'bg-hermes/10',
+   995→                  },
+   996→                  {
+   997→                    icon: DollarSign,
+   998→                    label: 'Earnings',
+   999→                    value: `RM${detailLink.earnings.toFixed(2)}`,
+  1000→                    color: 'text-emerald-600 dark:text-emerald-400',
+  1001→                    bg: 'bg-emerald-100 dark:bg-emerald-900/30',
+  1002→                  },
+  1003→                  {
+  1004→                    icon: TrendingUp,
+  1005→                    label: 'CTR',
+  1006→                    value: `${detailLink.ctr.toFixed(2)}%`,
+  1007→                    color: 'text-amber-600 dark:text-amber-400',
+  1008→                    bg: 'bg-amber-100 dark:bg-amber-900/30',
+  1009→                  },
+  1010→                ].map((stat) => (
+  1011→                  <div
+  1012→                    key={stat.label}
+  1013→                    className="flex flex-col items-center gap-1 p-3 rounded-lg bg-muted/50"
+  1014→                  >
+  1015→                    <div
+  1016→                      className={`flex items-center justify-center size-8 rounded-md ${stat.bg}`}
+  1017→                    >
+  1018→                      <stat.icon className={`size-4 ${stat.color}`} />
+  1019→                    </div>
+  1020→                    <span className="text-lg font-bold">{stat.value}</span>
+  1021→                    <span className="text-[10px] text-muted-foreground">
+  1022→                      {stat.label}
+  1023→                    </span>
+  1024→                  </div>
+  1025→                ))}
+  1026→              </div>
+  1027→
+  1028→              <Separator />
+  1029→
+  1030→              {/* Link Info */}
+  1031→              <div className="space-y-3">
+  1032→                <h4 className="text-sm font-semibold">Link Information</h4>
+  1033→                <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+  1034→                  <span className="text-muted-foreground">Short Code:</span>
+  1035→                  <code className="bg-muted px-1.5 py-0.5 rounded text-xs w-fit">
+  1036→                    {detailLink.shortCode}
+  1037→                  </code>
+  1038→                  <span className="text-muted-foreground">Full URL:</span>
+  1039→                  <span className="text-xs break-all">
+  1040→                    {detailLink.fullUrl}
+  1041→                  </span>
+  1042→                  <span className="text-muted-foreground">Campaign:</span>
+  1043→                  <span>{detailLink.campaign}</span>
+  1044→                  <span className="text-muted-foreground">Category:</span>
+  1045→                  <span>{detailLink.category}</span>
+  1046→                  <span className="text-muted-foreground">Created:</span>
+  1047→                  <span>{detailLink.createdAt}</span>
+  1048→                  {detailLink.expiresAt && (
+  1049→                    <>
+  1050→                      <span className="text-muted-foreground">Expires:</span>
+  1051→                      <span>{detailLink.expiresAt}</span>
+  1052→                    </>
+  1053→                  )}
+  1054→                </div>
+  1055→              </div>
+  1056→
+  1057→              {/* Tags */}
+  1058→              {detailLink.tags.length > 0 && (
+  1059→                <div className="space-y-2">
+  1060→                  <h4 className="text-sm font-semibold flex items-center gap-1.5">
+  1061→                    <Tag className="size-3.5" />
+  1062→                    Tags
+  1063→                  </h4>
+  1064→                  <div className="flex flex-wrap gap-1.5">
+  1065→                    {detailLink.tags.map((tag) => (
+  1066→                      <Badge
+  1067→                        key={tag}
+  1068→                        variant="secondary"
+  1069→                        className="text-[10px]"
+  1070→                      >
+  1071→                        {tag}
+  1072→                      </Badge>
+  1073→                    ))}
+  1074→                  </div>
+  1075→                </div>
+  1076→              )}
+  1077→
+  1078→              <Separator />
+  1079→
+  1080→              {/* Click History (Mock) */}
+  1081→              <div className="space-y-3">
+  1082→                <h4 className="text-sm font-semibold flex items-center gap-1.5">
+  1083→                  <MousePointerClick className="size-3.5" />
+  1084→                  Recent Clicks
+  1085→                </h4>
+  1086→                <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
+  1087→                  {[
+  1088→                    {
+  1089→                      time: '2 min ago',
+  1090→                      source: 'Instagram Story',
+  1091→                      device: 'Mobile',
+  1092→                    },
+  1093→                    {
+  1094→                      time: '15 min ago',
+  1095→                      source: 'TikTok Bio',
+  1096→                      device: 'Mobile',
+  1097→                    },
+  1098→                    {
+  1099→                      time: '1 hr ago',
+  1100→                      source: 'Blog Post',
+  1101→                      device: 'Desktop',
+  1102→                    },
+  1103→                    {
+  1104→                      time: '3 hrs ago',
+  1105→                      source: 'WhatsApp Share',
+  1106→                      device: 'Mobile',
+  1107→                    },
+  1108→                    {
+  1109→                      time: '5 hrs ago',
+  1110→                      source: 'Facebook Post',
+  1111→                      device: 'Mobile',
+  1112→                    },
+  1113→                  ].map((click, i) => (
+  1114→                    <div
+  1115→                      key={i}
+  1116→                      className="flex items-center justify-between text-xs py-1.5 px-2 rounded bg-muted/50"
+  1117→                    >
+  1118→                      <div className="flex items-center gap-2">
+  1119→                        <ExternalLink className="size-3 text-muted-foreground" />
+  1120→                        <span className="font-medium">{click.source}</span>
+  1121→                      </div>
+  1122→                      <div className="flex items-center gap-3 text-muted-foreground">
+  1123→                        <span>{click.device}</span>
+  1124→                        <span>{click.time}</span>
+  1125→                      </div>
+  1126→                    </div>
+  1127→                  ))}
+  1128→                </div>
+  1129→              </div>
+  1130→
+  1131→              {/* Conversion History (Mock) */}
+  1132→              <div className="space-y-3">
+  1133→                <h4 className="text-sm font-semibold flex items-center gap-1.5">
+  1134→                  <Target className="size-3.5" />
+  1135→                  Recent Conversions
+  1136→                </h4>
+  1137→                <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
+  1138→                  {detailLink.conversions > 0 ? (
+  1139→                    [
+  1140→                      {
+  1141→                        time: '30 min ago',
+  1142→                        amount: `RM${(detailLink.earnings / detailLink.conversions).toFixed(2)}`,
+  1143→                        product: detailLink.productName,
+  1144→                      },
+  1145→                      {
+  1146→                        time: '2 hrs ago',
+  1147→                        amount: `RM${(detailLink.earnings / detailLink.conversions * 1.2).toFixed(2)}`,
+  1148→                        product: detailLink.productName,
+  1149→                      },
+  1150→                      {
+  1151→                        time: 'Yesterday',
+  1152→                        amount: `RM${(detailLink.earnings / detailLink.conversions * 0.8).toFixed(2)}`,
+  1153→                        product: detailLink.productName,
+  1154→                      },
+  1155→                    ].map((conv, i) => (
+  1156→                      <div
+  1157→                        key={i}
+  1158→                        className="flex items-center justify-between text-xs py-1.5 px-2 rounded bg-muted/50"
+  1159→                      >
+  1160→                        <div className="flex items-center gap-2">
+  1161→                          <DollarSign className="size-3 text-emerald-500" />
+  1162→                          <span className="font-medium text-shopee">
+  1163→                            {conv.amount}
+  1164→                          </span>
+  1165→                        </div>
+  1166→                        <span className="text-muted-foreground">
+  1167→                          {conv.time}
+  1168→                        </span>
+  1169→                      </div>
+  1170→                    ))
+  1171→                  ) : (
+  1172→                    <p className="text-xs text-muted-foreground py-2 text-center">
+  1173→                      No conversions yet
+  1174→                    </p>
+  1175→                  )}
+  1176→                </div>
+  1177→              </div>
+  1178→
+  1179→              {/* Actions */}
+  1180→              <div className="flex gap-2 pt-2">
+  1181→                <Button
+  1182→                  variant="outline"
+  1183→                  size="sm"
+  1184→                  onClick={() => handleCopyLink(detailLink)}
+  1185→                  className="flex-1"
+  1186→                >
+  1187→                  <Copy className="size-3.5" />
+  1188→                  Copy Link
+  1189→                </Button>
+  1190→                <Button
+  1191→                  variant="outline"
+  1192→                  size="sm"
+  1193→                  onClick={() => openQrDialog(detailLink)}
+  1194→                  className="flex-1"
+  1195→                >
+  1196→                  <QrCode className="size-3.5" />
+  1197→                  QR Code
+  1198→                </Button>
+  1199→                {detailLink.status !== 'expired' && (
+  1200→                  <Button
+  1201→                    variant="outline"
+  1202→                    size="sm"
+  1203→                    onClick={() => {
+  1204→                      handleTogglePause(detailLink.id)
+  1205→                      setDetailLink((prev) =>
+  1206→                        prev
+  1207→                          ? {
+  1208→                              ...prev,
+  1209→                              status:
+  1210→                                prev.status === 'paused' ? 'active' : 'paused',
+  1211→                            }
+  1212→                          : null
+  1213→                      )
+  1214→                    }}
+  1215→                    className="flex-1"
+  1216→                  >
+  1217→                    {detailLink.status === 'paused' ? (
+  1218→                      <>
+  1219→                        <Play className="size-3.5" />
+  1220→                        Resume
+  1221→                      </>
+  1222→                    ) : (
+  1223→                      <>
+  1224→                        <Pause className="size-3.5" />
+  1225→                        Pause
+  1226→                      </>
+  1227→                    )}
+  1228→                  </Button>
+  1229→                )}
+  1230→              </div>
+  1231→            </div>
+  1232→          )}
+  1233→        </DialogContent>
+  1234→      </Dialog>
+  1235→    </div>
+  1236→  )
+  1237→}
+  1238→

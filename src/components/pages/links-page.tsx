@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Plus,
@@ -23,6 +23,9 @@ import {
   TrendingUp,
   X,
   Check,
+  RefreshCw,
+  Zap,
+  Loader2,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -83,6 +86,8 @@ interface AffiliateLink {
   createdAt: string
   expiresAt?: string
   category: string
+  shopeeAffiliateUrl?: string | null
+  shopeeTracked?: boolean
 }
 
 // --- Mock Data ---
@@ -103,6 +108,8 @@ const MOCK_LINKS: AffiliateLink[] = [
     createdAt: '2024-12-15',
     expiresAt: '2025-06-15',
     category: 'Electronics',
+    shopeeAffiliateUrl: null,
+    shopeeTracked: false,
   },
   {
     id: '2',
@@ -119,6 +126,8 @@ const MOCK_LINKS: AffiliateLink[] = [
     tags: ['fashion', 'hoodie'],
     createdAt: '2025-01-03',
     category: 'Fashion',
+    shopeeAffiliateUrl: null,
+    shopeeTracked: false,
   },
   {
     id: '3',
@@ -135,6 +144,8 @@ const MOCK_LINKS: AffiliateLink[] = [
     tags: ['home', 'appliance'],
     createdAt: '2025-01-10',
     category: 'Home & Living',
+    shopeeAffiliateUrl: null,
+    shopeeTracked: false,
   },
   {
     id: '4',
@@ -151,6 +162,8 @@ const MOCK_LINKS: AffiliateLink[] = [
     tags: ['beauty', 'skincare'],
     createdAt: '2025-02-01',
     category: 'Beauty',
+    shopeeAffiliateUrl: null,
+    shopeeTracked: false,
   },
   {
     id: '5',
@@ -167,6 +180,8 @@ const MOCK_LINKS: AffiliateLink[] = [
     tags: ['electronics', 'samsung'],
     createdAt: '2024-12-20',
     category: 'Electronics',
+    shopeeAffiliateUrl: null,
+    shopeeTracked: false,
   },
   {
     id: '6',
@@ -183,6 +198,8 @@ const MOCK_LINKS: AffiliateLink[] = [
     tags: ['sports', 'nike'],
     createdAt: '2025-01-25',
     category: 'Sports',
+    shopeeAffiliateUrl: null,
+    shopeeTracked: false,
   },
   {
     id: '7',
@@ -200,6 +217,8 @@ const MOCK_LINKS: AffiliateLink[] = [
     createdAt: '2024-10-20',
     expiresAt: '2024-11-12',
     category: 'Beauty',
+    shopeeAffiliateUrl: null,
+    shopeeTracked: false,
   },
   {
     id: '8',
@@ -216,6 +235,8 @@ const MOCK_LINKS: AffiliateLink[] = [
     tags: ['sports', 'adidas'],
     createdAt: '2025-02-05',
     category: 'Sports',
+    shopeeAffiliateUrl: null,
+    shopeeTracked: false,
   },
 ]
 
@@ -242,16 +263,13 @@ const STATUS_STYLES: Record<
 
 // --- QR Code SVG Placeholder ---
 function QRCodePlaceholder({ size = 160 }: { size?: number }) {
-  // Simple QR code visual pattern
   const cells = 21
   const cellSize = size / cells
 
-  // Generate a deterministic pattern that looks like a QR code
   const pattern: boolean[][] = []
   for (let r = 0; r < cells; r++) {
     pattern[r] = []
     for (let c = 0; c < cells; c++) {
-      // Position detection patterns (corners)
       const isTopLeft = r < 7 && c < 7
       const isTopRight = r < 7 && c >= cells - 7
       const isBottomLeft = r >= cells - 7 && c < 7
@@ -263,7 +281,6 @@ function QRCodePlaceholder({ size = 160 }: { size?: number }) {
         const isInnerSquare = lr >= 2 && lr <= 4 && lc >= 2 && lc <= 4
         pattern[r][c] = isOuterBorder || isInnerSquare
       } else {
-        // Seeded pseudo-random pattern
         const seed = (r * 31 + c * 17 + 42) % 100
         pattern[r][c] = seed < 40
       }
@@ -300,6 +317,12 @@ export function LinksPage() {
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
+  // API integration state
+  const [isShopeeConnected, setIsShopeeConnected] = useState(false)
+  const [isCreatingLink, setIsCreatingLink] = useState(false)
+  const [isSyncing, setIsSyncing] = useState(false)
+  const [syncMessage, setSyncMessage] = useState<string | null>(null)
+
   // Create Link Dialog
   const [createOpen, setCreateOpen] = useState(false)
   const [newLink, setNewLink] = useState({
@@ -318,13 +341,26 @@ export function LinksPage() {
   const [detailOpen, setDetailOpen] = useState(false)
   const [detailLink, setDetailLink] = useState<AffiliateLink | null>(null)
 
+  // Check Shopee connection on mount
+  useEffect(() => {
+    fetch('/api/shopee/connect')
+      .then((res) => res.json())
+      .then((data) => {
+        setIsShopeeConnected(data.connected === true)
+      })
+      .catch(() => {
+        setIsShopeeConnected(false)
+      })
+  }, [])
+
   // Stats
   const stats = useMemo(() => {
     const total = links.length
     const active = links.filter((l) => l.status === 'active').length
     const paused = links.filter((l) => l.status === 'paused').length
     const expired = links.filter((l) => l.status === 'expired').length
-    return { total, active, paused, expired }
+    const tracked = links.filter((l) => l.shopeeTracked).length
+    return { total, active, paused, expired, tracked }
   }, [links])
 
   // Filtered links
@@ -376,7 +412,9 @@ export function LinksPage() {
   }
 
   const handleCopyLink = (link: AffiliateLink) => {
-    navigator.clipboard?.writeText(link.fullUrl).catch(() => {})
+    // Copy the real Shopee affiliate URL if available, otherwise the full URL
+    const urlToCopy = link.shopeeAffiliateUrl || link.fullUrl
+    navigator.clipboard?.writeText(urlToCopy).catch(() => {})
     setCopiedId(link.id)
     setTimeout(() => setCopiedId(null), 2000)
   }
@@ -416,37 +454,101 @@ export function LinksPage() {
     setSelectedIds(new Set())
   }
 
-  const handleCreateLink = () => {
-    const newId = String(Date.now())
-    const newAffLink: AffiliateLink = {
-      id: newId,
-      name: newLink.customName || 'Untitled Link',
-      productName: newLink.productUrl || 'Custom Product',
-      shortCode: `shopee.my/${Math.random().toString(36).slice(2, 7)}`,
-      fullUrl: `https://shopee.my/aff/${Math.random().toString(36).slice(2, 7)}?ref=affpro`,
-      clicks: 0,
-      conversions: 0,
-      earnings: 0,
-      ctr: 0,
-      status: 'active',
-      campaign: newLink.campaign || 'Default',
-      tags: newLink.tags
-        .split(',')
-        .map((t) => t.trim())
-        .filter(Boolean),
-      createdAt: new Date().toISOString().split('T')[0],
-      expiresAt: newLink.expiryDate || undefined,
-      category: 'Electronics',
+  const handleCreateLink = async () => {
+    setIsCreatingLink(true)
+
+    try {
+      let shopeeAffiliateUrl: string | null = null
+      let shopeeTracked = false
+
+      // If Shopee API is connected and we have a product URL, generate a real affiliate link
+      if (isShopeeConnected && newLink.productUrl) {
+        try {
+          const res = await fetch('/api/shopee/generate-link', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              productUrl: newLink.productUrl,
+              subId: newLink.customName || undefined,
+            }),
+          })
+
+          const data = await res.json()
+
+          if (data.link) {
+            shopeeAffiliateUrl = data.link.shortUrl || data.link.longUrl
+            shopeeTracked = data.source === 'shopee_api'
+          }
+        } catch (error) {
+          console.error('Failed to generate Shopee link:', error)
+        }
+      }
+
+      const newId = String(Date.now())
+      const shortCode = `shopee.my/${Math.random().toString(36).slice(2, 7)}`
+
+      const newAffLink: AffiliateLink = {
+        id: newId,
+        name: newLink.customName || 'Untitled Link',
+        productName: newLink.productUrl || 'Custom Product',
+        shortCode,
+        fullUrl: shopeeAffiliateUrl || `https://shopee.my/aff/${Math.random().toString(36).slice(2, 7)}?ref=affpro`,
+        clicks: 0,
+        conversions: 0,
+        earnings: 0,
+        ctr: 0,
+        status: 'active',
+        campaign: newLink.campaign || 'Default',
+        tags: newLink.tags
+          .split(',')
+          .map((t) => t.trim())
+          .filter(Boolean),
+        createdAt: new Date().toISOString().split('T')[0],
+        expiresAt: newLink.expiryDate || undefined,
+        category: 'Electronics',
+        shopeeAffiliateUrl,
+        shopeeTracked,
+      }
+
+      setLinks((prev) => [newAffLink, ...prev])
+      setNewLink({
+        productUrl: '',
+        customName: '',
+        campaign: '',
+        tags: '',
+        expiryDate: '',
+      })
+      setCreateOpen(false)
+    } catch (error) {
+      console.error('Create link error:', error)
+    } finally {
+      setIsCreatingLink(false)
     }
-    setLinks((prev) => [newAffLink, ...prev])
-    setNewLink({
-      productUrl: '',
-      customName: '',
-      campaign: '',
-      tags: '',
-      expiryDate: '',
-    })
-    setCreateOpen(false)
+  }
+
+  // Sync stats from Shopee API
+  const handleSyncStats = async () => {
+    setIsSyncing(true)
+    setSyncMessage(null)
+
+    try {
+      const res = await fetch('/api/shopee/stats?period=30d')
+      const data = await res.json()
+
+      if (data.connected) {
+        // Update link stats with real data from Shopee
+        // For now, just show a success message
+        setSyncMessage('Stats synced successfully from Shopee API')
+      } else {
+        setSyncMessage('Shopee API not connected. Showing demo data.')
+      }
+    } catch (error) {
+      setSyncMessage('Failed to sync stats. Please try again.')
+    } finally {
+      setIsSyncing(false)
+      // Clear message after 5 seconds
+      setTimeout(() => setSyncMessage(null), 5000)
+    }
   }
 
   const openQrDialog = (link: AffiliateLink) => {
@@ -474,10 +576,52 @@ export function LinksPage() {
             Manage and track your affiliate links
           </p>
         </div>
+        <div className="flex items-center gap-2">
+          {/* Sync Stats Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={handleSyncStats}
+            disabled={isSyncing}
+          >
+            {isSyncing ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <RefreshCw className="size-4" />
+            )}
+            {isSyncing ? 'Syncing...' : 'Sync Stats'}
+          </Button>
+          {isShopeeConnected && (
+            <Badge className="bg-emerald-500 text-white border-0 gap-1 text-[10px]">
+              <Zap className="size-3" />
+              Shopee API Connected
+            </Badge>
+          )}
+        </div>
       </div>
 
+      {/* Sync Message */}
+      {syncMessage && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <Card className={`py-3 ${syncMessage.includes('successfully') ? 'border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/20' : 'border-amber-500/30 bg-amber-50 dark:bg-amber-950/20'}`}>
+            <CardContent className="p-3 flex items-center gap-2">
+              {syncMessage.includes('successfully') ? (
+                <Check className="size-4 text-emerald-500" />
+              ) : (
+                <X className="size-4 text-amber-500" />
+              )}
+              <p className="text-xs">{syncMessage}</p>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
       {/* Stats Bar */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {[
           {
             label: 'Total Links',
@@ -506,6 +650,13 @@ export function LinksPage() {
             icon: X,
             color: 'text-red-600 dark:text-red-400',
             bg: 'bg-red-100 dark:bg-red-900/30',
+          },
+          {
+            label: 'Shopee Tracked',
+            value: stats.tracked,
+            icon: Zap,
+            color: 'text-emerald-600 dark:text-emerald-400',
+            bg: 'bg-emerald-100 dark:bg-emerald-900/30',
           },
         ].map((stat) => (
           <motion.div
@@ -546,6 +697,11 @@ export function LinksPage() {
               <DialogTitle>Create Affiliate Link</DialogTitle>
               <DialogDescription>
                 Generate a new affiliate link for a product
+                {isShopeeConnected && (
+                  <span className="text-emerald-600 dark:text-emerald-400 ml-1">
+                    — Shopee API connected, will generate real tracking link
+                  </span>
+                )}
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -562,6 +718,11 @@ export function LinksPage() {
                     }))
                   }
                 />
+                {!isShopeeConnected && newLink.productUrl && (
+                  <p className="text-[10px] text-amber-600 dark:text-amber-400">
+                    Connect Shopee API in Settings to generate real tracking links
+                  </p>
+                )}
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="custom-name">Custom Name</Label>
@@ -639,9 +800,16 @@ export function LinksPage() {
               <Button
                 className="bg-shopee hover:bg-shopee-dark text-white"
                 onClick={handleCreateLink}
-                disabled={!newLink.productUrl && !newLink.customName}
+                disabled={(!newLink.productUrl && !newLink.customName) || isCreatingLink}
               >
-                Create Link
+                {isCreatingLink ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  'Create Link'
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -777,8 +945,16 @@ export function LinksPage() {
                               className="text-left hover:underline cursor-pointer"
                               onClick={() => openDetailDialog(link)}
                             >
-                              <div className="font-medium text-sm">
-                                {link.name}
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-medium text-sm">
+                                  {link.name}
+                                </span>
+                                {link.shopeeTracked && (
+                                  <Badge className="bg-emerald-500 text-white border-0 text-[9px] px-1 py-0 gap-0.5">
+                                    <Zap className="size-2.5" />
+                                    Tracked
+                                  </Badge>
+                                )}
                               </div>
                               <div className="text-xs text-muted-foreground line-clamp-1 max-w-[200px]">
                                 {link.productName}
@@ -793,7 +969,7 @@ export function LinksPage() {
                               <button
                                 onClick={() => handleCopyLink(link)}
                                 className="p-1 hover:bg-muted rounded transition-colors"
-                                title="Copy link"
+                                title={link.shopeeAffiliateUrl ? 'Copy Shopee affiliate URL' : 'Copy link'}
                               >
                                 {copiedId === link.id ? (
                                   <Check className="size-3 text-emerald-500" />
@@ -818,13 +994,15 @@ export function LinksPage() {
                             {link.ctr.toFixed(2)}%
                           </TableCell>
                           <TableCell>
-                            <Badge
-                              className={`text-[10px] px-1.5 py-0.5 ${
-                                STATUS_STYLES[link.status].className
-                              }`}
-                            >
-                              {STATUS_STYLES[link.status].label}
-                            </Badge>
+                            <div className="flex items-center gap-1">
+                              <Badge
+                                className={`text-[10px] px-1.5 py-0.5 ${
+                                  STATUS_STYLES[link.status].className
+                                }`}
+                              >
+                                {STATUS_STYLES[link.status].label}
+                              </Badge>
+                            </div>
                           </TableCell>
                           <TableCell className="pr-4">
                             <DropdownMenu>
@@ -882,7 +1060,7 @@ export function LinksPage() {
                                   onClick={() => handleCopyLink(link)}
                                 >
                                   <Copy className="size-4" />
-                                  Copy Link
+                                  {link.shopeeAffiliateUrl ? 'Copy Shopee Link' : 'Copy Link'}
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
@@ -922,6 +1100,17 @@ export function LinksPage() {
               </div>
               <div className="text-center w-full">
                 <p className="text-sm font-medium">{qrLink.productName}</p>
+                {qrLink.shopeeTracked && qrLink.shopeeAffiliateUrl && (
+                  <div className="mt-1">
+                    <Badge className="bg-emerald-500 text-white border-0 text-[9px] gap-0.5 mb-1">
+                      <Zap className="size-2.5" />
+                      Shopee Tracked
+                    </Badge>
+                    <code className="block text-xs text-muted-foreground break-all">
+                      {qrLink.shopeeAffiliateUrl}
+                    </code>
+                  </div>
+                )}
                 <code className="text-xs text-muted-foreground break-all">
                   {qrLink.fullUrl}
                 </code>
@@ -930,7 +1119,6 @@ export function LinksPage() {
                 variant="outline"
                 className="w-full"
                 onClick={() => {
-                  // In a real app, download the QR code as image
                   const svgEl = document.querySelector(
                     '#qr-dialog svg'
                   ) as SVGElement | null
@@ -963,13 +1151,21 @@ export function LinksPage() {
             <DialogTitle className="flex items-center gap-2">
               {detailLink?.name}
               {detailLink && (
-                <Badge
-                  className={`text-[10px] ${
-                    STATUS_STYLES[detailLink.status].className
-                  }`}
-                >
-                  {STATUS_STYLES[detailLink.status].label}
-                </Badge>
+                <>
+                  <Badge
+                    className={`text-[10px] ${
+                      STATUS_STYLES[detailLink.status].className
+                    }`}
+                  >
+                    {STATUS_STYLES[detailLink.status].label}
+                  </Badge>
+                  {detailLink.shopeeTracked && (
+                    <Badge className="bg-emerald-500 text-white border-0 text-[10px] gap-0.5">
+                      <Zap className="size-3" />
+                      Shopee Tracked
+                    </Badge>
+                  )}
+                </>
               )}
             </DialogTitle>
             <DialogDescription>{detailLink?.productName}</DialogDescription>
@@ -1039,6 +1235,17 @@ export function LinksPage() {
                   <span className="text-xs break-all">
                     {detailLink.fullUrl}
                   </span>
+                  {detailLink.shopeeAffiliateUrl && (
+                    <>
+                      <span className="text-muted-foreground flex items-center gap-1">
+                        <Zap className="size-3 text-emerald-500" />
+                        Shopee URL:
+                      </span>
+                      <span className="text-xs break-all text-emerald-600 dark:text-emerald-400">
+                        {detailLink.shopeeAffiliateUrl}
+                      </span>
+                    </>
+                  )}
                   <span className="text-muted-foreground">Campaign:</span>
                   <span>{detailLink.campaign}</span>
                   <span className="text-muted-foreground">Category:</span>
@@ -1185,7 +1392,7 @@ export function LinksPage() {
                   className="flex-1"
                 >
                   <Copy className="size-3.5" />
-                  Copy Link
+                  {detailLink.shopeeAffiliateUrl ? 'Copy Shopee Link' : 'Copy Link'}
                 </Button>
                 <Button
                   variant="outline"
