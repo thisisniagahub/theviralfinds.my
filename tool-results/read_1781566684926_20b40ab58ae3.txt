@@ -1,0 +1,773 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
+     4→     4→import { motion, AnimatePresence } from 'framer-motion'
+     5→     5→import {
+     6→     6→  Search,
+     7→     7→  ShoppingBag,
+     8→     8→  Star,
+     9→     9→  TrendingUp,
+    10→    10→  Sparkles,
+    11→    11→  ChevronDown,
+    12→    12→  Link2,
+    13→    13→  SlidersHorizontal,
+    14→    14→  Package,
+    15→    15→  Loader2,
+    16→    16→  Copy,
+    17→    17→  Check,
+    18→    18→  AlertTriangle,
+    19→    19→  RefreshCw,
+    20→    20→  Zap,
+    21→    21→} from 'lucide-react'
+    22→    22→import { Card, CardContent } from '@/components/ui/card'
+    23→    23→import { Button } from '@/components/ui/button'
+    24→    24→import { Input } from '@/components/ui/input'
+    25→    25→import { Badge } from '@/components/ui/badge'
+    26→    26→import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+    27→    27→import {
+    28→    28→  Select,
+    29→    29→  SelectContent,
+    30→    30→  SelectItem,
+    31→    31→  SelectTrigger,
+    32→    32→  SelectValue,
+    33→    33→} from '@/components/ui/select'
+    34→    34→import { Separator } from '@/components/ui/separator'
+    35→    35→
+    36→    36→// --- Types ---
+    37→    37→interface Product {
+    38→    38→  id: string
+    39→    39→  itemId: number
+    40→    40→  name: string
+    41→    41→  price: number
+    42→    42→  originalPrice?: number
+    43→    43→  commissionRate: number
+    44→    44→  rating: number
+    45→    45→  soldCount: number
+    46→    46→  shopName: string
+    47→    47→  category: string
+    48→    48→  isAiPick?: boolean
+    49→    49→  color: string
+    50→    50→  source?: 'shopee_api' | 'web_search' | 'demo'
+    51→    51→  affiliateLink?: string | null
+    52→    52→  deepLink?: string | null
+    53→    53→  productLink?: string
+    54→    54→}
+    55→    55→
+    56→    56→interface SearchResult {
+    57→    57→  products: Product[]
+    58→    58→  total: number
+    59→    59→  query: string
+    60→    60→  source: 'shopee_api' | 'web_search' | 'demo'
+    61→    61→  connected: boolean
+    62→    62→  message?: string
+    63→    63→}
+    64→    64→
+    65→    65→const CATEGORIES = [
+    66→    66→  'All',
+    67→    67→  'Electronics',
+    68→    68→  'Fashion',
+    69→    69→  'Home & Living',
+    70→    70→  'Beauty',
+    71→    71→  'Sports',
+    72→    72→  'Food',
+    73→    73→] as const
+    74→    74→
+    75→    75→const SORT_OPTIONS = [
+    76→    76→  { value: 'popular', label: 'Popular' },
+    77→    77→  { value: 'newest', label: 'Newest' },
+    78→    78→  { value: 'commission', label: 'Highest Commission' },
+    79→    79→  { value: 'rating', label: 'Best Rating' },
+    80→    80→] as const
+    81→    81→
+    82→    82→// Color palette for product cards
+    83→    83→const CARD_COLORS = [
+    84→    84→  'bg-orange-100 dark:bg-orange-900/30',
+    85→    85→  'bg-pink-100 dark:bg-pink-900/30',
+    86→    86→  'bg-purple-100 dark:bg-purple-900/30',
+    87→    87→  'bg-rose-100 dark:bg-rose-900/30',
+    88→    88→  'bg-sky-100 dark:bg-sky-900/30',
+    89→    89→  'bg-emerald-100 dark:bg-emerald-900/30',
+    90→    90→  'bg-lime-100 dark:bg-lime-900/30',
+    91→    91→  'bg-amber-100 dark:bg-amber-900/30',
+    92→    92→  'bg-teal-100 dark:bg-teal-900/30',
+    93→    93→  'bg-fuchsia-100 dark:bg-fuchsia-900/30',
+    94→    94→  'bg-yellow-100 dark:bg-yellow-900/30',
+    95→    95→  'bg-cyan-100 dark:bg-cyan-900/30',
+    96→    96→]
+    97→    97→
+    98→    98→// AI Picks (still use curated mock data for the AI recommendations section)
+    99→    99→const AI_PICKS: Product[] = [
+   100→   100→  {
+   101→   101→    id: 'ai-1',
+   102→   102→    itemId: 1001,
+   103→   103→    name: 'Xiaomi Redmi Note 13 Pro 5G - 256GB',
+   104→   104→    price: 899,
+   105→   105→    originalPrice: 1199,
+   106→   106→    commissionRate: 10,
+   107→   107→    rating: 4.8,
+   108→   108→    soldCount: 15200,
+   109→   109→    shopName: 'Xiaomi Official Store',
+   110→   110→    category: 'Electronics',
+   111→   111→    isAiPick: true,
+   112→   112→    color: 'bg-orange-100 dark:bg-orange-900/30',
+   113→   113→  },
+   114→   114→  {
+   115→   115→    id: 'ai-2',
+   116→   116→    itemId: 1002,
+   117→   117→    name: 'Korean Style Oversized Hoodie - Unisex',
+   118→   118→    price: 45,
+   119→   119→    originalPrice: 89,
+   120→   120→    commissionRate: 20,
+   121→   121→    rating: 4.5,
+   122→   122→    soldCount: 28300,
+   123→   123→    shopName: 'K-Fashion MY',
+   124→   124→    category: 'Fashion',
+   125→   125→    isAiPick: true,
+   126→   126→    color: 'bg-pink-100 dark:bg-pink-900/30',
+   127→   127→  },
+   128→   128→  {
+   129→   129→    id: 'ai-3',
+   130→   130→    itemId: 1003,
+   131→   131→    name: 'Dyson V12 Detect Slim Cordless Vacuum',
+   132→   132→    price: 2199,
+   133→   133→    originalPrice: 2699,
+   134→   134→    commissionRate: 10,
+   135→   135→    rating: 4.9,
+   136→   136→    soldCount: 3200,
+   137→   137→    shopName: 'Dyson Official',
+   138→   138→    category: 'Home & Living',
+   139→   139→    isAiPick: true,
+   140→   140→    color: 'bg-purple-100 dark:bg-purple-900/30',
+   141→   141→  },
+   142→   142→  {
+   143→   143→    id: 'ai-4',
+   144→   144→    itemId: 1004,
+   145→   145→    name: 'LANEIGE Lip Sleeping Mask - Berry',
+   146→   146→    price: 68,
+   147→   147→    originalPrice: 85,
+   148→   148→    commissionRate: 20,
+   149→   149→    rating: 4.7,
+   150→   150→    soldCount: 41500,
+   151→   151→    shopName: 'LANEIGE Official',
+   152→   152→    category: 'Beauty',
+   153→   153→    isAiPick: true,
+   154→   154→    color: 'bg-rose-100 dark:bg-rose-900/30',
+   155→   155→  },
+   156→   156→]
+   157→   157→
+   158→   158→// --- Helpers ---
+   159→   159→function formatSoldCount(count: number): string {
+   160→   160→  if (count >= 1000) return `${(count / 1000).toFixed(1)}k`
+   161→   161→  return count.toString()
+   162→   162→}
+   163→   163→
+   164→   164→function StarRating({ rating }: { rating: number }) {
+   165→   165→  return (
+   166→   166→    <div className="flex items-center gap-0.5">
+   167→   167→      {[1, 2, 3, 4, 5].map((star) => (
+   168→   168→        <Star
+   169→   169→          key={star}
+   170→   170→          className={`size-3 ${
+   171→   171→            star <= Math.round(rating)
+   172→   172→              ? 'fill-yellow-400 text-yellow-400'
+   173→   173→              : 'text-muted-foreground/30'
+   174→   174→          }`}
+   175→   175→        />
+   176→   176→      ))}
+   177→   177→      <span className="ml-1 text-xs text-muted-foreground">{rating}</span>
+   178→   178→    </div>
+   179→   179→  )
+   180→   180→}
+   181→   181→
+   182→   182→// Map API product to our Product interface
+   183→   183→function mapApiProduct(raw: Record<string, unknown>, index: number): Product {
+   184→   184→  const price = Number(raw.price || 0)
+   185→   185→  const commissionRate = Number(raw.commissionRate || 0)
+   186→   186→  return {
+   187→   187→    id: (raw.id as string) || `api-${index}`,
+   188→   188→    itemId: Number(raw.itemId || raw.item_id || 0),
+   189→   189→    name: (raw.name as string) || (raw.item_name as string) || 'Unknown Product',
+   190→   190→    price,
+   191→   191→    originalPrice: raw.originalPrice ? Number(raw.originalPrice) : raw.original_price ? Number(raw.original_price) : undefined,
+   192→   192→    commissionRate,
+   193→   193→    rating: Number(raw.rating || raw.ratingStar || raw.rating_star || 0),
+   194→   194→    soldCount: Number(raw.soldCount || raw.sales || 0),
+   195→   195→    shopName: (raw.shopName as string) || (raw.shop_name as string) || 'Shopee Seller',
+   196→   196→    category: (raw.category as string) || 'general',
+   197→   197→    color: CARD_COLORS[index % CARD_COLORS.length],
+   198→   198→    source: (raw.source as 'shopee_api' | 'web_search' | 'demo') || 'demo',
+   199→   199→    affiliateLink: (raw.affiliateLink as string | null) ?? null,
+   200→   200→    deepLink: (raw.deepLink as string | null) ?? null,
+   201→   201→    productLink: (raw.productLink as string) || (raw.product_link as string),
+   202→   202→  }
+   203→   203→}
+   204→   204→
+   205→   205→// --- Product Card ---
+   206→   206→function ProductCard({
+   207→   207→  product,
+   208→   208→  onGenerateLink,
+   209→   209→  generatingLinkId,
+   210→   210→}: {
+   211→   211→  product: Product
+   212→   212→  onGenerateLink: (product: Product) => void
+   213→   213→  generatingLinkId: string | null
+   214→   214→}) {
+   215→   215→  const discount = product.originalPrice
+   216→   216→    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+   217→   217→    : 0
+   218→   218→
+   219→   219→  const [copied, setCopied] = useState(false)
+   220→   220→  const commission = product.price * product.commissionRate / 100
+   221→   221→
+   222→   222→  const handleCopyLink = () => {
+   223→   223→    if (product.affiliateLink) {
+   224→   224→      navigator.clipboard?.writeText(product.affiliateLink).catch(() => {})
+   225→   225→      setCopied(true)
+   226→   226→      setTimeout(() => setCopied(false), 2000)
+   227→   227→    }
+   228→   228→  }
+   229→   229→
+   230→   230→  const isGenerating = generatingLinkId === product.id
+   231→   231→
+   232→   232→  return (
+   233→   233→    <motion.div
+   234→   234→      initial={{ opacity: 0, y: 12 }}
+   235→   235→      animate={{ opacity: 1, y: 0 }}
+   236→   236→      transition={{ duration: 0.3 }}
+   237→   237→    >
+   238→   238→      <Card className="card-hover overflow-hidden py-0 gap-0">
+   239→   239→        {/* Image placeholder */}
+   240→   240→        <div
+   241→   241→          className={`${product.color} flex items-center justify-center h-44 relative`}
+   242→   242→        >
+   243→   243→          <ShoppingBag className="size-12 text-muted-foreground/40" />
+   244→   244→          {product.isAiPick && (
+   245→   245→            <Badge className="absolute top-2 left-2 bg-hermes text-white border-0 text-[10px] px-1.5 py-0.5 gap-1">
+   246→   246→              <Sparkles className="size-3" />
+   247→   247→              AI Pick
+   248→   248→            </Badge>
+   249→   249→          )}
+   250→   250→          {product.source === 'shopee_api' && (
+   251→   251→            <Badge className="absolute top-2 left-2 bg-emerald-500 text-white border-0 text-[10px] px-1.5 py-0.5 gap-1">
+   252→   252→              <Zap className="size-3" />
+   253→   253→              Live
+   254→   254→            </Badge>
+   255→   255→          )}
+   256→   256→          {discount > 0 && (
+   257→   257→            <Badge className="absolute top-2 right-2 bg-destructive text-white border-0 text-[10px] px-1.5 py-0.5">
+   258→   258→              -{discount}%
+   259→   259→            </Badge>
+   260→   260→          )}
+   261→   261→        </div>
+   262→   262→
+   263→   263→        <CardContent className="p-4 flex flex-col gap-2">
+   264→   264→          <h3 className="text-sm font-medium line-clamp-2 leading-snug min-h-[2.5rem]">
+   265→   265→            {product.name}
+   266→   266→          </h3>
+   267→   267→
+   268→   268→          <div className="flex items-baseline gap-2">
+   269→   269→            <span className="text-lg font-bold text-shopee">
+   270→   270→              RM{product.price.toFixed(2)}
+   271→   271→            </span>
+   272→   272→            {product.originalPrice && (
+   273→   273→              <span className="text-xs text-muted-foreground line-through">
+   274→   274→                RM{product.originalPrice.toFixed(2)}
+   275→   275→              </span>
+   276→   276→            )}
+   277→   277→          </div>
+   278→   278→
+   279→   279→          <div className="flex items-center justify-between">
+   280→   280→            <div className="flex items-center gap-1">
+   281→   281→              <Badge
+   282→   282→                variant="secondary"
+   283→   283→                className="text-[10px] px-1.5 py-0 bg-shopee/10 text-shopee border-0 font-semibold"
+   284→   284→              >
+   285→   285→                RM{commission.toFixed(2)}
+   286→   286→              </Badge>
+   287→   287→              <span className="text-[10px] text-muted-foreground">
+   288→   288→                {product.commissionRate}% comm
+   289→   289→              </span>
+   290→   290→            </div>
+   291→   291→          </div>
+   292→   292→
+   293→   293→          <div className="flex items-center justify-between">
+   294→   294→            <StarRating rating={product.rating} />
+   295→   295→            <span className="text-xs text-muted-foreground">
+   296→   296→              {formatSoldCount(product.soldCount)} sold
+   297→   297→            </span>
+   298→   298→          </div>
+   299→   299→
+   300→   300→          <p className="text-xs text-muted-foreground truncate">
+   301→   301→            {product.shopName}
+   302→   302→          </p>
+   303→   303→
+   304→   304→          {product.affiliateLink ? (
+   305→   305→            <div className="flex gap-2 mt-1">
+   306→   306→              <Button
+   307→   307→                size="sm"
+   308→   308→                className="flex-1 bg-shopee hover:bg-shopee-dark text-white"
+   309→   309→                onClick={handleCopyLink}
+   310→   310→              >
+   311→   311→                {copied ? (
+   312→   312→                  <Check className="size-3.5" />
+   313→   313→                ) : (
+   314→   314→                  <Copy className="size-3.5" />
+   315→   315→                )}
+   316→   316→                {copied ? 'Copied!' : 'Copy Link'}
+   317→   317→              </Button>
+   318→   318→              <Button
+   319→   319→                size="sm"
+   320→   320→                variant="outline"
+   321→   321→                className="flex-1"
+   322→   322→                onClick={() => onGenerateLink(product)}
+   323→   323→                disabled={isGenerating}
+   324→   324→              >
+   325→   325→                {isGenerating ? (
+   326→   326→                  <Loader2 className="size-3.5 animate-spin" />
+   327→   327→                ) : (
+   328→   328→                  <Link2 className="size-3.5" />
+   329→   329→                )}
+   330→   330→                Regenerate
+   331→   331→              </Button>
+   332→   332→            </div>
+   333→   333→          ) : (
+   334→   334→            <Button
+   335→   335→              size="sm"
+   336→   336→              className="w-full mt-1 bg-shopee hover:bg-shopee-dark text-white"
+   337→   337→              onClick={() => onGenerateLink(product)}
+   338→   338→              disabled={isGenerating}
+   339→   339→            >
+   340→   340→              {isGenerating ? (
+   341→   341→                <Loader2 className="size-3.5 animate-spin" />
+   342→   342→              ) : (
+   343→   343→                <Link2 className="size-3.5" />
+   344→   344→              )}
+   345→   345→              {isGenerating ? 'Generating...' : 'Generate Link'}
+   346→   346→            </Button>
+   347→   347→          )}
+   348→   348→        </CardContent>
+   349→   349→      </Card>
+   350→   350→    </motion.div>
+   351→   351→  )
+   352→   352→}
+   353→   353→
+   354→   354→// --- Main Component ---
+   355→   355→export function ProductsPage() {
+   356→   356→  const [searchQuery, setSearchQuery] = useState('')
+   357→   357→  const [activeCategory, setActiveCategory] = useState<string>('All')
+   358→   358→  const [sortBy, setSortBy] = useState<string>('popular')
+   359→   359→  const [visibleCount, setVisibleCount] = useState(8)
+   360→   360→  const [isLoadingMore, setIsLoadingMore] = useState(false)
+   361→   361→
+   362→   362→  // API integration state
+   363→   363→  const [apiProducts, setApiProducts] = useState<Product[]>([])
+   364→   364→  const [isSearching, setIsSearching] = useState(false)
+   365→   365→  const [isConnected, setIsConnected] = useState<boolean | null>(null)
+   366→   366→  const [apiSource, setApiSource] = useState<'shopee_api' | 'web_search' | 'demo' | null>(null)
+   367→   367→  const [apiMessage, setApiMessage] = useState<string | null>(null)
+   368→   368→  const [generatingLinkId, setGeneratingLinkId] = useState<string | null>(null)
+   369→   369→  const [hasSearched, setHasSearched] = useState(false)
+   370→   370→  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+   371→   371→
+   372→   372→  // Check connection status on mount
+   373→   373→  useEffect(() => {
+   374→   374→    fetch('/api/shopee/connect')
+   375→   375→      .then((res) => res.json())
+   376→   376→      .then((data) => {
+   377→   377→        setIsConnected(data.connected === true)
+   378→   378→      })
+   379→   379→      .catch(() => {
+   380→   380→        setIsConnected(false)
+   381→   381→      })
+   382→   382→  }, [])
+   383→   383→
+   384→   384→  // Search products from API
+   385→   385→  const searchProducts = useCallback(async (query: string) => {
+   386→   386→    if (!query.trim()) {
+   387→   387→      setApiProducts([])
+   388→   388→      setHasSearched(false)
+   389→   389→      setApiSource(null)
+   390→   390→      setApiMessage(null)
+   391→   391→      return
+   392→   392→    }
+   393→   393→
+   394→   394→    setIsSearching(true)
+   395→   395→    setHasSearched(true)
+   396→   396→
+   397→   397→    try {
+   398→   398→      const res = await fetch(`/api/shopee/products?q=${encodeURIComponent(query)}&limit=20`)
+   399→   399→      const data: SearchResult = await res.json()
+   400→   400→
+   401→   401→      const mapped = (data.products || []).map((p: Record<string, unknown>, i: number) =>
+   402→   402→        mapApiProduct(p, i)
+   403→   403→      )
+   404→   404→
+   405→   405→      setApiProducts(mapped)
+   406→   406→      setIsConnected(data.connected)
+   407→   407→      setApiSource(data.source)
+   408→   408→      setApiMessage(data.message || null)
+   409→   409→    } catch (error) {
+   410→   410→      console.error('Product search error:', error)
+   411→   411→      setApiProducts([])
+   412→   412→      setApiSource('demo')
+   413→   413→      setApiMessage('Failed to search products. Please try again.')
+   414→   414→    } finally {
+   415→   415→      setIsSearching(false)
+   416→   416→    }
+   417→   417→  }, [])
+   418→   418→
+   419→   419→  // Debounced search
+   420→   420→  const handleSearchChange = (value: string) => {
+   421→   421→    setSearchQuery(value)
+   422→   422→    setVisibleCount(8)
+   423→   423→
+   424→   424→    if (searchTimeoutRef.current) {
+   425→   425→      clearTimeout(searchTimeoutRef.current)
+   426→   426→    }
+   427→   427→
+   428→   428→    searchTimeoutRef.current = setTimeout(() => {
+   429→   429→      searchProducts(value)
+   430→   430→    }, 500)
+   431→   431→  }
+   432→   432→
+   433→   433→  // Generate affiliate link for a product
+   434→   434→  const handleGenerateLink = async (product: Product) => {
+   435→   435→    setGeneratingLinkId(product.id)
+   436→   436→
+   437→   437→    try {
+   438→   438→      const res = await fetch('/api/shopee/generate-link', {
+   439→   439→        method: 'POST',
+   440→   440→        headers: { 'Content-Type': 'application/json' },
+   441→   441→        body: JSON.stringify({
+   442→   442→          itemId: product.itemId || undefined,
+   443→   443→          productUrl: product.productLink || undefined,
+   444→   444→        }),
+   445→   445→      })
+   446→   446→
+   447→   447→      const data = await res.json()
+   448→   448→
+   449→   449→      if (data.link) {
+   450→   450→        // Update the product with the generated link
+   451→   451→        setApiProducts((prev) =>
+   452→   452→          prev.map((p) =>
+   453→   453→            p.id === product.id
+   454→   454→              ? {
+   455→   455→                  ...p,
+   456→   456→                  affiliateLink: data.link.shortUrl || data.link.longUrl,
+   457→   457→                  deepLink: data.link.deepLink,
+   458→   458→                  source: data.source === 'shopee_api' ? 'shopee_api' : p.source,
+   459→   459→                }
+   460→   460→              : p
+   461→   461→          )
+   462→   462→        )
+   463→   463→      }
+   464→   464→    } catch (error) {
+   465→   465→      console.error('Generate link error:', error)
+   466→   466→    } finally {
+   467→   467→      setGeneratingLinkId(null)
+   468→   468→    }
+   469→   469→  }
+   470→   470→
+   471→   471→  // Filter and sort products
+   472→   472→  const filteredProducts = useMemo(() => {
+   473→   473→    let result = apiProducts
+   474→   474→
+   475→   475→    if (activeCategory !== 'All') {
+   476→   476→      result = result.filter(
+   477→   477→        (p) => p.category.toLowerCase() === activeCategory.toLowerCase()
+   478→   478→      )
+   479→   479→    }
+   480→   480→
+   481→   481→    switch (sortBy) {
+   482→   482→      case 'newest':
+   483→   483→        result = [...result].reverse()
+   484→   484→        break
+   485→   485→      case 'commission':
+   486→   486→        result = [...result].sort((a, b) => b.commissionRate - a.commissionRate)
+   487→   487→        break
+   488→   488→      case 'rating':
+   489→   489→        result = [...result].sort((a, b) => b.rating - a.rating)
+   490→   490→        break
+   491→   491→      default:
+   492→   492→        result = [...result].sort((a, b) => b.soldCount - a.soldCount)
+   493→   493→    }
+   494→   494→
+   495→   495→    return result
+   496→   496→  }, [apiProducts, activeCategory, sortBy])
+   497→   497→
+   498→   498→  const visibleProducts = filteredProducts.slice(0, visibleCount)
+   499→   499→  const hasMore = visibleCount < filteredProducts.length
+   500→   500→
+   501→   501→  const handleLoadMore = () => {
+   502→   502→    setIsLoadingMore(true)
+   503→   503→    setTimeout(() => {
+   504→   504→      setVisibleCount((prev) => prev + 4)
+   505→   505→      setIsLoadingMore(false)
+   506→   506→    }, 600)
+   507→   507→  }
+   508→   508→
+   509→   509→  const aiPicks = useMemo(() => AI_PICKS, [])
+   510→   510→
+   511→   511→  return (
+   512→   512→    <div className="space-y-6">
+   513→   513→      {/* Page Header */}
+   514→   514→      <div>
+   515→   515→        <h1 className="text-2xl font-bold tracking-tight">Products</h1>
+   516→   516→        <p className="text-muted-foreground text-sm mt-1">
+   517→   517→          Discover products and generate affiliate links
+   518→   518→        </p>
+   519→   519→      </div>
+   520→   520→
+   521→   521→      {/* API Not Connected Banner */}
+   522→   522→      {isConnected === false && (
+   523→   523→        <motion.div
+   524→   524→          initial={{ opacity: 0, y: -8 }}
+   525→   525→          animate={{ opacity: 1, y: 0 }}
+   526→   526→          transition={{ duration: 0.3 }}
+   527→   527→        >
+   528→   528→          <Card className="border-amber-500/30 bg-amber-50 dark:bg-amber-950/20 py-3">
+   529→   529→            <CardContent className="p-4 flex items-start gap-3">
+   530→   530→              <AlertTriangle className="size-5 text-amber-500 mt-0.5 shrink-0" />
+   531→   531→              <div className="flex-1">
+   532→   532→                <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+   533→   533→                  Shopee API not connected
+   534→   534→                </p>
+   535→   535→                <p className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">
+   536→   536→                  Results are from web search. Connect your API in{' '}
+   537→   537→                  <span className="font-semibold">Settings</span> for real affiliate links and commission data.
+   538→   538→                </p>
+   539→   539→              </div>
+   540→   540→              <Button
+   541→   541→                variant="outline"
+   542→   542→                size="sm"
+   543→   543→                className="shrink-0 text-amber-600 border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900/30"
+   544→   544→                onClick={() => {
+   545→   545→                  // Navigate to settings - handled by parent component
+   546→   546→                  window.dispatchEvent(new CustomEvent('navigate', { detail: 'settings' }))
+   547→   547→                }}
+   548→   548→              >
+   549→   549→                Go to Settings
+   550→   550→              </Button>
+   551→   551→            </CardContent>
+   552→   552→          </Card>
+   553→   553→        </motion.div>
+   554→   554→      )}
+   555→   555→
+   556→   556→      {/* Source indicator when results are loaded */}
+   557→   557→      {apiSource && hasSearched && !isSearching && (
+   558→   558→        <div className="flex items-center gap-2">
+   559→   559→          {apiSource === 'shopee_api' ? (
+   560→   560→            <Badge className="bg-emerald-500 text-white border-0 gap-1 text-[10px]">
+   561→   561→              <Zap className="size-3" />
+   562→   562→              Live Shopee API
+   563→   563→            </Badge>
+   564→   564→          ) : apiSource === 'web_search' ? (
+   565→   565→            <Badge variant="outline" className="text-amber-600 border-amber-300 dark:border-amber-700 gap-1 text-[10px]">
+   566→   566→              <Search className="size-3" />
+   567→   567→              Web Search Results
+   568→   568→            </Badge>
+   569→   569→          ) : (
+   570→   570→            <Badge variant="outline" className="text-muted-foreground gap-1 text-[10px]">
+   571→   571→              <Package className="size-3" />
+   572→   572→              Demo Data
+   573→   573→            </Badge>
+   574→   574→          )}
+   575→   575→          {apiMessage && (
+   576→   576→            <span className="text-xs text-muted-foreground">{apiMessage}</span>
+   577→   577→          )}
+   578→   578→        </div>
+   579→   579→      )}
+   580→   580→
+   581→   581→      {/* AI Recommendations */}
+   582→   582→      <motion.div
+   583→   583→        initial={{ opacity: 0, y: 8 }}
+   584→   584→        animate={{ opacity: 1, y: 0 }}
+   585→   585→        transition={{ duration: 0.4 }}
+   586→   586→      >
+   587→   587→        <Card className="border-hermes/20 bg-hermes/5 dark:bg-hermes/10 py-4">
+   588→   588→          <CardContent className="p-4 sm:p-6">
+   589→   589→            <div className="flex items-center gap-2 mb-4">
+   590→   590→              <div className="flex items-center gap-1.5 bg-hermes text-white rounded-md px-2.5 py-1 text-xs font-semibold">
+   591→   591→                <Sparkles className="size-3.5" />
+   592→   592→                Hermes AI Picks
+   593→   593→              </div>
+   594→   594→              <Badge variant="outline" className="text-[10px] text-hermes border-hermes/30">
+   595→   595→                <TrendingUp className="size-3" />
+   596→   596→                Trending Now
+   597→   597→              </Badge>
+   598→   598→            </div>
+   599→   599→            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   600→   600→              {aiPicks.map((product) => (
+   601→   601→                <motion.div
+   602→   602→                  key={product.id}
+   603→   603→                  whileHover={{ scale: 1.02 }}
+   604→   604→                  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+   605→   605→                >
+   606→   606→                  <Card className="card-hover py-0 gap-0 cursor-pointer">
+   607→   607→                    <div
+   608→   608→                      className={`${product.color} flex items-center justify-center h-28 relative rounded-t-xl`}
+   609→   609→                    >
+   610→   610→                      <ShoppingBag className="size-8 text-muted-foreground/40" />
+   611→   611→                      <Badge className="absolute top-1.5 left-1.5 bg-hermes text-white border-0 text-[9px] px-1.5 py-0.5 gap-0.5">
+   612→   612→                        <Sparkles className="size-2.5" />
+   613→   613→                        AI
+   614→   614→                      </Badge>
+   615→   615→                    </div>
+   616→   616→                    <div className="p-3 flex flex-col gap-1.5">
+   617→   617→                      <h4 className="text-xs font-medium line-clamp-2 leading-snug">
+   618→   618→                        {product.name}
+   619→   619→                      </h4>
+   620→   620→                      <div className="flex items-baseline gap-1.5">
+   621→   621→                        <span className="text-sm font-bold text-shopee">
+   622→   622→                          RM{product.price.toFixed(2)}
+   623→   623→                        </span>
+   624→   624→                        {product.originalPrice && (
+   625→   625→                          <span className="text-[10px] text-muted-foreground line-through">
+   626→   626→                            RM{product.originalPrice.toFixed(2)}
+   627→   627→                          </span>
+   628→   628→                        )}
+   629→   629→                      </div>
+   630→   630→                      <div className="flex items-center justify-between">
+   631→   631→                        <Badge className="text-[9px] px-1.5 py-0 bg-shopee/10 text-shopee border-0 font-semibold">
+   632→   632→                          +RM{(product.price * product.commissionRate / 100).toFixed(2)}
+   633→   633→                        </Badge>
+   634→   634→                        <span className="text-[10px] text-muted-foreground">
+   635→   635→                          {product.commissionRate}%
+   636→   636→                        </span>
+   637→   637→                      </div>
+   638→   638→                    </div>
+   639→   639→                  </Card>
+   640→   640→                </motion.div>
+   641→   641→              ))}
+   642→   642→            </div>
+   643→   643→          </CardContent>
+   644→   644→        </Card>
+   645→   645→      </motion.div>
+   646→   646→
+   647→   647→      <Separator />
+   648→   648→
+   649→   649→      {/* Search & Filters */}
+   650→   650→      <div className="flex flex-col sm:flex-row gap-3">
+   651→   651→        <div className="relative flex-1">
+   652→   652→          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+   653→   653→          <Input
+   654→   654→            placeholder="Search Shopee products..."
+   655→   655→            className="pl-10 h-10"
+   656→   656→            value={searchQuery}
+   657→   657→            onChange={(e) => handleSearchChange(e.target.value)}
+   658→   658→          />
+   659→   659→          {isSearching && (
+   660→   660→            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 animate-spin text-muted-foreground" />
+   661→   661→          )}
+   662→   662→        </div>
+   663→   663→        <Select
+   664→   664→          value={sortBy}
+   665→   665→          onValueChange={(val) => {
+   666→   666→            setSortBy(val)
+   667→   667→            setVisibleCount(8)
+   668→   668→          }}
+   669→   669→        >
+   670→   670→          <SelectTrigger className="w-full sm:w-[180px] h-10">
+   671→   671→            <SlidersHorizontal className="size-4" />
+   672→   672→            <SelectValue placeholder="Sort by" />
+   673→   673→          </SelectTrigger>
+   674→   674→          <SelectContent>
+   675→   675→            {SORT_OPTIONS.map((opt) => (
+   676→   676→              <SelectItem key={opt.value} value={opt.value}>
+   677→   677→                {opt.label}
+   678→   678→              </SelectItem>
+   679→   679→            ))}
+   680→   680→          </SelectContent>
+   681→   681→        </Select>
+   682→   682→      </div>
+   683→   683→
+   684→   684→      {/* Category Tabs */}
+   685→   685→      <Tabs
+   686→   686→        value={activeCategory}
+   687→   687→        onValueChange={(val) => {
+   688→   688→          setActiveCategory(val)
+   689→   689→          setVisibleCount(8)
+   690→   690→        }}
+   691→   691→      >
+   692→   692→        <TabsList className="w-full sm:w-auto overflow-x-auto">
+   693→   693→          {CATEGORIES.map((cat) => (
+   694→   694→            <TabsTrigger key={cat} value={cat} className="text-xs sm:text-sm">
+   695→   695→              {cat}
+   696→   696→            </TabsTrigger>
+   697→   697→          ))}
+   698→   698→        </TabsList>
+   699→   699→
+   700→   700→        {/* We only need one TabsContent since we filter manually */}
+   701→   701→        <TabsContent value={activeCategory} className="mt-4">
+   702→   702→          {!hasSearched ? (
+   703→   703→            <motion.div
+   704→   704→              initial={{ opacity: 0 }}
+   705→   705→              animate={{ opacity: 1 }}
+   706→   706→              className="flex flex-col items-center justify-center py-16 text-muted-foreground"
+   707→   707→            >
+   708→   708→              <Search className="size-12 mb-3 opacity-40" />
+   709→   709→              <p className="text-sm font-medium">Search for products</p>
+   710→   710→              <p className="text-xs mt-1">Enter a keyword to search Shopee products</p>
+   711→   711→            </motion.div>
+   712→   712→          ) : isSearching ? (
+   713→   713→            <div className="flex flex-col items-center justify-center py-16">
+   714→   714→              <Loader2 className="size-8 animate-spin text-shopee mb-3" />
+   715→   715→              <p className="text-sm text-muted-foreground">Searching Shopee...</p>
+   716→   716→            </div>
+   717→   717→          ) : filteredProducts.length === 0 ? (
+   718→   718→            <motion.div
+   719→   719→              initial={{ opacity: 0 }}
+   720→   720→              animate={{ opacity: 1 }}
+   721→   721→              className="flex flex-col items-center justify-center py-16 text-muted-foreground"
+   722→   722→            >
+   723→   723→              <Package className="size-12 mb-3 opacity-40" />
+   724→   724→              <p className="text-sm font-medium">No products found</p>
+   725→   725→              <p className="text-xs mt-1">Try a different search or category</p>
+   726→   726→            </motion.div>
+   727→   727→          ) : (
+   728→   728→            <>
+   729→   729→              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+   730→   730→                <AnimatePresence mode="popLayout">
+   731→   731→                  {visibleProducts.map((product) => (
+   732→   732→                    <ProductCard
+   733→   733→                      key={product.id}
+   734→   734→                      product={product}
+   735→   735→                      onGenerateLink={handleGenerateLink}
+   736→   736→                      generatingLinkId={generatingLinkId}
+   737→   737→                    />
+   738→   738→                  ))}
+   739→   739→                </AnimatePresence>
+   740→   740→              </div>
+   741→   741→
+   742→   742→              {/* Load More */}
+   743→   743→              {hasMore && (
+   744→   744→                <div className="flex justify-center mt-8">
+   745→   745→                  <Button
+   746→   746→                    variant="outline"
+   747→   747→                    size="lg"
+   748→   748→                    onClick={handleLoadMore}
+   749→   749→                    disabled={isLoadingMore}
+   750→   750→                    className="min-w-[200px]"
+   751→   751→                  >
+   752→   752→                    {isLoadingMore ? (
+   753→   753→                      <>
+   754→   754→                        <Loader2 className="size-4 animate-spin" />
+   755→   755→                        Loading...
+   756→   756→                      </>
+   757→   757→                    ) : (
+   758→   758→                      <>
+   759→   759→                        <ChevronDown className="size-4" />
+   760→   760→                        Load More Products
+   761→   761→                      </>
+   762→   762→                    )}
+   763→   763→                  </Button>
+   764→   764→                </div>
+   765→   765→              )}
+   766→   766→            </>
+   767→   767→          )}
+   768→   768→        </TabsContent>
+   769→   769→      </Tabs>
+   770→   770→    </div>
+   771→   771→  )
+   772→   772→}
+   773→   773→

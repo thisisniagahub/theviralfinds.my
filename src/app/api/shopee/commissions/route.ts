@@ -3,73 +3,97 @@ import { getShopeeServiceFromDB } from '@/lib/shopee/affiliate-api'
 
 /**
  * GET /api/shopee/commissions
- * Fetch real commission data from Shopee Affiliate API
- * 
- * Query: ?period=7d|30d|90d&status=pending|confirmed|rejected|paid
+ * Fetch commission orders and summary from Shopee Affiliate API
+ *
+ * Query params: startDate, endDate, status, page, limit
  */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const period = searchParams.get('period') || '30d'
-    const status = searchParams.get('status') as 'pending' | 'confirmed' | 'rejected' | 'paid' | null
+    const startDateStr = searchParams.get('startDate')
+    const endDateStr = searchParams.get('endDate')
+    const status = searchParams.get('status') as
+      | 'pending'
+      | 'confirmed'
+      | 'rejected'
+      | 'paid'
+      | null
+    const page = parseInt(searchParams.get('page') || '1')
+    const limit = parseInt(searchParams.get('limit') || '20')
 
+    // Parse dates to unix timestamps
+    const now = Math.floor(Date.now() / 1000)
+    const defaultStart = now - 30 * 86400 // Default: 30 days ago
+
+    const startTime = startDateStr
+      ? Math.floor(new Date(startDateStr).getTime() / 1000)
+      : defaultStart
+    const endTime = endDateStr
+      ? Math.floor(new Date(endDateStr).getTime() / 1000)
+      : now
+
+    // Get the Shopee service (real API or mock fallback)
     const shopeeService = await getShopeeServiceFromDB()
 
     if (!shopeeService) {
-      // Return demo data when not connected
-      return NextResponse.json({
-        connected: false,
-        summary: {
-          totalCommission: 4280.50,
-          pendingCommission: 750.00,
-          confirmedCommission: 2780.50,
-          rejectedCommission: 120.00,
-          paidCommission: 29110.00,
-          totalOrders: 892,
-          conversionRate: 6.94,
-        },
-        orders: [],
-        source: 'demo',
-        message: 'Demo data. Connect Shopee API for real commission tracking.',
-      })
+      return NextResponse.json(
+        { error: 'Shopee service unavailable' },
+        { status: 503 }
+      )
     }
 
-    // Calculate time range
-    const now = Math.floor(Date.now() / 1000)
-    const periodSeconds: Record<string, number> = {
-      '7d': 7 * 86400,
-      '30d': 30 * 86400,
-      '90d': 90 * 86400,
-    }
-    const startTime = now - (periodSeconds[period] || periodSeconds['30d'])
-
-    // Fetch real data in parallel
-    const [summary, ordersResult] = await Promise.allSettled([
-      shopeeService.getCommissionSummary({ startTime, endTime: now }),
+    // Fetch commission orders and summary in parallel
+    const [ordersResult, summaryResult] = await Promise.allSettled([
       shopeeService.getCommissionOrders({
+        page,
+        limit,
         startTime,
-        endTime: now,
+        endTime,
         commissionStatus: status || undefined,
-        limit: 100,
+      }),
+      shopeeService.getCommissionSummary({
+        startTime,
+        endTime,
       }),
     ])
 
-    const commissionSummary = summary.status === 'fulfilled' ? summary.value : {
-      totalCommission: 0, pendingCommission: 0, confirmedCommission: 0,
-      rejectedCommission: 0, paidCommission: 0, totalOrders: 0, conversionRate: 0,
-    }
+    const orders =
+      ordersResult.status === 'fulfilled'
+        ? ordersResult.value
+        : { orders: [], total: 0, source: 'mock' as const }
 
-    const commissionOrders = ordersResult.status === 'fulfilled' ? ordersResult.value : {
-      orders: [], total: 0,
-    }
+    const summary =
+      summaryResult.status === 'fulfilled'
+        ? summaryResult.value
+        : {
+            totalCommission: 0,
+            pendingCommission: 0,
+            confirmedCommission: 0,
+            rejectedCommission: 0,
+            paidCommission: 0,
+            totalOrders: 0,
+            conversionRate: 0,
+            source: 'mock' as const,
+          }
+
+    // Determine source from whichever succeeded (prefer real API)
+    const source = orders.source === 'graphql_api' || summary.source === 'graphql_api'
+      ? 'graphql_api'
+      : 'mock'
 
     return NextResponse.json({
-      connected: true,
-      summary: commissionSummary,
-      orders: commissionOrders.orders,
-      total: commissionOrders.total,
-      period,
-      source: 'shopee_api',
+      orders: orders.orders,
+      summary: {
+        totalCommission: summary.totalCommission,
+        pendingCommission: summary.pendingCommission,
+        confirmedCommission: summary.confirmedCommission,
+        rejectedCommission: summary.rejectedCommission,
+        paidCommission: summary.paidCommission,
+        totalOrders: summary.totalOrders,
+        conversionRate: summary.conversionRate,
+      },
+      total: orders.total,
+      source,
     })
   } catch (error) {
     console.error('Shopee commissions error:', error)

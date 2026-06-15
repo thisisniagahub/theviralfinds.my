@@ -1,14 +1,12 @@
 /**
- * Shopee Affiliate Open API Integration Service
+ * Shopee Affiliate API - Main Service
+ * 
+ * Auto-switches between real GraphQL API and mock data:
+ * - When Shopee API credentials are configured and working → uses real GraphQL API
+ * - When no credentials or API access not approved → uses mock data
  * 
  * Official API Docs: https://open.shopee.com/
  * Affiliate Portal: https://affiliate.shopee.com.my/
- * 
- * This service integrates with the Shopee Affiliate Open API to:
- * 1. Generate real affiliate tracking links
- * 2. Fetch product details with commission rates
- * 3. Sync commission/conversion data
- * 4. Track clicks and conversions in real-time
  * 
  * Setup:
  * 1. Register at https://affiliate.shopee.com.my/
@@ -18,6 +16,20 @@
  */
 
 import crypto from 'crypto'
+import { ShopeeGraphQLClient } from './graphql-client'
+import { ShopeeMockService } from './mock-data'
+
+// ─── Connection Status ──────────────────────────────────────────
+
+export type ShopeeConnectionStatus = 'connected' | 'disconnected' | 'no_access' | 'error'
+
+export interface ShopeeServiceConfig {
+  appId?: string
+  secret?: string
+  region?: string
+  accessToken?: string
+  forceMock?: boolean
+}
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -87,7 +99,25 @@ export interface ShopeeClickStats {
   earnings: number
 }
 
-// ─── API Base URLs ──────────────────────────────────────────────
+export interface ShopeeAffiliateProfile {
+  affiliateId: string
+  name: string
+  email: string
+  status: string
+  commissionRate: number
+  totalEarnings: number
+  joinDate: string
+  region: string
+}
+
+export interface ShopeeCategory {
+  categoryId: number
+  name: string
+  productCount: number
+  avgCommissionRate: number
+}
+
+// ─── API Base URLs (legacy REST, kept for backward compat) ──────
 
 const API_BASES: Record<string, string> = {
   my: 'https://open.shopee.com.my/api/v2',
@@ -101,205 +131,157 @@ const API_BASES: Record<string, string> = {
 // ─── Shopee Affiliate Service ───────────────────────────────────
 
 export class ShopeeAffiliateService {
-  private config: ShopeeAffiliateConfig
-  private baseUrl: string
+  private client: ShopeeGraphQLClient | null = null
+  private mock: ShopeeMockService
+  private _status: ShopeeConnectionStatus = 'disconnected'
+  private config: ShopeeServiceConfig
 
-  constructor(config: ShopeeAffiliateConfig) {
+  // Legacy REST fields (kept for backward compat with webhook verification)
+  private legacyConfig: ShopeeAffiliateConfig | null = null
+  private legacyBaseUrl: string = API_BASES.my
+
+  constructor(config: ShopeeServiceConfig = {}) {
     this.config = config
-    this.baseUrl = API_BASES[config.region] || API_BASES.my
+    this.mock = new ShopeeMockService()
+
+    if (config.appId && config.secret && !config.forceMock) {
+      try {
+        this.client = new ShopeeGraphQLClient({
+          appId: config.appId,
+          secret: config.secret,
+          region: (config.region as 'my' | 'sg' | 'id' | 'th' | 'ph' | 'vn') || 'my',
+          accessToken: config.accessToken,
+        })
+        this._status = 'connected'
+
+        // Also set up legacy config for webhook verification
+        const region = (config.region as ShopeeAffiliateConfig['region']) || 'my'
+        this.legacyConfig = {
+          appId: config.appId,
+          secret: config.secret,
+          region,
+          accessToken: config.accessToken,
+        }
+        this.legacyBaseUrl = API_BASES[region] || API_BASES.my
+      } catch {
+        this._status = 'error'
+      }
+    } else {
+      this._status = config.forceMock ? 'no_access' : 'disconnected'
+    }
   }
 
-  // ─── Authentication ─────────────────────────────────────────
+  get status(): ShopeeConnectionStatus {
+    return this._status
+  }
 
-  /**
-   * Generate HMAC-SHA256 signature for API requests
-   * Shopee Open API uses partner_id + path + timestamp for signing
-   */
-  private generateSign(path: string, timestamp: number): string {
-    const baseString = `${this.config.appId}${path}${timestamp}`
-    return crypto
-      .createHmac('sha256', this.config.secret)
-      .update(baseString)
-      .digest('hex')
+  get isUsingMock(): boolean {
+    return !this.client || this._status !== 'connected'
   }
 
   /**
-   * Build authenticated API URL with signature
+   * Get the data source indicator
    */
-  private buildUrl(path: string, extraParams?: Record<string, string>): string {
-    const timestamp = Math.floor(Date.now() / 1000)
-    const sign = this.generateSign(path, timestamp)
-
-    const params = new URLSearchParams({
-      partner_id: this.config.appId,
-      timestamp: timestamp.toString(),
-      sign: sign,
-      ...(this.config.accessToken ? { access_token: this.config.accessToken } : {}),
-      ...extraParams,
-    })
-
-    return `${this.baseUrl}${path}?${params.toString()}`
+  private getSource(): 'graphql_api' | 'mock' {
+    return this.isUsingMock ? 'mock' : 'graphql_api'
   }
 
   // ─── Product APIs ───────────────────────────────────────────
 
   /**
    * Search products on Shopee with commission info
-   * Endpoint: POST /affiliate/product/search
+   * Tries GraphQL API first, falls back to mock data
    */
-  async searchProducts(query: string, options?: {
-    page?: number
-    limit?: number
-    sortField?: 'commission' | 'price' | 'sales' | 'rating'
-    sortOrder?: 'asc' | 'desc'
-    categoryId?: number
-    minPrice?: number
-    maxPrice?: number
-  }): Promise<{ products: ShopeeProduct[]; total: number }> {
-    const path = '/affiliate/product/search'
-    const url = this.buildUrl(path)
-
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          keyword: query,
-          page: options?.page || 1,
-          page_size: options?.limit || 20,
-          sort_field: options?.sortField || 'sales',
-          sort_order: options?.sortOrder || 'desc',
-          category_id: options?.categoryId,
-          min_price: options?.minPrice,
-          max_price: options?.maxPrice,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (data.error) {
-        throw new Error(`Shopee API Error: ${data.message || data.error}`)
-      }
-
-      return {
-        products: (data.response?.products || []).map((p: Record<string, unknown>) => ({
-          itemId: p.item_id as number,
-          name: p.item_name as string,
-          image: p.image_url as string || '',
-          price: Number(p.price || 0),
-          originalPrice: p.original_price ? Number(p.original_price) : undefined,
-          commissionRate: Number(p.commission_rate || 0),
-          commissionMin: Number(p.commission_min || 0),
-          commissionMax: Number(p.commission_max || 0),
-          sales: Number(p.sales || 0),
-          ratingStar: Number(p.rating_star || 0),
-          shopName: p.shop_name as string || '',
-          shopId: p.shop_id as number || 0,
-          category: p.category_name as string || '',
-          categoryId: p.category_id as number || 0,
-          productLink: p.product_link as string || '',
-        })),
-        total: data.response?.total_count || 0,
-      }
-    } catch (error) {
-      console.error('Shopee product search error:', error)
-      throw error
+  async searchProducts(
+    query: string,
+    options?: {
+      page?: number
+      limit?: number
+      sortField?: 'commission' | 'price' | 'sales' | 'rating'
+      sortOrder?: 'asc' | 'desc'
+      categoryId?: number
+      minPrice?: number
+      maxPrice?: number
     }
+  ): Promise<{ products: ShopeeProduct[]; total: number; source: 'graphql_api' | 'mock' }> {
+    if (this.client && this._status === 'connected') {
+      try {
+        const result = await this.client.searchProducts(query, options)
+        return {
+          products: result.products.map((p) => ({
+            ...p,
+            commissionMin: p.commissionMin ?? 0,
+            commissionMax: p.commissionMax ?? 0,
+          })),
+          total: result.total,
+          source: 'graphql_api',
+        }
+      } catch (error) {
+        console.error('Shopee GraphQL search error, falling back to mock:', error)
+        // Fall through to mock
+      }
+    }
+
+    const result = await this.mock.searchProducts(query, options)
+    return { ...result, source: 'mock' }
   }
 
   /**
    * Get product details by item ID
-   * Endpoint: GET /affiliate/product/detail
+   * Tries GraphQL API first, falls back to mock data
    */
-  async getProductDetail(itemId: number): Promise<ShopeeProduct | null> {
-    const path = '/affiliate/product/detail'
-    const url = this.buildUrl(path, { item_id: itemId.toString() })
-
-    try {
-      const response = await fetch(url)
-      const data = await response.json()
-
-      if (data.error) {
-        throw new Error(`Shopee API Error: ${data.message || data.error}`)
+  async getProductDetail(itemId: number): Promise<(ShopeeProduct & { source: 'graphql_api' | 'mock' }) | null> {
+    if (this.client && this._status === 'connected') {
+      try {
+        const result = await this.client.getProductDetail(itemId)
+        if (result) {
+          return {
+            ...result,
+            commissionMin: result.commissionMin ?? 0,
+            commissionMax: result.commissionMax ?? 0,
+            source: 'graphql_api',
+          }
+        }
+      } catch (error) {
+        console.error('Shopee GraphQL product detail error, falling back to mock:', error)
       }
-
-      const p = data.response
-      if (!p) return null
-
-      return {
-        itemId: p.item_id,
-        name: p.item_name,
-        image: p.image_url || '',
-        price: Number(p.price || 0),
-        originalPrice: p.original_price ? Number(p.original_price) : undefined,
-        commissionRate: Number(p.commission_rate || 0),
-        commissionMin: Number(p.commission_min || 0),
-        commissionMax: Number(p.commission_max || 0),
-        sales: Number(p.sales || 0),
-        ratingStar: Number(p.rating_star || 0),
-        shopName: p.shop_name || '',
-        shopId: p.shop_id || 0,
-        category: p.category_name || '',
-        categoryId: p.category_id || 0,
-        productLink: p.product_link || '',
-      }
-    } catch (error) {
-      console.error('Shopee product detail error:', error)
-      return null
     }
+
+    const result = await this.mock.getProductDetail(itemId)
+    if (!result) return null
+    return { ...result, source: 'mock' }
   }
 
   // ─── Affiliate Link APIs ────────────────────────────────────
 
   /**
    * Generate affiliate tracking link
-   * Endpoint: POST /affiliate/link/generate
+   * Tries GraphQL API first, falls back to mock data
    */
   async generateAffiliateLink(params: {
     itemId?: number
     productUrl?: string
     subId?: string
     deepLinkType?: 'default' | 'app_only'
-  }): Promise<ShopeeAffiliateLink> {
-    const path = '/affiliate/link/generate'
-    const url = this.buildUrl(path)
-
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          item_id: params.itemId,
-          product_url: params.productUrl,
-          sub_id: params.subId,
-          deep_link_type: params.deepLinkType || 'default',
-        }),
-      })
-
-      const data = await response.json()
-
-      if (data.error) {
-        throw new Error(`Shopee API Error: ${data.message || data.error}`)
+  }): Promise<ShopeeAffiliateLink & { source: 'graphql_api' | 'mock' }> {
+    if (this.client && this._status === 'connected') {
+      try {
+        const result = await this.client.generateAffiliateLink(params)
+        return { ...result, source: 'graphql_api' }
+      } catch (error) {
+        console.error('Shopee GraphQL generate link error, falling back to mock:', error)
       }
-
-      const link = data.response
-      return {
-        shortUrl: link.short_url || '',
-        longUrl: link.long_url || link.url || '',
-        deepLink: link.deep_link || '',
-        generateUrl: link.generate_url || '',
-      }
-    } catch (error) {
-      console.error('Shopee generate link error:', error)
-      throw error
     }
+
+    const result = await this.mock.generateAffiliateLink(params)
+    return { ...result, source: 'mock' }
   }
 
   // ─── Commission & Earnings APIs ─────────────────────────────
 
   /**
    * Get commission orders (conversions)
-   * Endpoint: GET /affiliate/order/list
+   * Tries GraphQL API first, falls back to mock data
    */
   async getCommissionOrders(params?: {
     page?: number
@@ -307,159 +289,154 @@ export class ShopeeAffiliateService {
     startTime?: number
     endTime?: number
     commissionStatus?: 'pending' | 'confirmed' | 'rejected' | 'paid'
-  }): Promise<{ orders: ShopeeCommissionOrder[]; total: number }> {
-    const path = '/affiliate/order/list'
-    const extraParams: Record<string, string> = {}
-
-    if (params?.startTime) extraParams.start_time = params.startTime.toString()
-    if (params?.endTime) extraParams.end_time = params.endTime.toString()
-    if (params?.commissionStatus) extraParams.commission_status = params.commissionStatus
-
-    const url = this.buildUrl(path, extraParams)
-
-    try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          page: params?.page || 1,
-          page_size: params?.limit || 50,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (data.error) {
-        throw new Error(`Shopee API Error: ${data.message || data.error}`)
+  }): Promise<{ orders: ShopeeCommissionOrder[]; total: number; source: 'graphql_api' | 'mock' }> {
+    if (this.client && this._status === 'connected') {
+      try {
+        const result = await this.client.getCommissionOrders(params)
+        return { ...result, source: 'graphql_api' }
+      } catch (error) {
+        console.error('Shopee GraphQL commission orders error, falling back to mock:', error)
       }
-
-      return {
-        orders: (data.response?.orders || []).map((o: Record<string, unknown>) => ({
-          orderSn: o.order_sn as string,
-          orderCreateTime: o.order_create_time as number,
-          itemId: o.item_id as number,
-          itemName: o.item_name as string,
-          itemPrice: Number(o.item_price || 0),
-          commissionRate: Number(o.commission_rate || 0),
-          commission: Number(o.commission || 0),
-          commissionStatus: o.commission_status as 'pending' | 'confirmed' | 'rejected' | 'paid',
-          orderStatus: o.order_status as string,
-          settleTime: o.settle_time as number | undefined,
-          clickTime: o.click_time as number,
-          subId: o.sub_id as string | undefined,
-        })),
-        total: data.response?.total_count || 0,
-      }
-    } catch (error) {
-      console.error('Shopee commission orders error:', error)
-      throw error
     }
+
+    const result = await this.mock.getCommissionOrders(params)
+    return { ...result, source: 'mock' }
   }
 
   /**
    * Get commission summary
-   * Endpoint: GET /affiliate/commission/summary
+   * Tries GraphQL API first, falls back to mock data
    */
   async getCommissionSummary(params?: {
     startTime?: number
     endTime?: number
-  }): Promise<ShopeeCommissionSummary> {
-    const path = '/affiliate/commission/summary'
-    const extraParams: Record<string, string> = {}
-
-    if (params?.startTime) extraParams.start_time = params.startTime.toString()
-    if (params?.endTime) extraParams.end_time = params.endTime.toString()
-
-    const url = this.buildUrl(path, extraParams)
-
-    try {
-      const response = await fetch(url)
-      const data = await response.json()
-
-      if (data.error) {
-        throw new Error(`Shopee API Error: ${data.message || data.error}`)
+  }): Promise<ShopeeCommissionSummary & { source: 'graphql_api' | 'mock' }> {
+    if (this.client && this._status === 'connected') {
+      try {
+        const result = await this.client.getCommissionSummary(params)
+        return { ...result, source: 'graphql_api' }
+      } catch (error) {
+        console.error('Shopee GraphQL commission summary error, falling back to mock:', error)
       }
-
-      const s = data.response
-      return {
-        totalCommission: Number(s?.total_commission || 0),
-        pendingCommission: Number(s?.pending_commission || 0),
-        confirmedCommission: Number(s?.confirmed_commission || 0),
-        rejectedCommission: Number(s?.rejected_commission || 0),
-        paidCommission: Number(s?.paid_commission || 0),
-        totalOrders: Number(s?.total_orders || 0),
-        conversionRate: Number(s?.conversion_rate || 0),
-      }
-    } catch (error) {
-      console.error('Shopee commission summary error:', error)
-      throw error
     }
+
+    const result = await this.mock.getCommissionSummary(params)
+    return { ...result, source: 'mock' }
   }
 
   // ─── Click & Stats APIs ─────────────────────────────────────
 
   /**
    * Get click statistics
-   * Endpoint: GET /affiliate/click/stats
+   * Tries GraphQL API first, falls back to mock data
    */
   async getClickStats(params: {
     startTime: number
     endTime: number
     granularity?: 'hour' | 'day' | 'week' | 'month'
-  }): Promise<ShopeeClickStats[]> {
-    const path = '/affiliate/click/stats'
-    const url = this.buildUrl(path, {
-      start_time: params.startTime.toString(),
-      end_time: params.endTime.toString(),
-      granularity: params.granularity || 'day',
-    })
-
-    try {
-      const response = await fetch(url)
-      const data = await response.json()
-
-      if (data.error) {
-        throw new Error(`Shopee API Error: ${data.message || data.error}`)
+  }): Promise<(ShopeeClickStats & { source?: 'graphql_api' | 'mock' })[]> {
+    if (this.client && this._status === 'connected') {
+      try {
+        const result = await this.client.getClickStats(params)
+        return result.map((s) => ({ ...s, source: 'graphql_api' as const }))
+      } catch (error) {
+        console.error('Shopee GraphQL click stats error, falling back to mock:', error)
       }
-
-      return (data.response?.stats || []).map((s: Record<string, unknown>) => ({
-        date: s.date as string,
-        clicks: Number(s.clicks || 0),
-        uniqueClicks: Number(s.unique_clicks || 0),
-        conversions: Number(s.conversions || 0),
-        earnings: Number(s.earnings || 0),
-      }))
-    } catch (error) {
-      console.error('Shopee click stats error:', error)
-      throw error
     }
+
+    const result = await this.mock.getClickStats(params)
+    return result.map((s) => ({ ...s, source: 'mock' as const }))
+  }
+
+  // ─── Profile & Category APIs ────────────────────────────────
+
+  /**
+   * Get affiliate profile
+   * Tries GraphQL API first, falls back to mock data
+   */
+  async getAffiliateProfile(): Promise<(ShopeeAffiliateProfile & { source: 'graphql_api' | 'mock' }) | null> {
+    if (this.client && this._status === 'connected') {
+      try {
+        const result = await this.client.getAffiliateProfile()
+        if (result) return { ...result, source: 'graphql_api' }
+      } catch (error) {
+        console.error('Shopee GraphQL profile error, falling back to mock:', error)
+      }
+    }
+
+    const result = await this.mock.getAffiliateProfile()
+    return { ...result, source: 'mock' }
+  }
+
+  /**
+   * Get top products by commission/earnings
+   * Tries GraphQL API first, falls back to mock data
+   */
+  async getTopProducts(limit?: number): Promise<(ShopeeProduct & { source: 'graphql_api' | 'mock' })[]> {
+    if (this.client && this._status === 'connected') {
+      try {
+        const result = await this.client.getTopProducts(limit)
+        return result.map((p) => ({
+          ...p,
+          commissionMin: p.commissionMin ?? 0,
+          commissionMax: p.commissionMax ?? 0,
+          source: 'graphql_api' as const,
+        }))
+      } catch (error) {
+        console.error('Shopee GraphQL top products error, falling back to mock:', error)
+      }
+    }
+
+    const result = await this.mock.getTopProducts(limit)
+    return result.map((p) => ({ ...p, source: 'mock' as const }))
+  }
+
+  /**
+   * Get product categories
+   * Tries GraphQL API first, falls back to mock data
+   */
+  async getCategories(): Promise<(ShopeeCategory & { source: 'graphql_api' | 'mock' })[]> {
+    if (this.client && this._status === 'connected') {
+      try {
+        const result = await this.client.getCategories()
+        return result.map((c) => ({ ...c, source: 'graphql_api' as const }))
+      } catch (error) {
+        console.error('Shopee GraphQL categories error, falling back to mock:', error)
+      }
+    }
+
+    const result = await this.mock.getCategories()
+    return result.map((c) => ({ ...c, source: 'mock' as const }))
   }
 
   // ─── Utility ────────────────────────────────────────────────
 
   /**
    * Test API connection
+   * Tries GraphQL API first, falls back to mock
    */
-  async testConnection(): Promise<{ success: boolean; message: string; region: string }> {
-    try {
-      // Try to fetch commission summary as a connection test
-      const summary = await this.getCommissionSummary()
-      return {
-        success: true,
-        message: `Connected! Total commission: RM ${summary.totalCommission.toFixed(2)}`,
-        region: this.config.region.toUpperCase(),
-      }
-    } catch (error) {
-      return {
-        success: false,
-        message: error instanceof Error ? error.message : 'Connection failed',
-        region: this.config.region.toUpperCase(),
+  async testConnection(): Promise<{ success: boolean; message: string; region: string; source: 'graphql_api' | 'mock' }> {
+    if (this.client && this._status === 'connected') {
+      try {
+        const result = await this.client.testConnection()
+        if (result.success) {
+          return { ...result, source: 'graphql_api' }
+        }
+        // If real API test fails, update status and fall back
+        this._status = 'error'
+      } catch (error) {
+        this._status = 'error'
+        console.error('Shopee GraphQL connection test error, falling back to mock:', error)
       }
     }
+
+    const result = await this.mock.testConnection()
+    return { ...result, source: 'mock' }
   }
 
   /**
-   * Verify webhook signature
+   * Verify webhook signature (static method, uses crypto directly)
+   * This is used by the webhook route to verify incoming Shopee events
    */
   static verifyWebhookSignature(
     body: string,
@@ -481,39 +458,53 @@ export class ShopeeAffiliateService {
 
 let _instance: ShopeeAffiliateService | null = null
 
-export function getShopeeService(config?: ShopeeAffiliateConfig): ShopeeAffiliateService | null {
-  if (!config && !_instance) return null
-  
+/**
+ * Get or create a ShopeeAffiliateService instance
+ * @param config - Optional config to create a new instance
+ */
+export function getShopeeService(config?: ShopeeServiceConfig): ShopeeAffiliateService {
   if (config) {
     _instance = new ShopeeAffiliateService(config)
   }
-  
+
+  if (!_instance) {
+    // Create with mock mode by default
+    _instance = new ShopeeAffiliateService({ forceMock: true })
+  }
+
   return _instance
 }
 
 /**
  * Get Shopee service from database settings
- * This reads the API credentials from AppSetting table
+ * Reads the API credentials from the AppSetting table
  */
 export async function getShopeeServiceFromDB(): Promise<ShopeeAffiliateService | null> {
-  const { db } = await import('@/lib/db')
-  
-  const settings = await db.appSetting.findMany({
-    where: {
-      key: { in: ['shopee_app_id', 'shopee_secret', 'shopee_region', 'shopee_access_token'] }
+  try {
+    const { db } = await import('@/lib/db')
+
+    const settings = await db.appSetting.findMany({
+      where: {
+        key: { in: ['shopee_app_id', 'shopee_secret', 'shopee_region', 'shopee_access_token'] },
+      },
+    })
+
+    const settingsMap = Object.fromEntries(settings.map((s) => [s.key, s.value]))
+
+    if (!settingsMap.shopee_app_id || !settingsMap.shopee_secret) {
+      // Return a mock service when no credentials configured
+      return new ShopeeAffiliateService({ forceMock: true })
     }
-  })
 
-  const settingsMap = Object.fromEntries(settings.map(s => [s.key, s.value]))
-  
-  if (!settingsMap.shopee_app_id || !settingsMap.shopee_secret) {
-    return null
+    return new ShopeeAffiliateService({
+      appId: settingsMap.shopee_app_id,
+      secret: settingsMap.shopee_secret,
+      region: settingsMap.shopee_region || 'my',
+      accessToken: settingsMap.shopee_access_token,
+    })
+  } catch (error) {
+    console.error('Failed to load Shopee service from DB:', error)
+    // Return a mock service as fallback
+    return new ShopeeAffiliateService({ forceMock: true })
   }
-
-  return new ShopeeAffiliateService({
-    appId: settingsMap.shopee_app_id,
-    secret: settingsMap.shopee_secret,
-    region: (settingsMap.shopee_region as ShopeeAffiliateConfig['region']) || 'my',
-    accessToken: settingsMap.shopee_access_token,
-  })
 }

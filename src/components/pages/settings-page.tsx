@@ -60,6 +60,8 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
+import { useAppStore } from '@/store/app-store'
+import { toast } from 'sonner'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -96,15 +98,16 @@ export function SettingsPage() {
   const [weeklyDigest, setWeeklyDigest] = useState(true)
 
   // Shopee Affiliate API Connection
+  const { shopeeConnected, setShopeeConnected, shopeeDataSource, setShopeeDataSource } = useAppStore()
   const [shopeeAppId, setShopeeAppId] = useState('')
   const [shopeeSecret, setShopeeSecret] = useState('')
   const [shopeeRegion, setShopeeRegion] = useState('my')
   const [shopeeAccessToken, setShopeeAccessToken] = useState('')
-  const [shopeeConnected, setShopeeConnected] = useState(false)
   const [shopeeTesting, setShopeeTesting] = useState(false)
   const [shopeeLastConnected, setShopeeLastConnected] = useState<string | null>(null)
   const [shopeeTestMessage, setShopeeTestMessage] = useState<string | null>(null)
   const [shopeeMaskedAppId, setShopeeMaskedAppId] = useState<string | null>(null)
+  const [shopeeHasCredentials, setShopeeHasCredentials] = useState(false)
 
   // HERMES Connection
   const [hermesEndpoint, setHermesEndpoint] = useState('https://api.openai.com/v1')
@@ -113,25 +116,41 @@ export function SettingsPage() {
   const [hermesConnected, setHermesConnected] = useState(true)
   const [testingConnection, setTestingConnection] = useState(false)
 
-  // Load Shopee connection status on mount
+  // Load Shopee config on mount
   useEffect(() => {
-    fetch('/api/shopee/connect')
+    fetch('/api/shopee/config')
       .then((res) => res.json())
       .then((data) => {
-        setShopeeConnected(data.connected === true)
+        setShopeeHasCredentials(data.hasCredentials === true)
         setShopeeMaskedAppId(data.appId || null)
         setShopeeRegion(data.region || 'my')
-        setShopeeLastConnected(data.lastConnected || null)
+        setShopeeDataSource(data.source || 'mock')
+        if (data.status === 'connected') {
+          setShopeeConnected(true)
+        } else {
+          setShopeeConnected(false)
+        }
+        // If has credentials, also check status endpoint for live connection test
+        if (data.hasCredentials) {
+          fetch('/api/shopee/status')
+            .then((r) => r.json())
+            .then((statusData) => {
+              setShopeeConnected(statusData.connected === true)
+              setShopeeDataSource(statusData.source || 'mock')
+            })
+            .catch(() => {})
+        }
       })
       .catch(() => {
         setShopeeConnected(false)
+        setShopeeDataSource('mock')
       })
-  }, [])
+  }, [setShopeeConnected, setShopeeDataSource])
 
-  // Test Shopee connection
+  // Test Shopee connection - save credentials then test
   const handleTestShopeeConnection = async () => {
     if (!shopeeAppId || !shopeeSecret) {
-      setShopeeTestMessage('App ID and Secret are required')
+      toast.error('App ID and Secret are required')
       return
     }
 
@@ -139,29 +158,47 @@ export function SettingsPage() {
     setShopeeTestMessage(null)
 
     try {
-      const res = await fetch('/api/shopee/connect', {
+      // Step 1: Save credentials via POST /api/shopee/config
+      const saveRes = await fetch('/api/shopee/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           appId: shopeeAppId,
           secret: shopeeSecret,
           region: shopeeRegion,
-          accessToken: shopeeAccessToken || undefined,
         }),
       })
 
-      const data = await res.json()
+      const saveData = await saveRes.json()
 
-      setShopeeConnected(data.success === true)
-      setShopeeTestMessage(data.message || (data.success ? 'Connected!' : 'Connection failed'))
+      if (!saveRes.ok) {
+        setShopeeTestMessage(saveData.error || 'Failed to save credentials')
+        toast.error('Failed to save credentials')
+        return
+      }
 
-      if (data.success) {
+      // Step 2: Test connection via GET /api/shopee/status
+      const statusRes = await fetch('/api/shopee/status')
+      const statusData = await statusRes.json()
+
+      setShopeeConnected(statusData.connected === true)
+      setShopeeHasCredentials(true)
+      setShopeeDataSource(statusData.source || 'mock')
+      setShopeeMaskedAppId(`${shopeeAppId.slice(0, 4)}****`)
+
+      if (statusData.connected) {
         setShopeeLastConnected(new Date().toISOString())
-        setShopeeMaskedAppId(`${shopeeAppId.slice(0, 4)}****`)
+        setShopeeTestMessage('Connected to Shopee Affiliate API!')
+        toast.success('Connected to Shopee Affiliate API!')
+      } else {
+        setShopeeTestMessage(statusData.message || 'Connection failed. Check your credentials.')
+        toast.error('Connection failed. Check your credentials.')
       }
     } catch (error) {
       setShopeeConnected(false)
+      setShopeeDataSource('mock')
       setShopeeTestMessage('Failed to connect. Please check your credentials.')
+      toast.error('Failed to connect. Please check your credentials.')
     } finally {
       setShopeeTesting(false)
     }
@@ -170,26 +207,29 @@ export function SettingsPage() {
   // Disconnect Shopee
   const handleDisconnectShopee = async () => {
     try {
-      // Clear credentials by saving empty values
-      await fetch('/api/shopee/connect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          appId: 'DISCONNECTED',
-          secret: 'DISCONNECTED',
-          region: shopeeRegion,
-        }),
+      const res = await fetch('/api/shopee/config', {
+        method: 'DELETE',
       })
 
-      setShopeeConnected(false)
-      setShopeeAppId('')
-      setShopeeSecret('')
-      setShopeeAccessToken('')
-      setShopeeMaskedAppId(null)
-      setShopeeLastConnected(null)
-      setShopeeTestMessage(null)
+      const data = await res.json()
+
+      if (data.success) {
+        setShopeeConnected(false)
+        setShopeeHasCredentials(false)
+        setShopeeDataSource('mock')
+        setShopeeAppId('')
+        setShopeeSecret('')
+        setShopeeAccessToken('')
+        setShopeeMaskedAppId(null)
+        setShopeeLastConnected(null)
+        setShopeeTestMessage(null)
+        toast.success('Shopee API disconnected. Using demo data.')
+      } else {
+        toast.error('Failed to disconnect')
+      }
     } catch (error) {
       console.error('Disconnect error:', error)
+      toast.error('Failed to disconnect')
     }
   }
 
@@ -371,7 +411,55 @@ export function SettingsPage() {
 
                   {/* Tab 1: Shopee Affiliate API */}
                   <TabsContent value="shopee" className="space-y-4">
-                    {/* Connection Status */}
+                    {/* API Access Status Info Box */}
+                    {!shopeeHasCredentials ? (
+                      <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-50 dark:bg-amber-950/20 p-4">
+                        <AlertTriangle className="size-5 text-amber-500 mt-0.5 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
+                            No API Access
+                          </p>
+                          <p className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">
+                            You currently do not have access to the Shopee Affiliate Open API Platform. Please contact Shopee to request access. The app is using demo data.
+                          </p>
+                        </div>
+                        <Badge className="shrink-0 bg-amber-500 text-white border-0 text-[10px]">
+                          Demo Mode
+                        </Badge>
+                      </div>
+                    ) : shopeeHasCredentials && !shopeeConnected ? (
+                      <div className="flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-50 dark:bg-amber-950/20 p-4">
+                        <AlertTriangle className="size-5 text-amber-500 mt-0.5 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
+                            Connection Failed
+                          </p>
+                          <p className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">
+                            API credentials configured but connection failed. Check your AppID and Secret.
+                          </p>
+                        </div>
+                        <Badge className="shrink-0 bg-amber-500 text-white border-0 text-[10px]">
+                          Demo Mode
+                        </Badge>
+                      </div>
+                    ) : (
+                      <div className="flex items-start gap-3 rounded-lg border border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/20 p-4">
+                        <Check className="size-5 text-emerald-500 mt-0.5 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+                            Connected to Shopee Affiliate API
+                          </p>
+                          <p className="text-xs text-emerald-600 dark:text-emerald-500 mt-0.5">
+                            Showing real data from Shopee. Affiliate links and product data are live.
+                          </p>
+                        </div>
+                        <Badge className="shrink-0 bg-emerald-500 text-white border-0 text-[10px]">
+                          Live Mode
+                        </Badge>
+                      </div>
+                    )}
+
+                    {/* Connection Status Bar */}
                     <div className={cn(
                       'flex items-center gap-2 rounded-lg border p-3',
                       shopeeConnected
@@ -418,6 +506,23 @@ export function SettingsPage() {
                         {shopeeTestMessage}
                       </div>
                     )}
+
+                    {/* Shopee API Docs Link */}
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Info className="size-3.5 shrink-0" />
+                      <span>
+                        Need API access? Visit the{' '}
+                        <a
+                          href="https://affiliate.shopee.com.my/affiliate-api"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-shopee underline underline-offset-2 hover:text-shopee-dark"
+                        >
+                          Shopee Affiliate API Documentation
+                        </a>
+                        {' '}to learn more and request access.
+                      </span>
+                    </div>
 
                     <div className="grid gap-2">
                       <Label htmlFor="shopee-app-id">App ID</Label>
@@ -726,8 +831,14 @@ export function SettingsPage() {
                   <ShoppingBag className="size-3.5" />
                   Shopee API
                 </span>
-                <Badge variant={shopeeConnected ? 'default' : 'destructive'} className="text-[10px]">
-                  {shopeeConnected ? 'Online' : 'Offline'}
+                <Badge
+                  variant={shopeeConnected ? 'default' : 'destructive'}
+                  className={cn(
+                    'text-[10px]',
+                    shopeeConnected && 'bg-emerald-500 hover:bg-emerald-600'
+                  )}
+                >
+                  {shopeeConnected ? 'Live' : shopeeHasCredentials ? 'Error' : 'Demo'}
                 </Badge>
               </div>
               <Separator />

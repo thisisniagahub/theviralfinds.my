@@ -1,0 +1,773 @@
+     1→'use client'
+     2→
+     3→import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
+     4→import { motion, AnimatePresence } from 'framer-motion'
+     5→import {
+     6→  Search,
+     7→  ShoppingBag,
+     8→  Star,
+     9→  TrendingUp,
+    10→  Sparkles,
+    11→  ChevronDown,
+    12→  Link2,
+    13→  SlidersHorizontal,
+    14→  Package,
+    15→  Loader2,
+    16→  Copy,
+    17→  Check,
+    18→  AlertTriangle,
+    19→  RefreshCw,
+    20→  Zap,
+    21→} from 'lucide-react'
+    22→import { Card, CardContent } from '@/components/ui/card'
+    23→import { Button } from '@/components/ui/button'
+    24→import { Input } from '@/components/ui/input'
+    25→import { Badge } from '@/components/ui/badge'
+    26→import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+    27→import {
+    28→  Select,
+    29→  SelectContent,
+    30→  SelectItem,
+    31→  SelectTrigger,
+    32→  SelectValue,
+    33→} from '@/components/ui/select'
+    34→import { Separator } from '@/components/ui/separator'
+    35→
+    36→// --- Types ---
+    37→interface Product {
+    38→  id: string
+    39→  itemId: number
+    40→  name: string
+    41→  price: number
+    42→  originalPrice?: number
+    43→  commissionRate: number
+    44→  rating: number
+    45→  soldCount: number
+    46→  shopName: string
+    47→  category: string
+    48→  isAiPick?: boolean
+    49→  color: string
+    50→  source?: 'shopee_api' | 'web_search' | 'demo'
+    51→  affiliateLink?: string | null
+    52→  deepLink?: string | null
+    53→  productLink?: string
+    54→}
+    55→
+    56→interface SearchResult {
+    57→  products: Product[]
+    58→  total: number
+    59→  query: string
+    60→  source: 'shopee_api' | 'web_search' | 'demo'
+    61→  connected: boolean
+    62→  message?: string
+    63→}
+    64→
+    65→const CATEGORIES = [
+    66→  'All',
+    67→  'Electronics',
+    68→  'Fashion',
+    69→  'Home & Living',
+    70→  'Beauty',
+    71→  'Sports',
+    72→  'Food',
+    73→] as const
+    74→
+    75→const SORT_OPTIONS = [
+    76→  { value: 'popular', label: 'Popular' },
+    77→  { value: 'newest', label: 'Newest' },
+    78→  { value: 'commission', label: 'Highest Commission' },
+    79→  { value: 'rating', label: 'Best Rating' },
+    80→] as const
+    81→
+    82→// Color palette for product cards
+    83→const CARD_COLORS = [
+    84→  'bg-orange-100 dark:bg-orange-900/30',
+    85→  'bg-pink-100 dark:bg-pink-900/30',
+    86→  'bg-purple-100 dark:bg-purple-900/30',
+    87→  'bg-rose-100 dark:bg-rose-900/30',
+    88→  'bg-sky-100 dark:bg-sky-900/30',
+    89→  'bg-emerald-100 dark:bg-emerald-900/30',
+    90→  'bg-lime-100 dark:bg-lime-900/30',
+    91→  'bg-amber-100 dark:bg-amber-900/30',
+    92→  'bg-teal-100 dark:bg-teal-900/30',
+    93→  'bg-fuchsia-100 dark:bg-fuchsia-900/30',
+    94→  'bg-yellow-100 dark:bg-yellow-900/30',
+    95→  'bg-cyan-100 dark:bg-cyan-900/30',
+    96→]
+    97→
+    98→// AI Picks (still use curated mock data for the AI recommendations section)
+    99→const AI_PICKS: Product[] = [
+   100→  {
+   101→    id: 'ai-1',
+   102→    itemId: 1001,
+   103→    name: 'Xiaomi Redmi Note 13 Pro 5G - 256GB',
+   104→    price: 899,
+   105→    originalPrice: 1199,
+   106→    commissionRate: 10,
+   107→    rating: 4.8,
+   108→    soldCount: 15200,
+   109→    shopName: 'Xiaomi Official Store',
+   110→    category: 'Electronics',
+   111→    isAiPick: true,
+   112→    color: 'bg-orange-100 dark:bg-orange-900/30',
+   113→  },
+   114→  {
+   115→    id: 'ai-2',
+   116→    itemId: 1002,
+   117→    name: 'Korean Style Oversized Hoodie - Unisex',
+   118→    price: 45,
+   119→    originalPrice: 89,
+   120→    commissionRate: 20,
+   121→    rating: 4.5,
+   122→    soldCount: 28300,
+   123→    shopName: 'K-Fashion MY',
+   124→    category: 'Fashion',
+   125→    isAiPick: true,
+   126→    color: 'bg-pink-100 dark:bg-pink-900/30',
+   127→  },
+   128→  {
+   129→    id: 'ai-3',
+   130→    itemId: 1003,
+   131→    name: 'Dyson V12 Detect Slim Cordless Vacuum',
+   132→    price: 2199,
+   133→    originalPrice: 2699,
+   134→    commissionRate: 10,
+   135→    rating: 4.9,
+   136→    soldCount: 3200,
+   137→    shopName: 'Dyson Official',
+   138→    category: 'Home & Living',
+   139→    isAiPick: true,
+   140→    color: 'bg-purple-100 dark:bg-purple-900/30',
+   141→  },
+   142→  {
+   143→    id: 'ai-4',
+   144→    itemId: 1004,
+   145→    name: 'LANEIGE Lip Sleeping Mask - Berry',
+   146→    price: 68,
+   147→    originalPrice: 85,
+   148→    commissionRate: 20,
+   149→    rating: 4.7,
+   150→    soldCount: 41500,
+   151→    shopName: 'LANEIGE Official',
+   152→    category: 'Beauty',
+   153→    isAiPick: true,
+   154→    color: 'bg-rose-100 dark:bg-rose-900/30',
+   155→  },
+   156→]
+   157→
+   158→// --- Helpers ---
+   159→function formatSoldCount(count: number): string {
+   160→  if (count >= 1000) return `${(count / 1000).toFixed(1)}k`
+   161→  return count.toString()
+   162→}
+   163→
+   164→function StarRating({ rating }: { rating: number }) {
+   165→  return (
+   166→    <div className="flex items-center gap-0.5">
+   167→      {[1, 2, 3, 4, 5].map((star) => (
+   168→        <Star
+   169→          key={star}
+   170→          className={`size-3 ${
+   171→            star <= Math.round(rating)
+   172→              ? 'fill-yellow-400 text-yellow-400'
+   173→              : 'text-muted-foreground/30'
+   174→          }`}
+   175→        />
+   176→      ))}
+   177→      <span className="ml-1 text-xs text-muted-foreground">{rating}</span>
+   178→    </div>
+   179→  )
+   180→}
+   181→
+   182→// Map API product to our Product interface
+   183→function mapApiProduct(raw: Record<string, unknown>, index: number): Product {
+   184→  const price = Number(raw.price || 0)
+   185→  const commissionRate = Number(raw.commissionRate || 0)
+   186→  return {
+   187→    id: (raw.id as string) || `api-${index}`,
+   188→    itemId: Number(raw.itemId || raw.item_id || 0),
+   189→    name: (raw.name as string) || (raw.item_name as string) || 'Unknown Product',
+   190→    price,
+   191→    originalPrice: raw.originalPrice ? Number(raw.originalPrice) : raw.original_price ? Number(raw.original_price) : undefined,
+   192→    commissionRate,
+   193→    rating: Number(raw.rating || raw.ratingStar || raw.rating_star || 0),
+   194→    soldCount: Number(raw.soldCount || raw.sales || 0),
+   195→    shopName: (raw.shopName as string) || (raw.shop_name as string) || 'Shopee Seller',
+   196→    category: (raw.category as string) || 'general',
+   197→    color: CARD_COLORS[index % CARD_COLORS.length],
+   198→    source: (raw.source as 'shopee_api' | 'web_search' | 'demo') || 'demo',
+   199→    affiliateLink: (raw.affiliateLink as string | null) ?? null,
+   200→    deepLink: (raw.deepLink as string | null) ?? null,
+   201→    productLink: (raw.productLink as string) || (raw.product_link as string),
+   202→  }
+   203→}
+   204→
+   205→// --- Product Card ---
+   206→function ProductCard({
+   207→  product,
+   208→  onGenerateLink,
+   209→  generatingLinkId,
+   210→}: {
+   211→  product: Product
+   212→  onGenerateLink: (product: Product) => void
+   213→  generatingLinkId: string | null
+   214→}) {
+   215→  const discount = product.originalPrice
+   216→    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+   217→    : 0
+   218→
+   219→  const [copied, setCopied] = useState(false)
+   220→  const commission = product.price * product.commissionRate / 100
+   221→
+   222→  const handleCopyLink = () => {
+   223→    if (product.affiliateLink) {
+   224→      navigator.clipboard?.writeText(product.affiliateLink).catch(() => {})
+   225→      setCopied(true)
+   226→      setTimeout(() => setCopied(false), 2000)
+   227→    }
+   228→  }
+   229→
+   230→  const isGenerating = generatingLinkId === product.id
+   231→
+   232→  return (
+   233→    <motion.div
+   234→      initial={{ opacity: 0, y: 12 }}
+   235→      animate={{ opacity: 1, y: 0 }}
+   236→      transition={{ duration: 0.3 }}
+   237→    >
+   238→      <Card className="card-hover overflow-hidden py-0 gap-0">
+   239→        {/* Image placeholder */}
+   240→        <div
+   241→          className={`${product.color} flex items-center justify-center h-44 relative`}
+   242→        >
+   243→          <ShoppingBag className="size-12 text-muted-foreground/40" />
+   244→          {product.isAiPick && (
+   245→            <Badge className="absolute top-2 left-2 bg-hermes text-white border-0 text-[10px] px-1.5 py-0.5 gap-1">
+   246→              <Sparkles className="size-3" />
+   247→              AI Pick
+   248→            </Badge>
+   249→          )}
+   250→          {product.source === 'shopee_api' && (
+   251→            <Badge className="absolute top-2 left-2 bg-emerald-500 text-white border-0 text-[10px] px-1.5 py-0.5 gap-1">
+   252→              <Zap className="size-3" />
+   253→              Live
+   254→            </Badge>
+   255→          )}
+   256→          {discount > 0 && (
+   257→            <Badge className="absolute top-2 right-2 bg-destructive text-white border-0 text-[10px] px-1.5 py-0.5">
+   258→              -{discount}%
+   259→            </Badge>
+   260→          )}
+   261→        </div>
+   262→
+   263→        <CardContent className="p-4 flex flex-col gap-2">
+   264→          <h3 className="text-sm font-medium line-clamp-2 leading-snug min-h-[2.5rem]">
+   265→            {product.name}
+   266→          </h3>
+   267→
+   268→          <div className="flex items-baseline gap-2">
+   269→            <span className="text-lg font-bold text-shopee">
+   270→              RM{product.price.toFixed(2)}
+   271→            </span>
+   272→            {product.originalPrice && (
+   273→              <span className="text-xs text-muted-foreground line-through">
+   274→                RM{product.originalPrice.toFixed(2)}
+   275→              </span>
+   276→            )}
+   277→          </div>
+   278→
+   279→          <div className="flex items-center justify-between">
+   280→            <div className="flex items-center gap-1">
+   281→              <Badge
+   282→                variant="secondary"
+   283→                className="text-[10px] px-1.5 py-0 bg-shopee/10 text-shopee border-0 font-semibold"
+   284→              >
+   285→                RM{commission.toFixed(2)}
+   286→              </Badge>
+   287→              <span className="text-[10px] text-muted-foreground">
+   288→                {product.commissionRate}% comm
+   289→              </span>
+   290→            </div>
+   291→          </div>
+   292→
+   293→          <div className="flex items-center justify-between">
+   294→            <StarRating rating={product.rating} />
+   295→            <span className="text-xs text-muted-foreground">
+   296→              {formatSoldCount(product.soldCount)} sold
+   297→            </span>
+   298→          </div>
+   299→
+   300→          <p className="text-xs text-muted-foreground truncate">
+   301→            {product.shopName}
+   302→          </p>
+   303→
+   304→          {product.affiliateLink ? (
+   305→            <div className="flex gap-2 mt-1">
+   306→              <Button
+   307→                size="sm"
+   308→                className="flex-1 bg-shopee hover:bg-shopee-dark text-white"
+   309→                onClick={handleCopyLink}
+   310→              >
+   311→                {copied ? (
+   312→                  <Check className="size-3.5" />
+   313→                ) : (
+   314→                  <Copy className="size-3.5" />
+   315→                )}
+   316→                {copied ? 'Copied!' : 'Copy Link'}
+   317→              </Button>
+   318→              <Button
+   319→                size="sm"
+   320→                variant="outline"
+   321→                className="flex-1"
+   322→                onClick={() => onGenerateLink(product)}
+   323→                disabled={isGenerating}
+   324→              >
+   325→                {isGenerating ? (
+   326→                  <Loader2 className="size-3.5 animate-spin" />
+   327→                ) : (
+   328→                  <Link2 className="size-3.5" />
+   329→                )}
+   330→                Regenerate
+   331→              </Button>
+   332→            </div>
+   333→          ) : (
+   334→            <Button
+   335→              size="sm"
+   336→              className="w-full mt-1 bg-shopee hover:bg-shopee-dark text-white"
+   337→              onClick={() => onGenerateLink(product)}
+   338→              disabled={isGenerating}
+   339→            >
+   340→              {isGenerating ? (
+   341→                <Loader2 className="size-3.5 animate-spin" />
+   342→              ) : (
+   343→                <Link2 className="size-3.5" />
+   344→              )}
+   345→              {isGenerating ? 'Generating...' : 'Generate Link'}
+   346→            </Button>
+   347→          )}
+   348→        </CardContent>
+   349→      </Card>
+   350→    </motion.div>
+   351→  )
+   352→}
+   353→
+   354→// --- Main Component ---
+   355→export function ProductsPage() {
+   356→  const [searchQuery, setSearchQuery] = useState('')
+   357→  const [activeCategory, setActiveCategory] = useState<string>('All')
+   358→  const [sortBy, setSortBy] = useState<string>('popular')
+   359→  const [visibleCount, setVisibleCount] = useState(8)
+   360→  const [isLoadingMore, setIsLoadingMore] = useState(false)
+   361→
+   362→  // API integration state
+   363→  const [apiProducts, setApiProducts] = useState<Product[]>([])
+   364→  const [isSearching, setIsSearching] = useState(false)
+   365→  const [isConnected, setIsConnected] = useState<boolean | null>(null)
+   366→  const [apiSource, setApiSource] = useState<'shopee_api' | 'web_search' | 'demo' | null>(null)
+   367→  const [apiMessage, setApiMessage] = useState<string | null>(null)
+   368→  const [generatingLinkId, setGeneratingLinkId] = useState<string | null>(null)
+   369→  const [hasSearched, setHasSearched] = useState(false)
+   370→  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+   371→
+   372→  // Check connection status on mount
+   373→  useEffect(() => {
+   374→    fetch('/api/shopee/connect')
+   375→      .then((res) => res.json())
+   376→      .then((data) => {
+   377→        setIsConnected(data.connected === true)
+   378→      })
+   379→      .catch(() => {
+   380→        setIsConnected(false)
+   381→      })
+   382→  }, [])
+   383→
+   384→  // Search products from API
+   385→  const searchProducts = useCallback(async (query: string) => {
+   386→    if (!query.trim()) {
+   387→      setApiProducts([])
+   388→      setHasSearched(false)
+   389→      setApiSource(null)
+   390→      setApiMessage(null)
+   391→      return
+   392→    }
+   393→
+   394→    setIsSearching(true)
+   395→    setHasSearched(true)
+   396→
+   397→    try {
+   398→      const res = await fetch(`/api/shopee/products?q=${encodeURIComponent(query)}&limit=20`)
+   399→      const data: SearchResult = await res.json()
+   400→
+   401→      const mapped = (data.products || []).map((p: Record<string, unknown>, i: number) =>
+   402→        mapApiProduct(p, i)
+   403→      )
+   404→
+   405→      setApiProducts(mapped)
+   406→      setIsConnected(data.connected)
+   407→      setApiSource(data.source)
+   408→      setApiMessage(data.message || null)
+   409→    } catch (error) {
+   410→      console.error('Product search error:', error)
+   411→      setApiProducts([])
+   412→      setApiSource('demo')
+   413→      setApiMessage('Failed to search products. Please try again.')
+   414→    } finally {
+   415→      setIsSearching(false)
+   416→    }
+   417→  }, [])
+   418→
+   419→  // Debounced search
+   420→  const handleSearchChange = (value: string) => {
+   421→    setSearchQuery(value)
+   422→    setVisibleCount(8)
+   423→
+   424→    if (searchTimeoutRef.current) {
+   425→      clearTimeout(searchTimeoutRef.current)
+   426→    }
+   427→
+   428→    searchTimeoutRef.current = setTimeout(() => {
+   429→      searchProducts(value)
+   430→    }, 500)
+   431→  }
+   432→
+   433→  // Generate affiliate link for a product
+   434→  const handleGenerateLink = async (product: Product) => {
+   435→    setGeneratingLinkId(product.id)
+   436→
+   437→    try {
+   438→      const res = await fetch('/api/shopee/generate-link', {
+   439→        method: 'POST',
+   440→        headers: { 'Content-Type': 'application/json' },
+   441→        body: JSON.stringify({
+   442→          itemId: product.itemId || undefined,
+   443→          productUrl: product.productLink || undefined,
+   444→        }),
+   445→      })
+   446→
+   447→      const data = await res.json()
+   448→
+   449→      if (data.link) {
+   450→        // Update the product with the generated link
+   451→        setApiProducts((prev) =>
+   452→          prev.map((p) =>
+   453→            p.id === product.id
+   454→              ? {
+   455→                  ...p,
+   456→                  affiliateLink: data.link.shortUrl || data.link.longUrl,
+   457→                  deepLink: data.link.deepLink,
+   458→                  source: data.source === 'shopee_api' ? 'shopee_api' : p.source,
+   459→                }
+   460→              : p
+   461→          )
+   462→        )
+   463→      }
+   464→    } catch (error) {
+   465→      console.error('Generate link error:', error)
+   466→    } finally {
+   467→      setGeneratingLinkId(null)
+   468→    }
+   469→  }
+   470→
+   471→  // Filter and sort products
+   472→  const filteredProducts = useMemo(() => {
+   473→    let result = apiProducts
+   474→
+   475→    if (activeCategory !== 'All') {
+   476→      result = result.filter(
+   477→        (p) => p.category.toLowerCase() === activeCategory.toLowerCase()
+   478→      )
+   479→    }
+   480→
+   481→    switch (sortBy) {
+   482→      case 'newest':
+   483→        result = [...result].reverse()
+   484→        break
+   485→      case 'commission':
+   486→        result = [...result].sort((a, b) => b.commissionRate - a.commissionRate)
+   487→        break
+   488→      case 'rating':
+   489→        result = [...result].sort((a, b) => b.rating - a.rating)
+   490→        break
+   491→      default:
+   492→        result = [...result].sort((a, b) => b.soldCount - a.soldCount)
+   493→    }
+   494→
+   495→    return result
+   496→  }, [apiProducts, activeCategory, sortBy])
+   497→
+   498→  const visibleProducts = filteredProducts.slice(0, visibleCount)
+   499→  const hasMore = visibleCount < filteredProducts.length
+   500→
+   501→  const handleLoadMore = () => {
+   502→    setIsLoadingMore(true)
+   503→    setTimeout(() => {
+   504→      setVisibleCount((prev) => prev + 4)
+   505→      setIsLoadingMore(false)
+   506→    }, 600)
+   507→  }
+   508→
+   509→  const aiPicks = useMemo(() => AI_PICKS, [])
+   510→
+   511→  return (
+   512→    <div className="space-y-6">
+   513→      {/* Page Header */}
+   514→      <div>
+   515→        <h1 className="text-2xl font-bold tracking-tight">Products</h1>
+   516→        <p className="text-muted-foreground text-sm mt-1">
+   517→          Discover products and generate affiliate links
+   518→        </p>
+   519→      </div>
+   520→
+   521→      {/* API Not Connected Banner */}
+   522→      {isConnected === false && (
+   523→        <motion.div
+   524→          initial={{ opacity: 0, y: -8 }}
+   525→          animate={{ opacity: 1, y: 0 }}
+   526→          transition={{ duration: 0.3 }}
+   527→        >
+   528→          <Card className="border-amber-500/30 bg-amber-50 dark:bg-amber-950/20 py-3">
+   529→            <CardContent className="p-4 flex items-start gap-3">
+   530→              <AlertTriangle className="size-5 text-amber-500 mt-0.5 shrink-0" />
+   531→              <div className="flex-1">
+   532→                <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
+   533→                  Shopee API not connected
+   534→                </p>
+   535→                <p className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">
+   536→                  Results are from web search. Connect your API in{' '}
+   537→                  <span className="font-semibold">Settings</span> for real affiliate links and commission data.
+   538→                </p>
+   539→              </div>
+   540→              <Button
+   541→                variant="outline"
+   542→                size="sm"
+   543→                className="shrink-0 text-amber-600 border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900/30"
+   544→                onClick={() => {
+   545→                  // Navigate to settings - handled by parent component
+   546→                  window.dispatchEvent(new CustomEvent('navigate', { detail: 'settings' }))
+   547→                }}
+   548→              >
+   549→                Go to Settings
+   550→              </Button>
+   551→            </CardContent>
+   552→          </Card>
+   553→        </motion.div>
+   554→      )}
+   555→
+   556→      {/* Source indicator when results are loaded */}
+   557→      {apiSource && hasSearched && !isSearching && (
+   558→        <div className="flex items-center gap-2">
+   559→          {apiSource === 'shopee_api' ? (
+   560→            <Badge className="bg-emerald-500 text-white border-0 gap-1 text-[10px]">
+   561→              <Zap className="size-3" />
+   562→              Live Shopee API
+   563→            </Badge>
+   564→          ) : apiSource === 'web_search' ? (
+   565→            <Badge variant="outline" className="text-amber-600 border-amber-300 dark:border-amber-700 gap-1 text-[10px]">
+   566→              <Search className="size-3" />
+   567→              Web Search Results
+   568→            </Badge>
+   569→          ) : (
+   570→            <Badge variant="outline" className="text-muted-foreground gap-1 text-[10px]">
+   571→              <Package className="size-3" />
+   572→              Demo Data
+   573→            </Badge>
+   574→          )}
+   575→          {apiMessage && (
+   576→            <span className="text-xs text-muted-foreground">{apiMessage}</span>
+   577→          )}
+   578→        </div>
+   579→      )}
+   580→
+   581→      {/* AI Recommendations */}
+   582→      <motion.div
+   583→        initial={{ opacity: 0, y: 8 }}
+   584→        animate={{ opacity: 1, y: 0 }}
+   585→        transition={{ duration: 0.4 }}
+   586→      >
+   587→        <Card className="border-hermes/20 bg-hermes/5 dark:bg-hermes/10 py-4">
+   588→          <CardContent className="p-4 sm:p-6">
+   589→            <div className="flex items-center gap-2 mb-4">
+   590→              <div className="flex items-center gap-1.5 bg-hermes text-white rounded-md px-2.5 py-1 text-xs font-semibold">
+   591→                <Sparkles className="size-3.5" />
+   592→                Hermes AI Picks
+   593→              </div>
+   594→              <Badge variant="outline" className="text-[10px] text-hermes border-hermes/30">
+   595→                <TrendingUp className="size-3" />
+   596→                Trending Now
+   597→              </Badge>
+   598→            </div>
+   599→            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   600→              {aiPicks.map((product) => (
+   601→                <motion.div
+   602→                  key={product.id}
+   603→                  whileHover={{ scale: 1.02 }}
+   604→                  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+   605→                >
+   606→                  <Card className="card-hover py-0 gap-0 cursor-pointer">
+   607→                    <div
+   608→                      className={`${product.color} flex items-center justify-center h-28 relative rounded-t-xl`}
+   609→                    >
+   610→                      <ShoppingBag className="size-8 text-muted-foreground/40" />
+   611→                      <Badge className="absolute top-1.5 left-1.5 bg-hermes text-white border-0 text-[9px] px-1.5 py-0.5 gap-0.5">
+   612→                        <Sparkles className="size-2.5" />
+   613→                        AI
+   614→                      </Badge>
+   615→                    </div>
+   616→                    <div className="p-3 flex flex-col gap-1.5">
+   617→                      <h4 className="text-xs font-medium line-clamp-2 leading-snug">
+   618→                        {product.name}
+   619→                      </h4>
+   620→                      <div className="flex items-baseline gap-1.5">
+   621→                        <span className="text-sm font-bold text-shopee">
+   622→                          RM{product.price.toFixed(2)}
+   623→                        </span>
+   624→                        {product.originalPrice && (
+   625→                          <span className="text-[10px] text-muted-foreground line-through">
+   626→                            RM{product.originalPrice.toFixed(2)}
+   627→                          </span>
+   628→                        )}
+   629→                      </div>
+   630→                      <div className="flex items-center justify-between">
+   631→                        <Badge className="text-[9px] px-1.5 py-0 bg-shopee/10 text-shopee border-0 font-semibold">
+   632→                          +RM{(product.price * product.commissionRate / 100).toFixed(2)}
+   633→                        </Badge>
+   634→                        <span className="text-[10px] text-muted-foreground">
+   635→                          {product.commissionRate}%
+   636→                        </span>
+   637→                      </div>
+   638→                    </div>
+   639→                  </Card>
+   640→                </motion.div>
+   641→              ))}
+   642→            </div>
+   643→          </CardContent>
+   644→        </Card>
+   645→      </motion.div>
+   646→
+   647→      <Separator />
+   648→
+   649→      {/* Search & Filters */}
+   650→      <div className="flex flex-col sm:flex-row gap-3">
+   651→        <div className="relative flex-1">
+   652→          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+   653→          <Input
+   654→            placeholder="Search Shopee products..."
+   655→            className="pl-10 h-10"
+   656→            value={searchQuery}
+   657→            onChange={(e) => handleSearchChange(e.target.value)}
+   658→          />
+   659→          {isSearching && (
+   660→            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 animate-spin text-muted-foreground" />
+   661→          )}
+   662→        </div>
+   663→        <Select
+   664→          value={sortBy}
+   665→          onValueChange={(val) => {
+   666→            setSortBy(val)
+   667→            setVisibleCount(8)
+   668→          }}
+   669→        >
+   670→          <SelectTrigger className="w-full sm:w-[180px] h-10">
+   671→            <SlidersHorizontal className="size-4" />
+   672→            <SelectValue placeholder="Sort by" />
+   673→          </SelectTrigger>
+   674→          <SelectContent>
+   675→            {SORT_OPTIONS.map((opt) => (
+   676→              <SelectItem key={opt.value} value={opt.value}>
+   677→                {opt.label}
+   678→              </SelectItem>
+   679→            ))}
+   680→          </SelectContent>
+   681→        </Select>
+   682→      </div>
+   683→
+   684→      {/* Category Tabs */}
+   685→      <Tabs
+   686→        value={activeCategory}
+   687→        onValueChange={(val) => {
+   688→          setActiveCategory(val)
+   689→          setVisibleCount(8)
+   690→        }}
+   691→      >
+   692→        <TabsList className="w-full sm:w-auto overflow-x-auto">
+   693→          {CATEGORIES.map((cat) => (
+   694→            <TabsTrigger key={cat} value={cat} className="text-xs sm:text-sm">
+   695→              {cat}
+   696→            </TabsTrigger>
+   697→          ))}
+   698→        </TabsList>
+   699→
+   700→        {/* We only need one TabsContent since we filter manually */}
+   701→        <TabsContent value={activeCategory} className="mt-4">
+   702→          {!hasSearched ? (
+   703→            <motion.div
+   704→              initial={{ opacity: 0 }}
+   705→              animate={{ opacity: 1 }}
+   706→              className="flex flex-col items-center justify-center py-16 text-muted-foreground"
+   707→            >
+   708→              <Search className="size-12 mb-3 opacity-40" />
+   709→              <p className="text-sm font-medium">Search for products</p>
+   710→              <p className="text-xs mt-1">Enter a keyword to search Shopee products</p>
+   711→            </motion.div>
+   712→          ) : isSearching ? (
+   713→            <div className="flex flex-col items-center justify-center py-16">
+   714→              <Loader2 className="size-8 animate-spin text-shopee mb-3" />
+   715→              <p className="text-sm text-muted-foreground">Searching Shopee...</p>
+   716→            </div>
+   717→          ) : filteredProducts.length === 0 ? (
+   718→            <motion.div
+   719→              initial={{ opacity: 0 }}
+   720→              animate={{ opacity: 1 }}
+   721→              className="flex flex-col items-center justify-center py-16 text-muted-foreground"
+   722→            >
+   723→              <Package className="size-12 mb-3 opacity-40" />
+   724→              <p className="text-sm font-medium">No products found</p>
+   725→              <p className="text-xs mt-1">Try a different search or category</p>
+   726→            </motion.div>
+   727→          ) : (
+   728→            <>
+   729→              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+   730→                <AnimatePresence mode="popLayout">
+   731→                  {visibleProducts.map((product) => (
+   732→                    <ProductCard
+   733→                      key={product.id}
+   734→                      product={product}
+   735→                      onGenerateLink={handleGenerateLink}
+   736→                      generatingLinkId={generatingLinkId}
+   737→                    />
+   738→                  ))}
+   739→                </AnimatePresence>
+   740→              </div>
+   741→
+   742→              {/* Load More */}
+   743→              {hasMore && (
+   744→                <div className="flex justify-center mt-8">
+   745→                  <Button
+   746→                    variant="outline"
+   747→                    size="lg"
+   748→                    onClick={handleLoadMore}
+   749→                    disabled={isLoadingMore}
+   750→                    className="min-w-[200px]"
+   751→                  >
+   752→                    {isLoadingMore ? (
+   753→                      <>
+   754→                        <Loader2 className="size-4 animate-spin" />
+   755→                        Loading...
+   756→                      </>
+   757→                    ) : (
+   758→                      <>
+   759→                        <ChevronDown className="size-4" />
+   760→                        Load More Products
+   761→                      </>
+   762→                    )}
+   763→                  </Button>
+   764→                </div>
+   765→              )}
+   766→            </>
+   767→          )}
+   768→        </TabsContent>
+   769→      </Tabs>
+   770→    </div>
+   771→  )
+   772→}
+   773→

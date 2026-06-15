@@ -32,6 +32,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
+import { useAppStore } from '@/store/app-store'
+import { toast } from 'sonner'
 
 // --- Types ---
 interface Product {
@@ -47,7 +49,7 @@ interface Product {
   category: string
   isAiPick?: boolean
   color: string
-  source?: 'shopee_api' | 'web_search' | 'demo'
+  source?: 'graphql_api' | 'mock'
   affiliateLink?: string | null
   deepLink?: string | null
   productLink?: string
@@ -56,8 +58,7 @@ interface Product {
 interface SearchResult {
   products: Product[]
   total: number
-  query: string
-  source: 'shopee_api' | 'web_search' | 'demo'
+  source: 'graphql_api' | 'mock'
   connected: boolean
   message?: string
 }
@@ -195,7 +196,7 @@ function mapApiProduct(raw: Record<string, unknown>, index: number): Product {
     shopName: (raw.shopName as string) || (raw.shop_name as string) || 'Shopee Seller',
     category: (raw.category as string) || 'general',
     color: CARD_COLORS[index % CARD_COLORS.length],
-    source: (raw.source as 'shopee_api' | 'web_search' | 'demo') || 'demo',
+    source: (raw.source as 'graphql_api' | 'mock') || 'mock',
     affiliateLink: (raw.affiliateLink as string | null) ?? null,
     deepLink: (raw.deepLink as string | null) ?? null,
     productLink: (raw.productLink as string) || (raw.product_link as string),
@@ -247,7 +248,7 @@ function ProductCard({
               AI Pick
             </Badge>
           )}
-          {product.source === 'shopee_api' && (
+          {product.source === 'graphql_api' && (
             <Badge className="absolute top-2 left-2 bg-emerald-500 text-white border-0 text-[10px] px-1.5 py-0.5 gap-1">
               <Zap className="size-3" />
               Live
@@ -360,10 +361,10 @@ export function ProductsPage() {
   const [isLoadingMore, setIsLoadingMore] = useState(false)
 
   // API integration state
+  const { shopeeConnected, setShopeeConnected, shopeeDataSource, setShopeeDataSource } = useAppStore()
   const [apiProducts, setApiProducts] = useState<Product[]>([])
   const [isSearching, setIsSearching] = useState(false)
-  const [isConnected, setIsConnected] = useState<boolean | null>(null)
-  const [apiSource, setApiSource] = useState<'shopee_api' | 'web_search' | 'demo' | null>(null)
+  const [apiSource, setApiSource] = useState<'graphql_api' | 'mock' | null>(null)
   const [apiMessage, setApiMessage] = useState<string | null>(null)
   const [generatingLinkId, setGeneratingLinkId] = useState<string | null>(null)
   const [hasSearched, setHasSearched] = useState(false)
@@ -371,15 +372,17 @@ export function ProductsPage() {
 
   // Check connection status on mount
   useEffect(() => {
-    fetch('/api/shopee/connect')
+    fetch('/api/shopee/status')
       .then((res) => res.json())
       .then((data) => {
-        setIsConnected(data.connected === true)
+        setShopeeConnected(data.connected === true)
+        setShopeeDataSource(data.source || 'mock')
       })
       .catch(() => {
-        setIsConnected(false)
+        setShopeeConnected(false)
+        setShopeeDataSource('mock')
       })
-  }, [])
+  }, [setShopeeConnected, setShopeeDataSource])
 
   // Search products from API
   const searchProducts = useCallback(async (query: string) => {
@@ -403,18 +406,19 @@ export function ProductsPage() {
       )
 
       setApiProducts(mapped)
-      setIsConnected(data.connected)
-      setApiSource(data.source)
+      setShopeeConnected(data.connected === true)
+      setShopeeDataSource(data.source || 'mock')
+      setApiSource(data.source || 'mock')
       setApiMessage(data.message || null)
     } catch (error) {
       console.error('Product search error:', error)
       setApiProducts([])
-      setApiSource('demo')
+      setApiSource('mock')
       setApiMessage('Failed to search products. Please try again.')
     } finally {
       setIsSearching(false)
     }
-  }, [])
+  }, [setShopeeConnected, setShopeeDataSource])
 
   // Debounced search
   const handleSearchChange = (value: string) => {
@@ -455,14 +459,16 @@ export function ProductsPage() {
                   ...p,
                   affiliateLink: data.link.shortUrl || data.link.longUrl,
                   deepLink: data.link.deepLink,
-                  source: data.source === 'shopee_api' ? 'shopee_api' : p.source,
+                  source: data.source === 'graphql_api' ? 'graphql_api' : p.source,
                 }
               : p
           )
         )
+        toast.success('Affiliate link generated!')
       }
     } catch (error) {
       console.error('Generate link error:', error)
+      toast.error('Failed to generate affiliate link')
     } finally {
       setGeneratingLinkId(null)
     }
@@ -519,7 +525,7 @@ export function ProductsPage() {
       </div>
 
       {/* API Not Connected Banner */}
-      {isConnected === false && (
+      {!shopeeConnected && (
         <motion.div
           initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -533,7 +539,7 @@ export function ProductsPage() {
                   Shopee API not connected
                 </p>
                 <p className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">
-                  Results are from web search. Connect your API in{' '}
+                  You are viewing demo data. Connect your Shopee Affiliate API in{' '}
                   <span className="font-semibold">Settings</span> for real affiliate links and commission data.
                 </p>
               </div>
@@ -542,7 +548,6 @@ export function ProductsPage() {
                 size="sm"
                 className="shrink-0 text-amber-600 border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-900/30"
                 onClick={() => {
-                  // Navigate to settings - handled by parent component
                   window.dispatchEvent(new CustomEvent('navigate', { detail: 'settings' }))
                 }}
               >
@@ -556,18 +561,13 @@ export function ProductsPage() {
       {/* Source indicator when results are loaded */}
       {apiSource && hasSearched && !isSearching && (
         <div className="flex items-center gap-2">
-          {apiSource === 'shopee_api' ? (
+          {apiSource === 'graphql_api' ? (
             <Badge className="bg-emerald-500 text-white border-0 gap-1 text-[10px]">
               <Zap className="size-3" />
-              Live Shopee API
-            </Badge>
-          ) : apiSource === 'web_search' ? (
-            <Badge variant="outline" className="text-amber-600 border-amber-300 dark:border-amber-700 gap-1 text-[10px]">
-              <Search className="size-3" />
-              Web Search Results
+              Live from Shopee API
             </Badge>
           ) : (
-            <Badge variant="outline" className="text-muted-foreground gap-1 text-[10px]">
+            <Badge variant="outline" className="text-amber-600 border-amber-300 dark:border-amber-700 gap-1 text-[10px]">
               <Package className="size-3" />
               Demo Data
             </Badge>

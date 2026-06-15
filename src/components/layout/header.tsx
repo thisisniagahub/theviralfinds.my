@@ -11,6 +11,7 @@ import {
   Command,
   Sparkles,
   Bot,
+  ShoppingBag,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -33,10 +34,20 @@ const pageTitles: Record<PageId, string> = {
   settings: 'Settings',
 }
 
+const SHOPEE_INDICATOR_PAGES: PageId[] = [
+  'dashboard',
+  'products',
+  'links',
+  'analytics',
+  'earnings',
+]
+
 export function AppHeader() {
-  const { activePage, setActivePage, setMobileMenuOpen, setSidebarOpen, sidebarOpen, hermesConnected } = useAppStore()
+  const { activePage, setActivePage, setMobileMenuOpen, setSidebarOpen, sidebarOpen, hermesConnected, shopeeConnected, shopeeDataSource } = useAppStore()
   const { setTheme, resolvedTheme } = useTheme()
   const [searchFocused, setSearchFocused] = useState(false)
+
+  const showShopeeIndicator = SHOPEE_INDICATOR_PAGES.includes(activePage)
 
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur-lg">
@@ -66,6 +77,25 @@ export function AppHeader() {
                 <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
                 Connected
               </div>
+            )}
+            {/* Shopee connection indicator */}
+            {showShopeeIndicator && (
+              <button
+                type="button"
+                onClick={() => setActivePage('settings')}
+                className="flex items-center gap-1.5 text-[10px] flex-shrink-0 hover:opacity-80 transition-opacity"
+                title={shopeeConnected ? 'Shopee API Connected - Click to view settings' : 'Shopee Demo Mode - Click to configure API'}
+              >
+                <ShoppingBag className="size-3.5 text-muted-foreground" />
+                {shopeeConnected ? (
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                ) : (
+                  <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                )}
+                <span className={shopeeConnected ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}>
+                  {shopeeDataSource === 'graphql_api' ? 'Live' : 'Demo'}
+                </span>
+              </button>
             )}
           </div>
         </div>

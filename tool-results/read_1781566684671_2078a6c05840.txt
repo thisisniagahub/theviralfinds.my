@@ -1,0 +1,791 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useState, useEffect } from 'react'
+     4→     4→import { motion } from 'framer-motion'
+     5→     5→import {
+     6→     6→  Settings,
+     7→     7→  User,
+     8→     8→  Mail,
+     9→     9→  Key,
+    10→    10→  Bot,
+    11→    11→  Bell,
+    12→    12→  Shield,
+    13→    13→  Trash2,
+    14→    14→  RefreshCw,
+    15→    15→  Save,
+    16→    16→  Camera,
+    17→    17→  Wifi,
+    18→    18→  WifiOff,
+    19→    19→  Check,
+    20→    20→  AlertTriangle,
+    21→    21→  Info,
+    22→    22→  Cpu,
+    23→    23→  Globe,
+    24→    24→  Clock,
+    25→    25→  Package,
+    26→    26→  Unplug,
+    27→    27→  ShoppingBag,
+    28→    28→} from 'lucide-react'
+    29→    29→import {
+    30→    30→  Card,
+    31→    31→  CardContent,
+    32→    32→  CardHeader,
+    33→    33→  CardTitle,
+    34→    34→  CardDescription,
+    35→    35→} from '@/components/ui/card'
+    36→    36→import { Button } from '@/components/ui/button'
+    37→    37→import { Input } from '@/components/ui/input'
+    38→    38→import { Label } from '@/components/ui/label'
+    39→    39→import { Switch } from '@/components/ui/switch'
+    40→    40→import { Separator } from '@/components/ui/separator'
+    41→    41→import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+    42→    42→import { Badge } from '@/components/ui/badge'
+    43→    43→import {
+    44→    44→  Select,
+    45→    45→  SelectContent,
+    46→    46→  SelectItem,
+    47→    47→  SelectTrigger,
+    48→    48→  SelectValue,
+    49→    49→} from '@/components/ui/select'
+    50→    50→import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+    51→    51→import {
+    52→    52→  AlertDialog,
+    53→    53→  AlertDialogAction,
+    54→    54→  AlertDialogCancel,
+    55→    55→  AlertDialogContent,
+    56→    56→  AlertDialogDescription,
+    57→    57→  AlertDialogFooter,
+    58→    58→  AlertDialogHeader,
+    59→    59→  AlertDialogTitle,
+    60→    60→  AlertDialogTrigger,
+    61→    61→} from '@/components/ui/alert-dialog'
+    62→    62→import { cn } from '@/lib/utils'
+    63→    63→
+    64→    64→// ─── Helpers ──────────────────────────────────────────────────────────────────
+    65→    65→
+    66→    66→const fadeIn = {
+    67→    67→  initial: { opacity: 0, y: 16 },
+    68→    68→  animate: { opacity: 1, y: 0 },
+    69→    69→  transition: { duration: 0.4 },
+    70→    70→}
+    71→    71→
+    72→    72→// ─── Shopee Regions ───────────────────────────────────────────────────────────
+    73→    73→
+    74→    74→const SHOPEE_REGIONS = [
+    75→    75→  { value: 'my', label: 'Malaysia' },
+    76→    76→  { value: 'sg', label: 'Singapore' },
+    77→    77→  { value: 'id', label: 'Indonesia' },
+    78→    78→  { value: 'th', label: 'Thailand' },
+    79→    79→  { value: 'ph', label: 'Philippines' },
+    80→    80→  { value: 'vn', label: 'Vietnam' },
+    81→    81→]
+    82→    82→
+    83→    83→// ─── Component ────────────────────────────────────────────────────────────────
+    84→    84→
+    85→    85→export function SettingsPage() {
+    86→    86→  // Profile
+    87→    87→  const [profileName, setProfileName] = useState('TheViralFindsMY')
+    88→    88→  const [profileEmail, setProfileEmail] = useState('admin@theviralfinds.com')
+    89→    89→  const [shopeeAffId, setShopeeAffId] = useState('aff_theviralfindsMY_2025')
+    90→    90→
+    91→    91→  // Notification preferences
+    92→    92→  const [emailNotif, setEmailNotif] = useState(true)
+    93→    93→  const [pushNotif, setPushNotif] = useState(true)
+    94→    94→  const [earningsAlert, setEarningsAlert] = useState(true)
+    95→    95→  const [campaignAlert, setCampaignAlert] = useState(false)
+    96→    96→  const [weeklyDigest, setWeeklyDigest] = useState(true)
+    97→    97→
+    98→    98→  // Shopee Affiliate API Connection
+    99→    99→  const [shopeeAppId, setShopeeAppId] = useState('')
+   100→   100→  const [shopeeSecret, setShopeeSecret] = useState('')
+   101→   101→  const [shopeeRegion, setShopeeRegion] = useState('my')
+   102→   102→  const [shopeeAccessToken, setShopeeAccessToken] = useState('')
+   103→   103→  const [shopeeConnected, setShopeeConnected] = useState(false)
+   104→   104→  const [shopeeTesting, setShopeeTesting] = useState(false)
+   105→   105→  const [shopeeLastConnected, setShopeeLastConnected] = useState<string | null>(null)
+   106→   106→  const [shopeeTestMessage, setShopeeTestMessage] = useState<string | null>(null)
+   107→   107→  const [shopeeMaskedAppId, setShopeeMaskedAppId] = useState<string | null>(null)
+   108→   108→
+   109→   109→  // HERMES Connection
+   110→   110→  const [hermesEndpoint, setHermesEndpoint] = useState('https://api.openai.com/v1')
+   111→   111→  const [hermesApiKey, setHermesApiKey] = useState('sk-***************')
+   112→   112→  const [hermesModel, setHermesModel] = useState('gpt-4o')
+   113→   113→  const [hermesConnected, setHermesConnected] = useState(true)
+   114→   114→  const [testingConnection, setTestingConnection] = useState(false)
+   115→   115→
+   116→   116→  // Load Shopee connection status on mount
+   117→   117→  useEffect(() => {
+   118→   118→    fetch('/api/shopee/connect')
+   119→   119→      .then((res) => res.json())
+   120→   120→      .then((data) => {
+   121→   121→        setShopeeConnected(data.connected === true)
+   122→   122→        setShopeeMaskedAppId(data.appId || null)
+   123→   123→        setShopeeRegion(data.region || 'my')
+   124→   124→        setShopeeLastConnected(data.lastConnected || null)
+   125→   125→      })
+   126→   126→      .catch(() => {
+   127→   127→        setShopeeConnected(false)
+   128→   128→      })
+   129→   129→  }, [])
+   130→   130→
+   131→   131→  // Test Shopee connection
+   132→   132→  const handleTestShopeeConnection = async () => {
+   133→   133→    if (!shopeeAppId || !shopeeSecret) {
+   134→   134→      setShopeeTestMessage('App ID and Secret are required')
+   135→   135→      return
+   136→   136→    }
+   137→   137→
+   138→   138→    setShopeeTesting(true)
+   139→   139→    setShopeeTestMessage(null)
+   140→   140→
+   141→   141→    try {
+   142→   142→      const res = await fetch('/api/shopee/connect', {
+   143→   143→        method: 'POST',
+   144→   144→        headers: { 'Content-Type': 'application/json' },
+   145→   145→        body: JSON.stringify({
+   146→   146→          appId: shopeeAppId,
+   147→   147→          secret: shopeeSecret,
+   148→   148→          region: shopeeRegion,
+   149→   149→          accessToken: shopeeAccessToken || undefined,
+   150→   150→        }),
+   151→   151→      })
+   152→   152→
+   153→   153→      const data = await res.json()
+   154→   154→
+   155→   155→      setShopeeConnected(data.success === true)
+   156→   156→      setShopeeTestMessage(data.message || (data.success ? 'Connected!' : 'Connection failed'))
+   157→   157→
+   158→   158→      if (data.success) {
+   159→   159→        setShopeeLastConnected(new Date().toISOString())
+   160→   160→        setShopeeMaskedAppId(`${shopeeAppId.slice(0, 4)}****`)
+   161→   161→      }
+   162→   162→    } catch (error) {
+   163→   163→      setShopeeConnected(false)
+   164→   164→      setShopeeTestMessage('Failed to connect. Please check your credentials.')
+   165→   165→    } finally {
+   166→   166→      setShopeeTesting(false)
+   167→   167→    }
+   168→   168→  }
+   169→   169→
+   170→   170→  // Disconnect Shopee
+   171→   171→  const handleDisconnectShopee = async () => {
+   172→   172→    try {
+   173→   173→      // Clear credentials by saving empty values
+   174→   174→      await fetch('/api/shopee/connect', {
+   175→   175→        method: 'POST',
+   176→   176→        headers: { 'Content-Type': 'application/json' },
+   177→   177→        body: JSON.stringify({
+   178→   178→          appId: 'DISCONNECTED',
+   179→   179→          secret: 'DISCONNECTED',
+   180→   180→          region: shopeeRegion,
+   181→   181→        }),
+   182→   182→      })
+   183→   183→
+   184→   184→      setShopeeConnected(false)
+   185→   185→      setShopeeAppId('')
+   186→   186→      setShopeeSecret('')
+   187→   187→      setShopeeAccessToken('')
+   188→   188→      setShopeeMaskedAppId(null)
+   189→   189→      setShopeeLastConnected(null)
+   190→   190→      setShopeeTestMessage(null)
+   191→   191→    } catch (error) {
+   192→   192→      console.error('Disconnect error:', error)
+   193→   193→    }
+   194→   194→  }
+   195→   195→
+   196→   196→  const handleTestConnection = () => {
+   197→   197→    setTestingConnection(true)
+   198→   198→    setTimeout(() => {
+   199→   199→      setHermesConnected(true)
+   200→   200→      setTestingConnection(false)
+   201→   201→    }, 1500)
+   202→   202→  }
+   203→   203→
+   204→   204→  return (
+   205→   205→    <div className="space-y-6">
+   206→   206→      {/* Page Header */}
+   207→   207→      <motion.div {...fadeIn}>
+   208→   208→        <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+   209→   209→        <p className="text-muted-foreground text-sm">
+   210→   210→          Manage your profile, preferences, and integrations
+   211→   211→        </p>
+   212→   212→      </motion.div>
+   213→   213→
+   214→   214→      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+   215→   215→        <div className="lg:col-span-2 space-y-6">
+   216→   216→          {/* Profile Section */}
+   217→   217→          <motion.div {...fadeIn}>
+   218→   218→            <Card className="card-hover">
+   219→   219→              <CardHeader>
+   220→   220→                <CardTitle className="flex items-center gap-2 text-base">
+   221→   221→                  <User className="size-4 text-shopee" />
+   222→   222→                  Profile
+   223→   223→                </CardTitle>
+   224→   224→                <CardDescription>Your personal information and Shopee affiliate details</CardDescription>
+   225→   225→              </CardHeader>
+   226→   226→              <CardContent className="space-y-4">
+   227→   227→                <div className="flex items-center gap-4">
+   228→   228→                  <div className="relative">
+   229→   229→                    <Avatar className="size-16">
+   230→   230→                      <AvatarFallback className="bg-shopee/10 text-shopee text-lg font-bold">
+   231→   231→                        TV
+   232→   232→                      </AvatarFallback>
+   233→   233→                    </Avatar>
+   234→   234→                    <Button
+   235→   235→                      size="icon"
+   236→   236→                      variant="outline"
+   237→   237→                      className="absolute -bottom-1 -right-1 size-7 rounded-full"
+   238→   238→                    >
+   239→   239→                      <Camera className="size-3" />
+   240→   240→                    </Button>
+   241→   241→                  </div>
+   242→   242→                  <div>
+   243→   243→                    <p className="font-semibold">{profileName}</p>
+   244→   244→                    <p className="text-xs text-muted-foreground">Shopee Affiliate Partner</p>
+   245→   245→                  </div>
+   246→   246→                </div>
+   247→   247→
+   248→   248→                <Separator />
+   249→   249→
+   250→   250→                <div className="grid gap-4 sm:grid-cols-2">
+   251→   251→                  <div className="grid gap-2">
+   252→   252→                    <Label htmlFor="settings-name">Display Name</Label>
+   253→   253→                    <Input
+   254→   254→                      id="settings-name"
+   255→   255→                      value={profileName}
+   256→   256→                      onChange={(e) => setProfileName(e.target.value)}
+   257→   257→                    />
+   258→   258→                  </div>
+   259→   259→                  <div className="grid gap-2">
+   260→   260→                    <Label htmlFor="settings-email">Email</Label>
+   261→   261→                    <div className="relative">
+   262→   262→                      <Mail className="text-muted-foreground absolute left-3 top-1/2 size-4 -translate-y-1/2" />
+   263→   263→                      <Input
+   264→   264→                        id="settings-email"
+   265→   265→                        type="email"
+   266→   266→                        value={profileEmail}
+   267→   267→                        onChange={(e) => setProfileEmail(e.target.value)}
+   268→   268→                        className="pl-9"
+   269→   269→                      />
+   270→   270→                    </div>
+   271→   271→                  </div>
+   272→   272→                </div>
+   273→   273→                <div className="grid gap-2">
+   274→   274→                  <Label htmlFor="settings-aff-id">Shopee Affiliate ID</Label>
+   275→   275→                  <div className="relative">
+   276→   276→                    <Key className="text-muted-foreground absolute left-3 top-1/2 size-4 -translate-y-1/2" />
+   277→   277→                    <Input
+   278→   278→                      id="settings-aff-id"
+   279→   279→                      value={shopeeAffId}
+   280→   280→                      onChange={(e) => setShopeeAffId(e.target.value)}
+   281→   281→                      className="pl-9 font-mono text-sm"
+   282→   282→                    />
+   283→   283→                  </div>
+   284→   284→                </div>
+   285→   285→                <div className="flex justify-end">
+   286→   286→                  <Button className="gap-2">
+   287→   287→                    <Save className="size-4" />
+   288→   288→                    Save Profile
+   289→   289→                  </Button>
+   290→   290→                </div>
+   291→   291→              </CardContent>
+   292→   292→            </Card>
+   293→   293→          </motion.div>
+   294→   294→
+   295→   295→          {/* Notification Preferences */}
+   296→   296→          <motion.div {...fadeIn}>
+   297→   297→            <Card className="card-hover">
+   298→   298→              <CardHeader>
+   299→   299→                <CardTitle className="flex items-center gap-2 text-base">
+   300→   300→                  <Bell className="size-4 text-shopee" />
+   301→   301→                  Notification Preferences
+   302→   302→                </CardTitle>
+   303→   303→                <CardDescription>Choose how you want to be notified</CardDescription>
+   304→   304→              </CardHeader>
+   305→   305→              <CardContent className="space-y-4">
+   306→   306→                <div className="flex items-center justify-between">
+   307→   307→                  <div className="space-y-0.5">
+   308→   308→                    <Label className="text-sm font-medium">Email Notifications</Label>
+   309→   309→                    <p className="text-xs text-muted-foreground">Receive updates via email</p>
+   310→   310→                  </div>
+   311→   311→                  <Switch checked={emailNotif} onCheckedChange={setEmailNotif} />
+   312→   312→                </div>
+   313→   313→                <Separator />
+   314→   314→                <div className="flex items-center justify-between">
+   315→   315→                  <div className="space-y-0.5">
+   316→   316→                    <Label className="text-sm font-medium">Push Notifications</Label>
+   317→   317→                    <p className="text-xs text-muted-foreground">Browser and mobile push alerts</p>
+   318→   318→                  </div>
+   319→   319→                  <Switch checked={pushNotif} onCheckedChange={setPushNotif} />
+   320→   320→                </div>
+   321→   321→                <Separator />
+   322→   322→                <div className="flex items-center justify-between">
+   323→   323→                  <div className="space-y-0.5">
+   324→   324→                    <Label className="text-sm font-medium">Earnings Alerts</Label>
+   325→   325→                    <p className="text-xs text-muted-foreground">Get notified for every commission earned</p>
+   326→   326→                  </div>
+   327→   327→                  <Switch checked={earningsAlert} onCheckedChange={setEarningsAlert} />
+   328→   328→                </div>
+   329→   329→                <Separator />
+   330→   330→                <div className="flex items-center justify-between">
+   331→   331→                  <div className="space-y-0.5">
+   332→   332→                    <Label className="text-sm font-medium">Campaign Alerts</Label>
+   333→   333→                    <p className="text-xs text-muted-foreground">Updates on campaign status changes</p>
+   334→   334→                  </div>
+   335→   335→                  <Switch checked={campaignAlert} onCheckedChange={setCampaignAlert} />
+   336→   336→                </div>
+   337→   337→                <Separator />
+   338→   338→                <div className="flex items-center justify-between">
+   339→   339→                  <div className="space-y-0.5">
+   340→   340→                    <Label className="text-sm font-medium">Weekly Digest</Label>
+   341→   341→                    <p className="text-xs text-muted-foreground">Summary of your weekly performance</p>
+   342→   342→                  </div>
+   343→   343→                  <Switch checked={weeklyDigest} onCheckedChange={setWeeklyDigest} />
+   344→   344→                </div>
+   345→   345→              </CardContent>
+   346→   346→            </Card>
+   347→   347→          </motion.div>
+   348→   348→
+   349→   349→          {/* API Connections - Dual Tabs */}
+   350→   350→          <motion.div {...fadeIn}>
+   351→   351→            <Card className="card-hover">
+   352→   352→              <CardHeader>
+   353→   353→                <CardTitle className="flex items-center gap-2 text-base">
+   354→   354→                  <Globe className="size-4 text-shopee" />
+   355→   355→                  API Connections
+   356→   356→                </CardTitle>
+   357→   357→                <CardDescription>Configure your external API integrations</CardDescription>
+   358→   358→              </CardHeader>
+   359→   359→              <CardContent>
+   360→   360→                <Tabs defaultValue="shopee" className="w-full">
+   361→   361→                  <TabsList className="w-full mb-4">
+   362→   362→                    <TabsTrigger value="shopee" className="flex-1 gap-1.5">
+   363→   363→                      <ShoppingBag className="size-3.5" />
+   364→   364→                      Shopee Affiliate API
+   365→   365→                    </TabsTrigger>
+   366→   366→                    <TabsTrigger value="hermes" className="flex-1 gap-1.5">
+   367→   367→                      <Bot className="size-3.5" />
+   368→   368→                      HERMES Agent
+   369→   369→                    </TabsTrigger>
+   370→   370→                  </TabsList>
+   371→   371→
+   372→   372→                  {/* Tab 1: Shopee Affiliate API */}
+   373→   373→                  <TabsContent value="shopee" className="space-y-4">
+   374→   374→                    {/* Connection Status */}
+   375→   375→                    <div className={cn(
+   376→   376→                      'flex items-center gap-2 rounded-lg border p-3',
+   377→   377→                      shopeeConnected
+   378→   378→                        ? 'border-emerald-500/20 bg-emerald-500/5'
+   379→   379→                        : 'border-red-500/20 bg-red-500/5'
+   380→   380→                    )}>
+   381→   381→                      {shopeeConnected ? (
+   382→   382→                        <Wifi className="size-4 text-emerald-500" />
+   383→   383→                      ) : (
+   384→   384→                        <WifiOff className="size-4 text-red-500" />
+   385→   385→                      )}
+   386→   386→                      <span className={cn(
+   387→   387→                        'text-sm font-medium',
+   388→   388→                        shopeeConnected ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
+   389→   389→                      )}>
+   390→   390→                        {shopeeConnected ? 'Connected' : 'Disconnected'}
+   391→   391→                      </span>
+   392→   392→                      {shopeeConnected && shopeeMaskedAppId && (
+   393→   393→                        <Badge variant="outline" className="ml-auto text-[10px] font-mono">
+   394→   394→                          App: {shopeeMaskedAppId}
+   395→   395→                        </Badge>
+   396→   396→                      )}
+   397→   397→                      {shopeeLastConnected && (
+   398→   398→                        <Badge variant="outline" className="ml-auto text-[10px] gap-1">
+   399→   399→                          <Clock className="size-3" />
+   400→   400→                          {new Date(shopeeLastConnected).toLocaleDateString()}
+   401→   401→                        </Badge>
+   402→   402→                      )}
+   403→   403→                    </div>
+   404→   404→
+   405→   405→                    {/* Test Result Message */}
+   406→   406→                    {shopeeTestMessage && (
+   407→   407→                      <div className={cn(
+   408→   408→                        'flex items-center gap-2 rounded-lg border p-3 text-sm',
+   409→   409→                        shopeeConnected
+   410→   410→                          ? 'border-emerald-500/20 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400'
+   411→   411→                          : 'border-red-500/20 bg-red-500/5 text-red-600 dark:text-red-400'
+   412→   412→                      )}>
+   413→   413→                        {shopeeConnected ? (
+   414→   414→                          <Check className="size-4" />
+   415→   415→                        ) : (
+   416→   416→                          <AlertTriangle className="size-4" />
+   417→   417→                        )}
+   418→   418→                        {shopeeTestMessage}
+   419→   419→                      </div>
+   420→   420→                    )}
+   421→   421→
+   422→   422→                    <div className="grid gap-2">
+   423→   423→                      <Label htmlFor="shopee-app-id">App ID</Label>
+   424→   424→                      <div className="relative">
+   425→   425→                        <Key className="text-muted-foreground absolute left-3 top-1/2 size-4 -translate-y-1/2" />
+   426→   426→                        <Input
+   427→   427→                          id="shopee-app-id"
+   428→   428→                          placeholder="Enter your Shopee App ID"
+   429→   429→                          value={shopeeAppId}
+   430→   430→                          onChange={(e) => setShopeeAppId(e.target.value)}
+   431→   431→                          className="pl-9 font-mono text-sm"
+   432→   432→                        />
+   433→   433→                      </div>
+   434→   434→                      <p className="text-[10px] text-muted-foreground">
+   435→   435→                        Found in Shopee Affiliate Portal → Account → API → Open API
+   436→   436→                      </p>
+   437→   437→                    </div>
+   438→   438→
+   439→   439→                    <div className="grid gap-2">
+   440→   440→                      <Label htmlFor="shopee-secret">Secret</Label>
+   441→   441→                      <div className="relative">
+   442→   442→                        <Key className="text-muted-foreground absolute left-3 top-1/2 size-4 -translate-y-1/2" />
+   443→   443→                        <Input
+   444→   444→                          id="shopee-secret"
+   445→   445→                          type="password"
+   446→   446→                          placeholder="Enter your Shopee Secret"
+   447→   447→                          value={shopeeSecret}
+   448→   448→                          onChange={(e) => setShopeeSecret(e.target.value)}
+   449→   449→                          className="pl-9 font-mono text-sm"
+   450→   450→                        />
+   451→   451→                      </div>
+   452→   452→                    </div>
+   453→   453→
+   454→   454→                    <div className="grid gap-2">
+   455→   455→                      <Label htmlFor="shopee-region">Region</Label>
+   456→   456→                      <Select value={shopeeRegion} onValueChange={setShopeeRegion}>
+   457→   457→                        <SelectTrigger id="shopee-region">
+   458→   458→                          <SelectValue placeholder="Select region" />
+   459→   459→                        </SelectTrigger>
+   460→   460→                        <SelectContent>
+   461→   461→                          {SHOPEE_REGIONS.map((region) => (
+   462→   462→                            <SelectItem key={region.value} value={region.value}>
+   463→   463→                              {region.label}
+   464→   464→                            </SelectItem>
+   465→   465→                          ))}
+   466→   466→                        </SelectContent>
+   467→   467→                      </Select>
+   468→   468→                    </div>
+   469→   469→
+   470→   470→                    <div className="grid gap-2">
+   471→   471→                      <Label htmlFor="shopee-access-token">Access Token (Optional)</Label>
+   472→   472→                      <div className="relative">
+   473→   473→                        <Key className="text-muted-foreground absolute left-3 top-1/2 size-4 -translate-y-1/2" />
+   474→   474→                        <Input
+   475→   475→                          id="shopee-access-token"
+   476→   476→                          type="password"
+   477→   477→                          placeholder="Optional - for authorized API calls"
+   478→   478→                          value={shopeeAccessToken}
+   479→   479→                          onChange={(e) => setShopeeAccessToken(e.target.value)}
+   480→   480→                          className="pl-9 font-mono text-sm"
+   481→   481→                        />
+   482→   482→                      </div>
+   483→   483→                      <p className="text-[10px] text-muted-foreground">
+   484→   484→                        Required for some endpoints. Generate from Shopee OAuth flow.
+   485→   485→                      </p>
+   486→   486→                    </div>
+   487→   487→
+   488→   488→                    <div className="flex flex-wrap gap-2">
+   489→   489→                      <Button
+   490→   490→                        variant="outline"
+   491→   491→                        className="gap-2"
+   492→   492→                        onClick={handleTestShopeeConnection}
+   493→   493→                        disabled={shopeeTesting || (!shopeeAppId && !shopeeConnected)}
+   494→   494→                      >
+   495→   495→                        {shopeeTesting ? (
+   496→   496→                          <RefreshCw className="size-4 animate-spin" />
+   497→   497→                        ) : (
+   498→   498→                          <Wifi className="size-4" />
+   499→   499→                        )}
+   500→   500→                        {shopeeTesting ? 'Testing...' : 'Test Connection'}
+   501→   501→                      </Button>
+   502→   502→                      {shopeeConnected && (
+   503→   503→                        <Button
+   504→   504→                          variant="outline"
+   505→   505→                          className="gap-2 text-destructive hover:text-destructive"
+   506→   506→                          onClick={handleDisconnectShopee}
+   507→   507→                        >
+   508→   508→                          <Unplug className="size-4" />
+   509→   509→                          Disconnect
+   510→   510→                        </Button>
+   511→   511→                      )}
+   512→   512→                      <Button className="gap-2">
+   513→   513→                        <Save className="size-4" />
+   514→   514→                        Save Connection
+   515→   515→                      </Button>
+   516→   516→                    </div>
+   517→   517→                  </TabsContent>
+   518→   518→
+   519→   519→                  {/* Tab 2: HERMES Agent */}
+   520→   520→                  <TabsContent value="hermes" className="space-y-4">
+   521→   521→                    {/* Connection Status */}
+   522→   522→                    <div className={cn(
+   523→   523→                      'flex items-center gap-2 rounded-lg border p-3',
+   524→   524→                      hermesConnected ? 'border-emerald-500/20 bg-emerald-500/5' : 'border-red-500/20 bg-red-500/5'
+   525→   525→                    )}>
+   526→   526→                      {hermesConnected ? (
+   527→   527→                        <Wifi className="size-4 text-emerald-500" />
+   528→   528→                      ) : (
+   529→   529→                        <WifiOff className="size-4 text-red-500" />
+   530→   530→                      )}
+   531→   531→                      <span className={cn('text-sm font-medium', hermesConnected ? 'text-emerald-600' : 'text-red-600')}>
+   532→   532→                        {hermesConnected ? 'Connected' : 'Disconnected'}
+   533→   533→                      </span>
+   534→   534→                      {hermesConnected && (
+   535→   535→                        <Badge variant="outline" className="ml-auto text-[10px]">
+   536→   536→                          Latency: 120ms
+   537→   537→                        </Badge>
+   538→   538→                      )}
+   539→   539→                    </div>
+   540→   540→
+   541→   541→                    <div className="grid gap-2">
+   542→   542→                      <Label htmlFor="hermes-endpoint">Endpoint URL</Label>
+   543→   543→                      <div className="relative">
+   544→   544→                        <Globe className="text-muted-foreground absolute left-3 top-1/2 size-4 -translate-y-1/2" />
+   545→   545→                        <Input
+   546→   546→                          id="hermes-endpoint"
+   547→   547→                          value={hermesEndpoint}
+   548→   548→                          onChange={(e) => setHermesEndpoint(e.target.value)}
+   549→   549→                          className="pl-9 font-mono text-sm"
+   550→   550→                        />
+   551→   551→                      </div>
+   552→   552→                    </div>
+   553→   553→                    <div className="grid gap-2">
+   554→   554→                      <Label htmlFor="hermes-key">API Key</Label>
+   555→   555→                      <div className="relative">
+   556→   556→                        <Key className="text-muted-foreground absolute left-3 top-1/2 size-4 -translate-y-1/2" />
+   557→   557→                        <Input
+   558→   558→                          id="hermes-key"
+   559→   559→                          type="password"
+   560→   560→                          value={hermesApiKey}
+   561→   561→                          onChange={(e) => setHermesApiKey(e.target.value)}
+   562→   562→                          className="pl-9 font-mono text-sm"
+   563→   563→                        />
+   564→   564→                      </div>
+   565→   565→                    </div>
+   566→   566→                    <div className="grid gap-2">
+   567→   567→                      <Label htmlFor="hermes-model">Model</Label>
+   568→   568→                      <Select value={hermesModel} onValueChange={setHermesModel}>
+   569→   569→                        <SelectTrigger id="hermes-model">
+   570→   570→                          <SelectValue />
+   571→   571→                        </SelectTrigger>
+   572→   572→                        <SelectContent>
+   573→   573→                          <SelectItem value="gpt-4o">GPT-4o</SelectItem>
+   574→   574→                          <SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem>
+   575→   575→                          <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
+   576→   576→                          <SelectItem value="claude-3-sonnet">Claude 3 Sonnet</SelectItem>
+   577→   577→                          <SelectItem value="claude-3-haiku">Claude 3 Haiku</SelectItem>
+   578→   578→                        </SelectContent>
+   579→   579→                      </Select>
+   580→   580→                    </div>
+   581→   581→                    <div className="flex flex-wrap gap-2">
+   582→   582→                      <Button
+   583→   583→                        variant="outline"
+   584→   584→                        className="gap-2"
+   585→   585→                        onClick={handleTestConnection}
+   586→   586→                        disabled={testingConnection}
+   587→   587→                      >
+   588→   588→                        {testingConnection ? (
+   589→   589→                          <RefreshCw className="size-4 animate-spin" />
+   590→   590→                        ) : (
+   591→   591→                          <Wifi className="size-4" />
+   592→   592→                        )}
+   593→   593→                        {testingConnection ? 'Testing...' : 'Test Connection'}
+   594→   594→                      </Button>
+   595→   595→                      <Button className="gap-2">
+   596→   596→                        <Save className="size-4" />
+   597→   597→                        Save Connection
+   598→   598→                      </Button>
+   599→   599→                    </div>
+   600→   600→                  </TabsContent>
+   601→   601→                </Tabs>
+   602→   602→              </CardContent>
+   603→   603→            </Card>
+   604→   604→          </motion.div>
+   605→   605→
+   606→   606→          {/* Danger Zone */}
+   607→   607→          <motion.div {...fadeIn}>
+   608→   608→            <Card className="border-destructive/20 card-hover">
+   609→   609→              <CardHeader>
+   610→   610→                <CardTitle className="flex items-center gap-2 text-base text-destructive">
+   611→   611→                  <Shield className="size-4" />
+   612→   612→                  Danger Zone
+   613→   613→                </CardTitle>
+   614→   614→                <CardDescription>Irreversible actions — proceed with caution</CardDescription>
+   615→   615→              </CardHeader>
+   616→   616→              <CardContent className="space-y-4">
+   617→   617→                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+   618→   618→                  <div>
+   619→   619→                    <p className="text-sm font-medium">Reset All Data</p>
+   620→   620→                    <p className="text-xs text-muted-foreground">
+   621→   621→                      Clear all links, campaigns, and analytics data
+   622→   622→                    </p>
+   623→   623→                  </div>
+   624→   624→                  <AlertDialog>
+   625→   625→                    <AlertDialogTrigger asChild>
+   626→   626→                      <Button variant="outline" className="gap-2 text-destructive hover:text-destructive">
+   627→   627→                        <RefreshCw className="size-4" />
+   628→   628→                        Reset Data
+   629→   629→                      </Button>
+   630→   630→                    </AlertDialogTrigger>
+   631→   631→                    <AlertDialogContent>
+   632→   632→                      <AlertDialogHeader>
+   633→   633→                        <AlertDialogTitle className="flex items-center gap-2">
+   634→   634→                          <AlertTriangle className="size-5 text-destructive" />
+   635→   635→                          Reset All Data?
+   636→   636→                        </AlertDialogTitle>
+   637→   637→                        <AlertDialogDescription>
+   638→   638→                          This will permanently delete all your links, campaigns, analytics data, and chat history. This action cannot be undone.
+   639→   639→                        </AlertDialogDescription>
+   640→   640→                      </AlertDialogHeader>
+   641→   641→                      <AlertDialogFooter>
+   642→   642→                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+   643→   643→                        <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+   644→   644→                          Yes, Reset Everything
+   645→   645→                        </AlertDialogAction>
+   646→   646→                      </AlertDialogFooter>
+   647→   647→                    </AlertDialogContent>
+   648→   648→                  </AlertDialog>
+   649→   649→                </div>
+   650→   650→                <Separator />
+   651→   651→                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+   652→   652→                  <div>
+   653→   653→                    <p className="text-sm font-medium">Delete Account</p>
+   654→   654→                    <p className="text-xs text-muted-foreground">
+   655→   655→                      Permanently delete your account and all associated data
+   656→   656→                    </p>
+   657→   657→                  </div>
+   658→   658→                  <AlertDialog>
+   659→   659→                    <AlertDialogTrigger asChild>
+   660→   660→                      <Button variant="destructive" className="gap-2">
+   661→   661→                        <Trash2 className="size-4" />
+   662→   662→                        Delete Account
+   663→   663→                      </Button>
+   664→   664→                    </AlertDialogTrigger>
+   665→   665→                    <AlertDialogContent>
+   666→   666→                      <AlertDialogHeader>
+   667→   667→                        <AlertDialogTitle className="flex items-center gap-2">
+   668→   668→                          <AlertTriangle className="size-5 text-destructive" />
+   669→   669→                          Delete Your Account?
+   670→   670→                        </AlertDialogTitle>
+   671→   671→                        <AlertDialogDescription>
+   672→   672→                          This will permanently delete your account, all your data, links, earnings history, and referral connections. This action is irreversible.
+   673→   673→                        </AlertDialogDescription>
+   674→   674→                      </AlertDialogHeader>
+   675→   675→                      <AlertDialogFooter>
+   676→   676→                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+   677→   677→                        <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+   678→   678→                          Yes, Delete My Account
+   679→   679→                        </AlertDialogAction>
+   680→   680→                      </AlertDialogFooter>
+   681→   681→                    </AlertDialogContent>
+   682→   682→                  </AlertDialog>
+   683→   683→                </div>
+   684→   684→              </CardContent>
+   685→   685→            </Card>
+   686→   686→          </motion.div>
+   687→   687→        </div>
+   688→   688→
+   689→   689→        {/* Right Sidebar */}
+   690→   690→        <motion.div {...fadeIn} className="space-y-6">
+   691→   691→          {/* App Info */}
+   692→   692→          <Card className="card-hover">
+   693→   693→            <CardHeader>
+   694→   694→              <CardTitle className="flex items-center gap-2 text-base">
+   695→   695→                <Info className="size-4 text-shopee" />
+   696→   696→                App Info
+   697→   697→              </CardTitle>
+   698→   698→            </CardHeader>
+   699→   699→            <CardContent className="space-y-3">
+   700→   700→              <div className="flex items-center justify-between text-sm">
+   701→   701→                <span className="text-muted-foreground flex items-center gap-1.5">
+   702→   702→                  <Package className="size-3.5" />
+   703→   703→                  Version
+   704→   704→                </span>
+   705→   705→                <span className="font-medium">2.4.1</span>
+   706→   706→              </div>
+   707→   707→              <Separator />
+   708→   708→              <div className="flex items-center justify-between text-sm">
+   709→   709→                <span className="text-muted-foreground flex items-center gap-1.5">
+   710→   710→                  <Cpu className="size-3.5" />
+   711→   711→                  Build
+   712→   712→                </span>
+   713→   713→                <span className="font-medium font-mono">2025.03.15-a3f8</span>
+   714→   714→              </div>
+   715→   715→              <Separator />
+   716→   716→              <div className="flex items-center justify-between text-sm">
+   717→   717→                <span className="text-muted-foreground flex items-center gap-1.5">
+   718→   718→                  <Clock className="size-3.5" />
+   719→   719→                  Last Sync
+   720→   720→                </span>
+   721→   721→                <span className="font-medium">2 min ago</span>
+   722→   722→              </div>
+   723→   723→              <Separator />
+   724→   724→              <div className="flex items-center justify-between text-sm">
+   725→   725→                <span className="text-muted-foreground flex items-center gap-1.5">
+   726→   726→                  <ShoppingBag className="size-3.5" />
+   727→   727→                  Shopee API
+   728→   728→                </span>
+   729→   729→                <Badge variant={shopeeConnected ? 'default' : 'destructive'} className="text-[10px]">
+   730→   730→                  {shopeeConnected ? 'Online' : 'Offline'}
+   731→   731→                </Badge>
+   732→   732→              </div>
+   733→   733→              <Separator />
+   734→   734→              <div className="flex items-center justify-between text-sm">
+   735→   735→                <span className="text-muted-foreground flex items-center gap-1.5">
+   736→   736→                  <Bot className="size-3.5" />
+   737→   737→                  HERMES
+   738→   738→                </span>
+   739→   739→                <Badge variant={hermesConnected ? 'default' : 'destructive'} className="text-[10px]">
+   740→   740→                  {hermesConnected ? 'Online' : 'Offline'}
+   741→   741→                </Badge>
+   742→   742→              </div>
+   743→   743→            </CardContent>
+   744→   744→          </Card>
+   745→   745→
+   746→   746→          {/* Quick Actions */}
+   747→   747→          <Card className="card-hover">
+   748→   748→            <CardHeader>
+   749→   749→              <CardTitle className="text-base">Quick Actions</CardTitle>
+   750→   750→            </CardHeader>
+   751→   751→            <CardContent className="space-y-2">
+   752→   752→              <Button variant="outline" className="w-full justify-start gap-2" size="sm">
+   753→   753→                <RefreshCw className="size-4" />
+   754→   754→                Sync with Shopee
+   755→   755→              </Button>
+   756→   756→              <Button variant="outline" className="w-full justify-start gap-2" size="sm">
+   757→   757→                <Check className="size-4" />
+   758→   758→                Export Data
+   759→   759→              </Button>
+   760→   760→              <Button variant="outline" className="w-full justify-start gap-2" size="sm">
+   761→   761→                <Settings className="size-4" />
+   762→   762→                Clear Cache
+   763→   763→              </Button>
+   764→   764→            </CardContent>
+   765→   765→          </Card>
+   766→   766→
+   767→   767→          {/* Account Summary */}
+   768→   768→          <Card className="border-shopee/10 bg-shopee/5">
+   769→   769→            <CardContent className="p-4 space-y-2">
+   770→   770→              <div className="flex items-center gap-2">
+   771→   771→                <div className="bg-shopee/10 flex size-8 items-center justify-center rounded-full">
+   772→   772→                  <User className="text-shopee size-4" />
+   773→   773→                </div>
+   774→   774→                <div>
+   775→   775→                  <p className="text-sm font-semibold">{profileName}</p>
+   776→   776→                  <p className="text-[10px] text-muted-foreground">Pro Affiliate</p>
+   777→   777→                </div>
+   778→   778→              </div>
+   779→   779→              <Separator />
+   780→   780→              <div className="text-xs text-muted-foreground">
+   781→   781→                <p>Member since Jan 2025</p>
+   782→   782→                <p>Shopee Affiliate Partner</p>
+   783→   783→              </div>
+   784→   784→            </CardContent>
+   785→   785→          </Card>
+   786→   786→        </motion.div>
+   787→   787→      </div>
+   788→   788→    </div>
+   789→   789→  )
+   790→   790→}
+   791→   791→

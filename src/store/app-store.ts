@@ -25,6 +25,10 @@ interface AppState {
   setMobileMenuOpen: (open: boolean) => void
   hermesConnected: boolean
   setHermesConnected: (connected: boolean) => void
+  shopeeConnected: boolean
+  setShopeeConnected: (connected: boolean) => void
+  shopeeDataSource: 'graphql_api' | 'mock'
+  setShopeeDataSource: (source: 'graphql_api' | 'mock') => void
   commandPaletteOpen: boolean
   setCommandPaletteOpen: (open: boolean) => void
 }
@@ -39,6 +43,10 @@ export const useAppStore = create<AppState>((set) => ({
   setMobileMenuOpen: (open) => set({ mobileMenuOpen: open }),
   hermesConnected: false,
   setHermesConnected: (connected) => set({ hermesConnected: connected }),
+  shopeeConnected: false,
+  setShopeeConnected: (connected) => set({ shopeeConnected: connected }),
+  shopeeDataSource: 'mock',
+  setShopeeDataSource: (source) => set({ shopeeDataSource: source }),
   commandPaletteOpen: false,
   setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
 }))
