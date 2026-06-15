@@ -1,0 +1,847 @@
+     1→'use client'
+     2→
+     3→import { useState, useCallback } from 'react'
+     4→import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+     5→import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+     6→import { Badge } from '@/components/ui/badge'
+     7→import { Button } from '@/components/ui/button'
+     8→import { Input } from '@/components/ui/input'
+     9→import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+    10→import { Skeleton } from '@/components/ui/skeleton'
+    11→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+    12→import { motion, AnimatePresence } from 'framer-motion'
+    13→import { toast } from 'sonner'
+    14→import {
+    15→  Zap, Search, Brain, TrendingUp, Users, Stethoscope, Calendar, PenTool,
+    16→  BarChart3, Target, Activity, Plug, Bot, Network,
+    17→  RefreshCw, CheckCircle, AlertTriangle,
+    18→  Eye, Send, Sparkles, Wifi, WifiOff, Server, Puzzle,
+    19→  Radio, Copy, Check, type LucideIcon,
+    20→} from 'lucide-react'
+    21→import { cn } from '@/lib/utils'
+    22→
+    23→// ============================================================
+    24→// Types
+    25→// ============================================================
+    26→
+    27→interface MCPTool {
+    28→  name: string; description: string; category: string; status: string;
+    29→  version: string; executionCount: number; lastExecuted: string | null;
+    30→}
+    31→
+    32→interface A2AAgent {
+    33→  id: string; name: string; description: string; capabilities: string[];
+    34→  status: string; category: string; tasksCompleted: number; version: string;
+    35→}
+    36→
+    37→interface MCPPlugin {
+    38→  name: string; version: string; author: string; description: string; tools: string[];
+    39→}
+    40→
+    41→// ============================================================
+    42→// Tool Definitions
+    43→// ============================================================
+    44→
+    45→const TOOL_CONFIGS: Record<string, { icon: LucideIcon; color: string; bg: string; fields: { key: string; label: string; type: string; placeholder: string; required?: boolean; options?: string[] }[] }> = {
+    46→  trending_scanner: {
+    47→    icon: TrendingUp, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-900/20',
+    48→    fields: [{ key: 'category', label: 'Category', type: 'select', placeholder: 'all', required: true, options: ['all', 'electronics', 'fashion', 'beauty', 'home', 'health'] }, { key: 'limit', label: 'Results Limit', type: 'number', placeholder: '10' }],
+    49→  },
+    50→  keyword_research: {
+    51→    icon: Search, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-900/20',
+    52→    fields: [{ key: 'seedKeyword', label: 'Seed Keyword', type: 'text', placeholder: 'wireless earbuds', required: true }, { key: 'depth', label: 'Depth', type: 'select', placeholder: 'basic', options: ['basic', 'deep', 'exhaustive'] }],
+    53→  },
+    54→  market_research: {
+    55→    icon: BarChart3, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-900/20',
+    56→    fields: [{ key: 'niche', label: 'Market Niche', type: 'text', placeholder: 'wireless earbuds Malaysia', required: true }, { key: 'timeframe', label: 'Timeframe', type: 'select', placeholder: '30d', options: ['7d', '30d', '90d', '6m', '1y'] }],
+    57→  },
+    58→  content_writer: {
+    59→    icon: PenTool, color: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-100 dark:bg-violet-900/20',
+    60→    fields: [
+    61→      { key: 'contentType', label: 'Content Type', type: 'select', placeholder: 'social-post', required: true, options: ['product-description', 'social-post', 'blog-article', 'email-subject', 'ad-copy'] },
+    62→      { key: 'productName', label: 'Product Name', type: 'text', placeholder: 'TWS Wireless Earbuds Pro', required: true },
+    63→      { key: 'tone', label: 'Tone', type: 'select', placeholder: 'casual', options: ['professional', 'casual', 'enthusiastic', 'urgent'] },
+    64→      { key: 'platform', label: 'Platform', type: 'select', placeholder: 'shopee', options: ['shopee', 'instagram', 'tiktok', 'facebook', 'blog', 'email'] },
+    65→    ],
+    66→  },
+    67→  competitor_analyzer: {
+    68→    icon: Users, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-900/20',
+    69→    fields: [{ key: 'competitorShop', label: 'Competitor Shop', type: 'text', placeholder: 'TechGuruMY', required: true }, { key: 'metrics', label: 'Metrics', type: 'select', placeholder: 'all', options: ['pricing', 'reviews', 'listing-quality', 'all'] }],
+    70→  },
+    71→  review_analyzer: {
+    72→    icon: Eye, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-900/20',
+    73→    fields: [{ key: 'productUrl', label: 'Product URL', type: 'text', placeholder: 'https://shopee.com.my/product/...', required: true }, { key: 'focusArea', label: 'Focus', type: 'select', placeholder: 'all', options: ['sentiment', 'features', 'complaints', 'all'] }],
+    74→  },
+    75→  seo_optimizer: {
+    76→    icon: Target, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-100 dark:bg-amber-900/20',
+    77→    fields: [{ key: 'productTitle', label: 'Product Title', type: 'text', placeholder: 'Current product title...', required: true }, { key: 'targetKeywords', label: 'Target Keywords', type: 'text', placeholder: 'wireless, earbuds, bluetooth' }],
+    78→  },
+    79→  smart_scheduler: {
+    80→    icon: Calendar, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-100 dark:bg-amber-900/20',
+    81→    fields: [{ key: 'platform', label: 'Platform', type: 'select', placeholder: 'all', required: true, options: ['instagram', 'tiktok', 'facebook', 'twitter', 'all'] }, { key: 'contentType', label: 'Content Type', type: 'select', placeholder: 'all', options: ['product-post', 'story', 'reel', 'carousel', 'all'] }],
+    82→  },
+    83→  ad_optimizer: {
+    84→    icon: TrendingUp, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-100 dark:bg-amber-900/20',
+    85→    fields: [{ key: 'totalBudget', label: 'Daily Budget (RM)', type: 'number', placeholder: '50', required: true }, { key: 'objective', label: 'Objective', type: 'select', placeholder: 'balanced', options: ['max-conversions', 'max-clicks', 'max-revenue', 'balanced'] }],
+    86→  },
+    87→  link_doctor: {
+    88→    icon: Stethoscope, color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-100 dark:bg-rose-900/20',
+    89→    fields: [{ key: 'links', label: 'Affiliate Links', type: 'text', placeholder: 'link1, link2, link3', required: true }],
+    90→  },
+    91→  price_tracker: {
+    92→    icon: Activity, color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-100 dark:bg-rose-900/20',
+    93→    fields: [{ key: 'productIds', label: 'Product IDs', type: 'text', placeholder: '12345, 67890', required: true }, { key: 'alertThreshold', label: 'Alert Threshold (%)', type: 'number', placeholder: '15' }],
+    94→  },
+    95→  ai_insights: {
+    96→    icon: Brain, color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-100 dark:bg-rose-900/20',
+    97→    fields: [{ key: 'dataRange', label: 'Data Range', type: 'select', placeholder: '30d', required: true, options: ['7d', '30d', '90d', 'all'] }, { key: 'focusAreas', label: 'Focus', type: 'select', placeholder: 'all', options: ['earnings', 'traffic', 'conversions', 'growth', 'all'] }],
+    98→  },
+    99→}
+   100→
+   101→const CATEGORIES = [
+   102→  { id: 'all', label: 'All Tools', icon: Grid },
+   103→  { id: 'research', label: 'Research', color: 'bg-emerald-500' },
+   104→  { id: 'content', label: 'Content', color: 'bg-violet-500' },
+   105→  { id: 'analytics', label: 'Analytics', color: 'bg-blue-500' },
+   106→  { id: 'optimization', label: 'Optimization', color: 'bg-amber-500' },
+   107→  { id: 'intelligence', label: 'Intelligence', color: 'bg-rose-500' },
+   108→]
+   109→
+   110→function Grid(props: React.SVGProps<SVGSVGElement>) {
+   111→  return <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+   112→}
+   113→
+   114→// ============================================================
+   115→// Main Component
+   116→// ============================================================
+   117→
+   118→export function OpenClawPage() {
+   119→  const [activeTab, setActiveTab] = useState('tools')
+   120→  const [activeCategory, setActiveCategory] = useState('all')
+   121→  const [selectedTool, setSelectedTool] = useState<string | null>(null)
+   122→  const [executingTool, setExecutingTool] = useState<string | null>(null)
+   123→  const [toolResults, setToolResults] = useState<Record<string, string>>({})
+   124→  const [toolInputs, setToolInputs] = useState<Record<string, string>>({})
+   125→  const [showAgentDialog, setShowAgentDialog] = useState<string | null>(null)
+   126→  const [agentMessage, setAgentMessage] = useState('')
+   127→  const [showOrchestrateDialog, setShowOrchestrateDialog] = useState(false)
+   128→  const [orchestrateTask, setOrchestrateTask] = useState('')
+   129→  const [selectedAgents, setSelectedAgents] = useState<string[]>([])
+   130→  const [aiInsights, setAiInsights] = useState<{ type: string; message: string; impact: string }[]>([])
+   131→  const [insightsLoading, setInsightsLoading] = useState(false)
+   132→  const [copied, setCopied] = useState<string | null>(null)
+   133→
+   134→  const queryClient = useQueryClient()
+   135→
+   136→  // Data fetching
+   137→  const { data: mcpTools = [], isLoading: mcpLoading } = useQuery<MCPTool[]>({
+   138→    queryKey: ['mcp-tools'],
+   139→    queryFn: () => fetch('/api/openclaw/mcp-proxy?path=/tools').then(r => r.json()).then(d => d.tools || []),
+   140→    refetchInterval: 30000,
+   141→  })
+   142→
+   143→  const { data: mcpStatus } = useQuery({
+   144→    queryKey: ['mcp-status'],
+   145→    queryFn: () => fetch('/api/openclaw/mcp-proxy?path=/status').then(r => r.json()),
+   146→    refetchInterval: 15000,
+   147→  })
+   148→
+   149→  const { data: a2aAgents = [], isLoading: a2aLoading } = useQuery<A2AAgent[]>({
+   150→    queryKey: ['a2a-agents'],
+   151→    queryFn: () => fetch('/api/openclaw/a2a-proxy?path=/agents').then(r => r.json()).then(d => d.agents || []),
+   152→    refetchInterval: 30000,
+   153→  })
+   154→
+   155→  const { data: a2aStatus } = useQuery({
+   156→    queryKey: ['a2a-status'],
+   157→    queryFn: () => fetch('/api/openclaw/a2a-proxy?path=/status').then(r => r.json()),
+   158→    refetchInterval: 15000,
+   159→  })
+   160→
+   161→  const { data: mcpPlugins = [] } = useQuery<MCPPlugin[]>({
+   162→    queryKey: ['mcp-plugins'],
+   163→    queryFn: () => fetch('/api/openclaw/mcp-proxy?path=/plugins').then(r => r.json()).then(d => d.plugins || []),
+   164→  })
+   165→
+   166→  const mcpOnline = !mcpStatus?.error
+   167→  const a2aOnline = !a2aStatus?.error
+   168→
+   169→  // Tool execution via MCP
+   170→  const executeTool = useCallback(async (toolName: string, inputs: Record<string, string>) => {
+   171→    setExecutingTool(toolName)
+   172→    try {
+   173→      const params: Record<string, unknown> = {}
+   174→      for (const [k, v] of Object.entries(inputs)) {
+   175→        if (v) {
+   176→          const num = Number(v)
+   177→          params[k] = !isNaN(num) && v !== '' ? num : v
+   178→        }
+   179→      }
+   180→      const res = await fetch('/api/openclaw/mcp-proxy?path=/tools/' + toolName + '/execute', {
+   181→        method: 'POST',
+   182→        headers: { 'Content-Type': 'application/json' },
+   183→        body: JSON.stringify({ jsonrpc: '2.0', id: `exec_${Date.now()}`, params }),
+   184→      })
+   185→      const data = await res.json()
+   186→      if (data.error) {
+   187→        toast.error('Execution failed', { description: data.error.message })
+   188→      } else {
+   189→        const text = data.result?.content?.[0]?.text || JSON.stringify(data.result, null, 2)
+   190→        setToolResults(prev => ({ ...prev, [toolName]: text }))
+   191→        toast.success(`✅ ${toolName} completed`, { description: 'View results below' })
+   192→        queryClient.invalidateQueries({ queryKey: ['mcp-tools'] })
+   193→      }
+   194→    } catch {
+   195→      toast.error('Failed to execute tool', { description: 'MCP Server may be offline' })
+   196→    }
+   197→    setExecutingTool(null)
+   198→  }, [queryClient])
+   199→
+   200→  // AI content generation (direct LLM, bypasses MCP)
+   201→  const contentMutation = useMutation({
+   202→    mutationFn: (body: Record<string, string>) => fetch('/api/openclaw/ai-content', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json()),
+   203→    onSuccess: (data) => {
+   204→      if (data.success) {
+   205→        setToolResults(prev => ({ ...prev, content_writer: JSON.stringify(data, null, 2) }))
+   206→        toast.success('Content generated!', { description: `${data.wordCount} words, ${data.hashtags?.length || 0} hashtags` })
+   207→      } else {
+   208→        toast.error('Content generation failed', { description: data.error })
+   209→      }
+   210→      setExecutingTool(null)
+   211→    },
+   212→    onError: () => { toast.error('Failed to generate content'); setExecutingTool(null) },
+   213→  })
+   214→
+   215→  // AI insights
+   216→  const fetchInsights = useCallback(async () => {
+   217→    setInsightsLoading(true)
+   218→    try {
+   219→      const res = await fetch('/api/openclaw/ai-insights', {
+   220→        method: 'POST',
+   221→        headers: { 'Content-Type': 'application/json' },
+   222→        body: JSON.stringify({
+   223→          totalClicks: 3847, totalEarnings: 2847.50, conversionRate: 4.2,
+   224→          activeLinks: 15, topCategory: 'Electronics',
+   225→        }),
+   226→      })
+   227→      const data = await res.json()
+   228→      if (data.success) {
+   229→        setAiInsights(data.insights || [])
+   230→        toast.success('AI Insights refreshed')
+   231→      }
+   232→    } catch {
+   233→      toast.error('Failed to fetch insights')
+   234→    }
+   235→    setInsightsLoading(false)
+   236→  }, [])
+   237→
+   238→  // Send message to agent
+   239→  const sendAgentMessage = useCallback(async (agentId: string, message: string) => {
+   240→    if (!message.trim()) return
+   241→    try {
+   242→      const res = await fetch('/api/openclaw/a2a-proxy?path=/agents/' + agentId + '/message', {
+   243→        method: 'POST',
+   244→        headers: { 'Content-Type': 'application/json' },
+   245→        body: JSON.stringify({ action: 'query', payload: { message }, priority: 'medium' }),
+   246→      })
+   247→      const data = await res.json()
+   248→      if (data.response) {
+   249→        toast.success(`Response from ${agentId}`, { description: data.response.substring(0, 100) + '...' })
+   250→      }
+   251→      queryClient.invalidateQueries({ queryKey: ['a2a-agents'] })
+   252→    } catch {
+   253→      toast.error('Failed to send message')
+   254→    }
+   255→    setShowAgentDialog(null)
+   256→    setAgentMessage('')
+   257→  }, [queryClient])
+   258→
+   259→  // Copy to clipboard
+   260→  const copyText = useCallback((text: string, id: string) => {
+   261→    navigator.clipboard.writeText(text)
+   262→    setCopied(id)
+   263→    toast.success('Copied!')
+   264→    setTimeout(() => setCopied(null), 2000)
+   265→  }, [])
+   266→
+   267→  // Handle tool dialog submit
+   268→  const handleToolExecute = useCallback((toolName: string) => {
+   269→    const config = TOOL_CONFIGS[toolName]
+   270→    if (!config) return
+   271→    const missingRequired = config.fields.filter(f => f.required && !toolInputs[f.key]?.trim())
+   272→    if (missingRequired.length > 0) {
+   273→      toast.error('Missing required fields', { description: missingRequired.map(f => f.label).join(', ') })
+   274→      return
+   275→    }
+   276→    // Special handling for content_writer (uses real LLM)
+   277→    if (toolName === 'content_writer') {
+   278→      setExecutingTool(toolName)
+   279→      contentMutation.mutate({
+   280→        contentType: toolInputs.contentType || 'social-post',
+   281→        productName: toolInputs.productName || '',
+   282→        tone: toolInputs.tone || 'casual',
+   283→        platform: toolInputs.platform || 'shopee',
+   284→      })
+   285→    } else {
+   286→      executeTool(toolName, toolInputs)
+   287→    }
+   288→    setSelectedTool(null)
+   289→    setToolInputs({})
+   290→  }, [toolInputs, contentMutation, executeTool])
+   291→
+   292→  // Filter tools by category
+   293→  const filteredTools = activeCategory === 'all' ? mcpTools : mcpTools.filter((t: MCPTool) => t.category === activeCategory)
+   294→
+   295→  return (
+   296→    <div className="space-y-6">
+   297→      {/* ===== HERO BANNER ===== */}
+   298→      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
+   299→        <Card className="overflow-hidden border-0 shadow-lg">
+   300→          <CardContent className="p-6 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white relative">
+   301→            <div className="absolute top-0 right-0 w-64 h-64 bg-shopee/10 rounded-full blur-3xl pointer-events-none" />
+   302→            <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+   303→            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+   304→            <div className="relative">
+   305→              <div className="flex items-center gap-3 mb-4">
+   306→                <div className="p-3 rounded-xl bg-gradient-to-br from-shopee to-orange-400 shadow-lg shadow-shopee/30">
+   307→                  <Zap className="w-7 h-7 text-white" />
+   308→                </div>
+   309→                <div>
+   310→                  <h1 className="text-2xl font-bold">
+   311→                    <span className="text-gradient-shopee">OpenClaw</span> <span className="text-base font-normal text-gray-400">Advanced Intelligence Hub</span>
+   312→                  </h1>
+   313→                  <p className="text-xs text-gray-500">MCP + A2A + ACP Protocol Suite • OpenClaw Gateway</p>
+   314→                </div>
+   315→              </div>
+   316→              {/* Protocol Status Indicators */}
+   317→              <div className="grid grid-cols-3 gap-3 mt-4">
+   318→                {[
+   319→                  { name: 'MCP Server', port: 'Gateway', online: mcpOnline, icon: Server, color: mcpOnline ? 'text-emerald-400' : 'text-red-400', tools: mcpStatus?.tools?.total || 11 },
+   320→                  { name: 'A2A Agents', port: 'Gateway', online: a2aOnline, icon: Network, color: a2aOnline ? 'text-blue-400' : 'text-red-400', tools: a2aStatus?.onlineAgents || 5 },
+   321→                  { name: 'ACP Client', port: 'Local', online: true, icon: Radio, color: 'text-purple-400', tools: 'Active' },
+   322→                ].map(p => (
+   323→                  <div key={p.name} className="flex items-center gap-2.5 p-2.5 rounded-lg bg-white/5 border border-white/10">
+   324→                    <div className="relative">
+   325→                      <p.icon className={cn('w-4 h-4', p.color)} />
+   326→                      <span className={cn('absolute -top-1 -right-1 w-2 h-2 rounded-full', p.online ? 'bg-emerald-400 badge-pulse' : 'bg-red-400')} />
+   327→                    </div>
+   328→                    <div className="flex-1 min-w-0">
+   329→                      <p className="text-xs font-semibold text-white">{p.name}</p>
+   330→                      <p className="text-[10px] text-gray-500">:{p.port} • {typeof p.tools === 'number' ? p.tools + ' tools' : p.tools}</p>
+   331→                    </div>
+   332→                    {p.online ? <Wifi className="w-3.5 h-3.5 text-emerald-400/60" /> : <WifiOff className="w-3.5 h-3.5 text-red-400/60" />}
+   333→                  </div>
+   334→                ))}
+   335→              </div>
+   336→            </div>
+   337→          </CardContent>
+   338→        </Card>
+   339→      </motion.div>
+   340→
+   341→      {/* ===== MAIN TABS ===== */}
+   342→      <Tabs value={activeTab} onValueChange={setActiveTab}>
+   343→        <TabsList className="grid grid-cols-4 w-full h-auto gap-1 p-1 bg-muted/50">
+   344→          {[
+   345→            { id: 'tools', icon: Brain, label: 'AI Tools' },
+   346→            { id: 'protocol', icon: Plug, label: 'Protocol Hub' },
+   347→            { id: 'agents', icon: Bot, label: 'Agent Network' },
+   348→            { id: 'plugins', icon: Puzzle, label: 'Plugins' },
+   349→          ].map(tab => (
+   350→            <TabsTrigger key={tab.id} value={tab.id} className="flex items-center gap-1.5 text-xs py-2 data-[state=active]:bg-shopee data-[state=active]:text-white">
+   351→              <tab.icon className="w-3.5 h-3.5" />
+   352→              <span className="hidden sm:inline">{tab.label}</span>
+   353→            </TabsTrigger>
+   354→          ))}
+   355→        </TabsList>
+   356→
+   357→        {/* ===== TAB 1: AI TOOLS ===== */}
+   358→        <TabsContent value="tools" className="space-y-4 mt-4">
+   359→          {/* Category Filter */}
+   360→          <div className="flex flex-wrap gap-2">
+   361→            {CATEGORIES.map(cat => (
+   362→              <Button key={cat.id} size="sm" variant={activeCategory === cat.id ? 'default' : 'outline'}
+   363→                className={cn('text-xs h-8', activeCategory === cat.id && 'bg-shopee hover:bg-shopee-dark text-white')}
+   364→                onClick={() => setActiveCategory(cat.id)}>
+   365→                {cat.id !== 'all' && <span className={cn('w-2 h-2 rounded-full mr-1', cat.color)} />}
+   366→                {cat.label}
+   367→              </Button>
+   368→            ))}
+   369→          </div>
+   370→
+   371→          {/* Tools Grid */}
+   372→          {mcpLoading ? (
+   373→            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+   374→              {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-32 rounded-xl" />)}
+   375→            </div>
+   376→          ) : (
+   377→            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+   378→              <AnimatePresence mode="popLayout">
+   379→                {filteredTools.map((tool: MCPTool, idx: number) => {
+   380→                  const config = TOOL_CONFIGS[tool.name]
+   381→                  if (!config) return null
+   382→                  const Icon = config.icon
+   383→                  const hasResult = !!toolResults[tool.name]
+   384→                  const isExecuting = executingTool === tool.name
+   385→
+   386→                  return (
+   387→                    <motion.div key={tool.name} layout initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.2, delay: idx * 0.04 }}>
+   388→                      <Card className={cn('card-tilt glass-card cursor-pointer group h-full transition-all', hasResult && 'border-emerald-500/30')}>
+   389→                        <CardContent className="p-5">
+   390→                          <div className="flex items-start justify-between mb-3">
+   391→                            <div className={cn('p-2.5 rounded-xl', config.bg)}>
+   392→                              <Icon className={cn('w-5 h-5', config.color)} />
+   393→                            </div>
+   394→                            <div className="flex items-center gap-1.5">
+   395→                              {hasResult && <CheckCircle className="w-3.5 h-3.5 text-emerald-500" />}
+   396→                              <Badge variant="secondary" className="text-[9px] capitalize">{tool.category}</Badge>
+   397→                            </div>
+   398→                          </div>
+   399→                          <h3 className="text-sm font-bold text-foreground mb-1 group-hover:text-shopee transition-colors">{tool.name.replace(/_/g, ' ')}</h3>
+   400→                          <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{tool.description}</p>
+   401→                          <div className="flex items-center justify-between">
+   402→                            <span className="text-[10px] text-muted-foreground">v{tool.version} • {tool.executionCount} runs</span>
+   403→                            <Button size="sm" className={cn('text-xs h-7 gap-1', isExecuting ? '' : 'btn-shopee')} disabled={isExecuting} onClick={() => { setToolInputs({}); setSelectedTool(tool.name) }}>
+   404→                              {isExecuting ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
+   405→                              {isExecuting ? 'Running...' : 'Execute'}
+   406→                            </Button>
+   407→                          </div>
+   408→                        </CardContent>
+   409→                      </Card>
+   410→                    </motion.div>
+   411→                  )
+   412→                })}
+   413→              </AnimatePresence>
+   414→            </div>
+   415→          )}
+   416→
+   417→          {/* Tool Results */}
+   418→          {Object.keys(toolResults).length > 0 && (
+   419→            <Card className="glass-card border-shopee/20">
+   420→              <CardHeader className="pb-3">
+   421→                <div className="flex items-center justify-between">
+   422→                  <CardTitle className="text-base font-semibold flex items-center gap-2">
+   423→                    <Activity className="w-4 h-4 text-shopee" />
+   424→                    Execution Results
+   425→                  </CardTitle>
+   426→                  <Button size="sm" variant="ghost" className="text-xs" onClick={() => { setToolResults({}); toast.info('Results cleared') }}>
+   427→                    Clear All
+   428→                  </Button>
+   429→                </div>
+   430→              </CardHeader>
+   431→              <CardContent className="space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
+   432→                {Object.entries(toolResults).map(([name, result]) => (
+   433→                  <motion.div key={name} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+   434→                    className="p-3 rounded-lg bg-muted/20 border border-border/30">
+   435→                    <div className="flex items-center justify-between mb-2">
+   436→                      <span className="text-xs font-semibold text-shopee">{name.replace(/_/g, ' ')}</span>
+   437→                      <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2" onClick={() => copyText(result, name)}>
+   438→                        {copied === name ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+   439→                      </Button>
+   440→                    </div>
+   441→                    <pre className="text-xs text-muted-foreground whitespace-pre-wrap break-words max-h-40 overflow-y-auto">{result}</pre>
+   442→                  </motion.div>
+   443→                ))}
+   444→              </CardContent>
+   445→            </Card>
+   446→          )}
+   447→        </TabsContent>
+   448→
+   449→        {/* ===== TAB 2: PROTOCOL HUB ===== */}
+   450→        <TabsContent value="protocol" className="space-y-4 mt-4">
+   451→          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+   452→            {/* MCP Protocol */}
+   453→            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0 }}>
+   454→              <Card className={cn('glass-card h-full', mcpOnline ? 'border-emerald-500/30' : 'border-red-500/30')}>
+   455→                <CardHeader className="pb-3">
+   456→                  <div className="flex items-center justify-between">
+   457→                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   458→                      <Server className="w-4 h-4 text-emerald-500" />
+   459→                      MCP Protocol
+   460→                    </CardTitle>
+   461→                    <span className={cn('w-2.5 h-2.5 rounded-full', mcpOnline ? 'bg-emerald-500 badge-pulse' : 'bg-red-500')} />
+   462→                  </div>
+   463→                  <CardDescription className="text-[10px]">Model Context Protocol v2024-11-05</CardDescription>
+   464→                </CardHeader>
+   465→                <CardContent className="space-y-3">
+   466→                  {mcpOnline && mcpStatus ? (
+   467→                    <>
+   468→                      <div className="grid grid-cols-2 gap-2">
+   469→                        {[
+   470→                          { label: 'Tools', value: mcpStatus.tools?.total || 0 },
+   471→                          { label: 'Active', value: mcpStatus.tools?.active || 0 },
+   472→                          { label: 'Plugins', value: mcpStatus.plugins?.total || 0 },
+   473→                          { label: 'Executions', value: mcpStatus.tools?.totalExecutions || 0 },
+   474→                        ].map(s => (
+   475→                          <div key={s.label} className="p-2 rounded-lg bg-muted/20 text-center">
+   476→                            <p className="text-lg font-bold text-foreground">{s.value}</p>
+   477→                            <p className="text-[10px] text-muted-foreground">{s.label}</p>
+   478→                          </div>
+   479→                        ))}
+   480→                      </div>
+   481→                      <div className="text-[10px] text-muted-foreground space-y-1">
+   482→                        <p>⏱️ Uptime: {mcpStatus.server?.uptimeFormatted || '—'}</p>
+   483→                        <p>💾 Memory: {mcpStatus.server?.memoryUsage || '—'}</p>
+   484→                        <p>🔗 WS Clients: {mcpStatus.server?.currentClients || 0}</p>
+   485→                      </div>
+   486→                    </>
+   487→                  ) : (
+   488→                    <div className="text-center py-6">
+   489→                      <WifiOff className="w-8 h-8 text-red-400 mx-auto mb-2" />
+   490→                      <p className="text-xs text-muted-foreground">MCP Server offline</p>
+   491→                    </div>
+   492→                  )}
+   493→                </CardContent>
+   494→              </Card>
+   495→            </motion.div>
+   496→
+   497→            {/* A2A Protocol */}
+   498→            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+   499→              <Card className={cn('glass-card h-full', a2aOnline ? 'border-blue-500/30' : 'border-red-500/30')}>
+   500→                <CardHeader className="pb-3">
+   501→                  <div className="flex items-center justify-between">
+   502→                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   503→                      <Network className="w-4 h-4 text-blue-500" />
+   504→                      A2A Protocol
+   505→                    </CardTitle>
+   506→                    <span className={cn('w-2.5 h-2.5 rounded-full', a2aOnline ? 'bg-blue-500 badge-pulse' : 'bg-red-500')} />
+   507→                  </div>
+   508→                  <CardDescription className="text-[10px]">Agent-to-Agent Protocol v1.0</CardDescription>
+   509→                </CardHeader>
+   510→                <CardContent className="space-y-3">
+   511→                  {a2aOnline && a2aStatus ? (
+   512→                    <>
+   513→                      <div className="grid grid-cols-2 gap-2">
+   514→                        {[
+   515→                          { label: 'Agents', value: a2aStatus.agentCount || 0 },
+   516→                          { label: 'Online', value: a2aStatus.onlineAgents || 0 },
+   517→                          { label: 'Conversations', value: a2aStatus.activeConversations || 0 },
+   518→                          { label: 'Messages', value: a2aStatus.totalMessagesProcessed || 0 },
+   519→                        ].map(s => (
+   520→                          <div key={s.label} className="p-2 rounded-lg bg-muted/20 text-center">
+   521→                            <p className="text-lg font-bold text-foreground">{s.value}</p>
+   522→                            <p className="text-[10px] text-muted-foreground">{s.label}</p>
+   523→                          </div>
+   524→                        ))}
+   525→                      </div>
+   526→                      <div className="text-[10px] text-muted-foreground space-y-1">
+   527→                        <p>⏱️ Uptime: {a2aStatus.uptime || '—'}</p>
+   528→                        <p>📡 Protocol: {a2aStatus.protocol || 'A2A/1.0'}</p>
+   529→                      </div>
+   530→                    </>
+   531→                  ) : (
+   532→                    <div className="text-center py-6">
+   533→                      <WifiOff className="w-8 h-8 text-red-400 mx-auto mb-2" />
+   534→                      <p className="text-xs text-muted-foreground">A2A Service offline</p>
+   535→                    </div>
+   536→                  )}
+   537→                </CardContent>
+   538→              </Card>
+   539→            </motion.div>
+   540→
+   541→            {/* ACP Protocol */}
+   542→            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+   543→              <Card className="glass-card border-purple-500/30 h-full">
+   544→                <CardHeader className="pb-3">
+   545→                  <div className="flex items-center justify-between">
+   546→                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   547→                      <Radio className="w-4 h-4 text-purple-500" />
+   548→                      ACP Protocol
+   549→                    </CardTitle>
+   550→                    <span className="w-2.5 h-2.5 rounded-full bg-purple-500 badge-pulse" />
+   551→                  </div>
+   552→                  <CardDescription className="text-[10px]">Agent Communication Protocol</CardDescription>
+   553→                </CardHeader>
+   554→                <CardContent className="space-y-3">
+   555→                  <div className="grid grid-cols-2 gap-2">
+   556→                    {[
+   557→                      { label: 'Status', value: 'Active' },
+   558→                      { label: 'Clients', value: '1' },
+   559→                      { label: 'Messages', value: mcpTools.length },
+   560→                      { label: 'Agents', value: a2aAgents.length },
+   561→                    ].map(s => (
+   562→                      <div key={s.label} className="p-2 rounded-lg bg-muted/20 text-center">
+   563→                        <p className="text-lg font-bold text-foreground">{s.value}</p>
+   564→                        <p className="text-[10px] text-muted-foreground">{s.label}</p>
+   565→                      </div>
+   566→                    ))}
+   567→                  </div>
+   568→                  <div className="text-[10px] text-muted-foreground space-y-1">
+   569→                    <p>🔗 Connection: Local Bridge</p>
+   570→                    <p>📡 Format: JSON-RPC 2.0</p>
+   571→                    <p>🔒 Security: Token-based</p>
+   572→                  </div>
+   573→                </CardContent>
+   574→              </Card>
+   575→            </motion.div>
+   576→          </div>
+   577→
+   578→          {/* Protocol Info */}
+   579→          <Card className="glass-card">
+   580→            <CardContent className="p-4">
+   581→              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+   582→                <div>
+   583→                  <h4 className="font-semibold text-emerald-500 mb-1">MCP — Model Context Protocol</h4>
+   584→                  <p className="text-muted-foreground">Connects AI models to external tools and data sources via OpenClaw Gateway. Provides structured tool definitions, input validation, and JSON-RPC execution. 11 tools registered across 5 categories.</p>
+   585→                </div>
+   586→                <div>
+   587→                  <h4 className="font-semibold text-blue-500 mb-1">A2A — Agent-to-Agent Protocol</h4>
+   588→                  <p className="text-muted-foreground">Enables multi-agent communication and orchestration. Agents discover each other, exchange messages, and coordinate tasks through a standardized protocol.</p>
+   589→                </div>
+   590→                <div>
+   591→                  <h4 className="font-semibold text-purple-500 mb-1">ACP — Agent Communication Protocol</h4>
+   592→                  <p className="text-muted-foreground">Bridges AI agents with client applications. Manages the communication layer between the frontend interface and the backend AI services.</p>
+   593→                </div>
+   594→              </div>
+   595→            </CardContent>
+   596→          </Card>
+   597→        </TabsContent>
+   598→
+   599→        {/* ===== TAB 3: AGENT NETWORK ===== */}
+   600→        <TabsContent value="agents" className="space-y-4 mt-4">
+   601→          <div className="flex items-center justify-between">
+   602→            <h3 className="text-sm font-semibold">Active Agents</h3>
+   603→            <Button size="sm" className="btn-shopee text-xs gap-1" onClick={() => { setShowOrchestrateDialog(true); setSelectedAgents([]); setOrchestrateTask('') }}>
+   604→              <Sparkles className="w-3 h-3" /> Orchestrate
+   605→            </Button>
+   606→          </div>
+   607→
+   608→          {a2aLoading ? (
+   609→            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+   610→              {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-36 rounded-xl" />)}
+   611→            </div>
+   612→          ) : (
+   613→            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+   614→              {a2aAgents.map((agent: A2AAgent, idx: number) => (
+   615→                <motion.div key={agent.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.06 }}>
+   616→                  <Card className="glass-card hover:border-blue-500/30 transition-colors group h-full">
+   617→                    <CardContent className="p-5">
+   618→                      <div className="flex items-start justify-between mb-3">
+   619→                        <div className="flex items-center gap-2.5">
+   620→                          <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/20">
+   621→                            <Bot className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+   622→                          </div>
+   623→                          <div>
+   624→                            <h4 className="text-sm font-bold">{agent.name.replace(/-/g, ' ')}</h4>
+   625→                            <Badge variant="secondary" className="text-[9px] capitalize">{agent.category}</Badge>
+   626→                          </div>
+   627→                        </div>
+   628→                        <span className={cn('w-2 h-2 rounded-full', agent.status === 'online' ? 'bg-emerald-500 badge-pulse' : 'bg-gray-400')} />
+   629→                      </div>
+   630→                      <p className="text-xs text-muted-foreground mb-3 line-clamp-2">{agent.description}</p>
+   631→                      <div className="flex flex-wrap gap-1 mb-3">
+   632→                        {(agent.capabilities || []).slice(0, 3).map((cap: string) => (
+   633→                          <Badge key={cap} variant="outline" className="text-[9px] px-1.5 py-0">{cap}</Badge>
+   634→                        ))}
+   635→                        {(agent.capabilities || []).length > 3 && (
+   636→                          <Badge variant="outline" className="text-[9px] px-1.5 py-0">+{(agent.capabilities.length - 3)}</Badge>
+   637→                        )}
+   638→                      </div>
+   639→                      <div className="flex items-center justify-between">
+   640→                        <span className="text-[10px] text-muted-foreground">{agent.tasksCompleted} tasks • v{agent.version}</span>
+   641→                        <Button size="sm" variant="outline" className="text-xs h-7 gap-1" onClick={() => { setShowAgentDialog(agent.id); setAgentMessage('') }}>
+   642→                          <Send className="w-3 h-3" /> Message
+   643→                        </Button>
+   644→                      </div>
+   645→                    </CardContent>
+   646→                  </Card>
+   647→                </motion.div>
+   648→              ))}
+   649→            </div>
+   650→          )}
+   651→        </TabsContent>
+   652→
+   653→        {/* ===== TAB 4: PLUGINS ===== */}
+   654→        <TabsContent value="plugins" className="space-y-4 mt-4">
+   655→          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   656→            {mcpPlugins.map((plugin: MCPPlugin, idx: number) => (
+   657→              <motion.div key={plugin.name} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.08 }}>
+   658→                <Card className="glass-card h-full">
+   659→                  <CardContent className="p-5">
+   660→                    <div className="flex items-start justify-between mb-3">
+   661→                      <div>
+   662→                        <h4 className="text-sm font-bold">{plugin.name}</h4>
+   663→                        <p className="text-[10px] text-muted-foreground">v{plugin.version} • by {plugin.author}</p>
+   664→                      </div>
+   665→                      <Badge variant="secondary" className="text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+   666→                        <CheckCircle className="w-3 h-3 mr-1" /> Active
+   667→                      </Badge>
+   668→                    </div>
+   669→                    <p className="text-xs text-muted-foreground mb-3">{plugin.description}</p>
+   670→                    <div className="flex flex-wrap gap-1 mb-3">
+   671→                      {(plugin.tools || []).map((tool: string) => (
+   672→                        <Badge key={tool} variant="outline" className="text-[9px] px-1.5 py-0">{tool.replace(/_/g, ' ')}</Badge>
+   673→                      ))}
+   674→                    </div>
+   675→                    <Button size="sm" variant="outline" className="text-xs w-full" onClick={() => toast.info('Plugin marketplace coming soon!')}>
+   676→                      <Puzzle className="w-3 h-3 mr-1" /> Configure
+   677→                    </Button>
+   678→                  </CardContent>
+   679→                </Card>
+   680→              </motion.div>
+   681→            ))}
+   682→          </div>
+   683→
+   684→          <Card className="border-dashed border-2 border-muted-foreground/20">
+   685→            <CardContent className="p-8 text-center">
+   686→              <Puzzle className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
+   687→              <h4 className="text-sm font-semibold mb-1">Extend with Plugins</h4>
+   688→              <p className="text-xs text-muted-foreground mb-3">Install community plugins or create your own to extend OpenClaw capabilities.</p>
+   689→              <Button size="sm" variant="outline" className="text-xs" onClick={() => toast.info('Plugin marketplace coming soon!')}>
+   690→                Browse Marketplace
+   691→              </Button>
+   692→            </CardContent>
+   693→          </Card>
+   694→        </TabsContent>
+   695→      </Tabs>
+   696→
+   697→      {/* ===== AI INSIGHTS SECTION ===== */}
+   698→      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+   699→        <Card className="glass-card border-shopee/20">
+   700→          <CardHeader className="pb-3">
+   701→            <div className="flex items-center justify-between">
+   702→              <CardTitle className="text-base font-semibold flex items-center gap-2">
+   703→                <Brain className="w-4 h-4 text-shopee" />
+   704→                AI Insights
+   705→                <Badge variant="secondary" className="text-[9px] bg-shopee/10 text-shopee border-0">Powered by LLM</Badge>
+   706→              </CardTitle>
+   707→              <Button size="sm" variant="outline" className="text-xs gap-1" onClick={fetchInsights} disabled={insightsLoading}>
+   708→                <RefreshCw className={cn('w-3 h-3', insightsLoading && 'animate-spin')} />
+   709→                {insightsLoading ? 'Analyzing...' : 'Refresh'}
+   710→              </Button>
+   711→            </div>
+   712→          </CardHeader>
+   713→          <CardContent>
+   714→            {aiInsights.length > 0 ? (
+   715→              <div className="space-y-2.5">
+   716→                {aiInsights.map((insight, idx) => {
+   717→                  const colors: Record<string, string> = { opportunity: '#22C55E', warning: '#F59E0B', success: '#3B82F6', tip: '#8B5CF6' }
+   718→                  const icons: Record<string, LucideIcon> = { opportunity: TrendingUp, warning: AlertTriangle, success: CheckCircle, tip: Sparkles }
+   719→                  const Icon = icons[insight.type] || Brain
+   720→                  return (
+   721→                    <motion.div key={idx} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.08 }}
+   722→                      className="flex items-start gap-3 p-3 rounded-lg bg-muted/20 border border-border/30" style={{ borderLeft: `3px solid ${colors[insight.type] || '#EE4D2D'}` }}>
+   723→                      <Icon className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: colors[insight.type] }} />
+   724→                      <p className="text-sm text-foreground flex-1">{insight.message}</p>
+   725→                      <Badge variant="secondary" className={cn('text-[10px] flex-shrink-0', insight.impact === 'high' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : insight.impact === 'medium' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400')}>
+   726→                        {insight.impact}
+   727→                      </Badge>
+   728→                    </motion.div>
+   729→                  )
+   730→                })}
+   731→              </div>
+   732→            ) : (
+   733→              <div className="text-center py-6">
+   734→                <Brain className="w-10 h-10 text-shopee/20 mx-auto mb-2" />
+   735→                <p className="text-sm text-muted-foreground mb-2">Click &quot;Refresh&quot; to get AI-powered insights</p>
+   736→                <Button size="sm" className="btn-shopee text-xs" onClick={fetchInsights} disabled={insightsLoading}>
+   737→                  <Sparkles className="w-3 h-3 mr-1" /> Generate Insights
+   738→                </Button>
+   739→              </div>
+   740→            )}
+   741→          </CardContent>
+   742→        </Card>
+   743→      </motion.div>
+   744→
+   745→      {/* ===== TOOL EXECUTION DIALOG ===== */}
+   746→      <Dialog open={!!selectedTool} onOpenChange={() => { setSelectedTool(null); setToolInputs({}) }}>
+   747→        <DialogContent className="max-w-md">
+   748→          <DialogHeader>
+   749→            <DialogTitle className="flex items-center gap-2">
+   750→              {selectedTool && (() => { const c = TOOL_CONFIGS[selectedTool]; const I = c?.icon || Zap; return <I className="w-4 h-4 text-shopee" /> })()}
+   751→              {selectedTool?.replace(/_/g, ' ')}
+   752→            </DialogTitle>
+   753→            <DialogDescription>Configure parameters and execute the tool via MCP protocol</DialogDescription>
+   754→          </DialogHeader>
+   755→          {selectedTool && TOOL_CONFIGS[selectedTool] && (
+   756→            <div className="space-y-3">
+   757→              {TOOL_CONFIGS[selectedTool].fields.map(field => (
+   758→                <div key={field.key}>
+   759→                  <label className="text-xs font-medium text-muted-foreground mb-1 block">{field.label} {field.required && <span className="text-red-500">*</span>}</label>
+   760→                  {field.type === 'select' ? (
+   761→                    <select value={toolInputs[field.key] || ''} onChange={e => setToolInputs(prev => ({ ...prev, [field.key]: e.target.value }))}
+   762→                      className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm">
+   763→                      <option value="">Select...</option>
+   764→                      {field.options?.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+   765→                    </select>
+   766→                  ) : (
+   767→                    <Input placeholder={field.placeholder} value={toolInputs[field.key] || ''} onChange={e => setToolInputs(prev => ({ ...prev, [field.key]: e.target.value }))} />
+   768→                  )}
+   769→                </div>
+   770→              ))}
+   771→              <div className="flex gap-2 pt-2">
+   772→                <Button variant="outline" className="flex-1 text-xs" onClick={() => setSelectedTool(null)}>Cancel</Button>
+   773→                <Button className="flex-1 text-xs btn-shopee gap-1" onClick={() => handleToolExecute(selectedTool)}>
+   774→                  <Zap className="w-3 h-3" /> Execute
+   775→                </Button>
+   776→              </div>
+   777→            </div>
+   778→          )}
+   779→        </DialogContent>
+   780→      </Dialog>
+   781→
+   782→      {/* ===== AGENT MESSAGE DIALOG ===== */}
+   783→      <Dialog open={!!showAgentDialog} onOpenChange={() => setShowAgentDialog(null)}>
+   784→        <DialogContent className="max-w-md">
+   785→          <DialogHeader>
+   786→            <DialogTitle className="flex items-center gap-2">
+   787→              <Send className="w-4 h-4 text-blue-500" />
+   788→              Message {showAgentDialog?.replace(/-/g, ' ')}
+   789→            </DialogTitle>
+   790→            <DialogDescription>Send a query to this A2A agent</DialogDescription>
+   791→          </DialogHeader>
+   792→          <div className="space-y-3">
+   793→            <Input placeholder="Ask anything about Shopee affiliate marketing..." value={agentMessage} onChange={e => setAgentMessage(e.target.value)} onKeyDown={e => e.key === 'Enter' && showAgentDialog && sendAgentMessage(showAgentDialog, agentMessage)} />
+   794→            <div className="flex gap-2">
+   795→              <Button variant="outline" className="flex-1 text-xs" onClick={() => setShowAgentDialog(null)}>Cancel</Button>
+   796→              <Button className="flex-1 text-xs gap-1 bg-blue-600 hover:bg-blue-700 text-white" onClick={() => showAgentDialog && sendAgentMessage(showAgentDialog, agentMessage)} disabled={!agentMessage.trim()}>
+   797→                <Send className="w-3 h-3" /> Send
+   798→              </Button>
+   799→            </div>
+   800→          </div>
+   801→        </DialogContent>
+   802→      </Dialog>
+   803→
+   804→      {/* ===== ORCHESTRATE DIALOG ===== */}
+   805→      <Dialog open={showOrchestrateDialog} onOpenChange={() => setShowOrchestrateDialog(false)}>
+   806→        <DialogContent className="max-w-md">
+   807→          <DialogHeader>
+   808→            <DialogTitle className="flex items-center gap-2">
+   809→              <Sparkles className="w-4 h-4 text-shopee" />
+   810→              Multi-Agent Orchestration
+   811→            </DialogTitle>
+   812→            <DialogDescription>Select agents and describe the task for coordinated execution</DialogDescription>
+   813→          </DialogHeader>
+   814→          <div className="space-y-3">
+   815→            <div className="flex flex-wrap gap-1.5">
+   816→              {a2aAgents.map((agent: A2AAgent) => (
+   817→                <Badge key={agent.id} variant={selectedAgents.includes(agent.id) ? 'default' : 'outline'}
+   818→                  className={cn('text-[10px] cursor-pointer', selectedAgents.includes(agent.id) && 'bg-blue-600 hover:bg-blue-700')}
+   819→                  onClick={() => setSelectedAgents(prev => prev.includes(agent.id) ? prev.filter(a => a !== agent.id) : [...prev, agent.id])}>
+   820→                  {agent.name.replace(/-/g, ' ')}
+   821→                </Badge>
+   822→              ))}
+   823→            </div>
+   824→            <Input placeholder="Describe the task..." value={orchestrateTask} onChange={e => setOrchestrateTask(e.target.value)} />
+   825→            <Button className="w-full text-xs btn-shopee gap-1" disabled={!orchestrateTask.trim() || selectedAgents.length === 0}
+   826→              onClick={async () => {
+   827→                try {
+   828→                  const res = await fetch('/api/openclaw/a2a-proxy?path=/orchestrate', {
+   829→                    method: 'POST',
+   830→                    headers: { 'Content-Type': 'application/json' },
+   831→                    body: JSON.stringify({ task: orchestrateTask, agents: selectedAgents, sequential: true, priority: 'high' }),
+   832→                  })
+   833→                  const data = await res.json()
+   834→                  toast.success('Orchestration completed!', { description: `${selectedAgents.length} agents executed` })
+   835→                  setToolResults(prev => ({ ...prev, orchestrate: JSON.stringify(data, null, 2) }))
+   836→                } catch { toast.error('Orchestration failed') }
+   837→                setShowOrchestrateDialog(false)
+   838→              }}>
+   839→              <Sparkles className="w-3 h-3" /> Execute ({selectedAgents.length} agents)
+   840→            </Button>
+   841→          </div>
+   842→        </DialogContent>
+   843→      </Dialog>
+   844→    </div>
+   845→  )
+   846→}
+   847→

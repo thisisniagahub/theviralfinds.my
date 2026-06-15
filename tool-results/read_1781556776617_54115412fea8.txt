@@ -1,0 +1,741 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect, useCallback, useRef } from 'react'
+     4→import { motion, AnimatePresence } from 'framer-motion'
+     5→import dynamic from 'next/dynamic'
+     6→import type { AgentData } from '@/components/shopee-office/phaser-game'
+     7→import { ControlPanel } from '@/components/shopee-office/control-panel'
+     8→import { AgentsPanel, type AgentInfo } from '@/components/shopee-office/agents-panel'
+     9→import { MemoPanel, type MemoData } from '@/components/shopee-office/memo-panel'
+    10→import { AgentGrid, type AgentGridAgent } from '@/components/shopee-office/agent-grid'
+    11→import { AgentProfile, type ProfileAgent } from '@/components/shopee-office/agent-profile'
+    12→import { ActivityTimeline } from '@/components/shopee-office/activity-timeline'
+    13→import { CommissionWidget } from '@/components/shopee-office/commission-widget'
+    14→import { AgentCommandPanel } from '@/components/shopee-office/agent-command-panel'
+    15→import { OfficeHealthCard } from '@/components/shopee-office/office-health-card'
+    16→import { PipelineWorkflow } from '@/components/shopee-office/pipeline-workflow'
+    17→import { LanguageToggle, type Language } from '@/components/shopee-office/language-toggle'
+    18→// v7.0 Pixel-Agents Inspired Components
+    19→import { IsometricOffice } from '@/components/shopee-office/isometric-office'
+    20→import { ActivityMonitor } from '@/components/shopee-office/activity-monitor'
+    21→import { AgentChatPanel } from '@/components/shopee-office/agent-chat-panel'
+    22→import { MinimapOverlay } from '@/components/shopee-office/minimap-overlay'
+    23→import { ThemeSelector, type OfficeTheme } from '@/components/shopee-office/theme-selector'
+    24→import { AgentPerformance } from '@/components/shopee-office/agent-performance'
+    25→import '@/components/shopee-office/shopee-office.css'
+    26→
+    27→const PhaserGame = dynamic(() => import('@/components/shopee-office/phaser-game').then(m => ({ default: m.PhaserGame })), { ssr: false })
+    28→
+    29→type AgentStatus = AgentData['status']
+    30→type ViewMode = 'office' | 'isometric' | 'grid' | 'profile' | 'pipeline' | 'chat' | 'performance'
+    31→
+    32→// ===== Helpers =====
+    33→function mapApiAgentToPhaser(apiAgent: AgentInfo): AgentData {
+    34→  return {
+    35→    id: apiAgent.agentId,
+    36→    name: apiAgent.name,
+    37→    emoji: apiAgent.emoji,
+    38→    status: apiAgent.status,
+    39→    detail: apiAgent.detail,
+    40→    zone: apiAgent.zone,
+    41→    updatedAt: apiAgent.updated_at,
+    42→    tasksCompleted: apiAgent.tasksCompleted,
+    43→  }
+    44→}
+    45→
+    46→function mapApiAgentToGrid(apiAgent: AgentInfo): AgentGridAgent {
+    47→  return {
+    48→    agentId: apiAgent.agentId,
+    49→    name: apiAgent.name,
+    50→    emoji: apiAgent.emoji,
+    51→    status: apiAgent.status,
+    52→    detail: apiAgent.detail,
+    53→    tasksCompleted: apiAgent.tasksCompleted,
+    54→    authStatus: apiAgent.authStatus,
+    55→  }
+    56→}
+    57→
+    58→function mapApiAgentToProfile(apiAgent: AgentInfo): ProfileAgent {
+    59→  return {
+    60→    agentId: apiAgent.agentId,
+    61→    name: apiAgent.name,
+    62→    emoji: apiAgent.emoji,
+    63→    status: apiAgent.status,
+    64→    detail: apiAgent.detail,
+    65→    tasksCompleted: apiAgent.tasksCompleted,
+    66→    authStatus: apiAgent.authStatus,
+    67→  }
+    68→}
+    69→
+    70→// ===== View Tab Component =====
+    71→function ViewTab({
+    72→  label,
+    73→  icon,
+    74→  isActive,
+    75→  onClick,
+    76→}: {
+    77→  label: string
+    78→  icon: string
+    79→  isActive: boolean
+    80→  onClick: () => void
+    81→}) {
+    82→  return (
+    83→    <button
+    84→      className="shopee-view-tab"
+    85→      data-active={isActive ? 'true' : undefined}
+    86→      onClick={onClick}
+    87→    >
+    88→      <span className="shopee-view-tab-icon">{icon}</span>
+    89→      <span>{label}</span>
+    90→      {isActive && <motion.div className="shopee-view-tab-indicator" layoutId="viewTabIndicator" />}
+    91→    </button>
+    92→  )
+    93→}
+    94→
+    95→// ===== Component =====
+    96→export function AgentOfficePage() {
+    97→  const [agents, setAgents] = useState<AgentInfo[]>([])
+    98→  const [memo, setMemo] = useState<MemoData | null>(null)
+    99→  const [memoLoading, setMemoLoading] = useState(true)
+   100→  const [activeStatus, setActiveStatus] = useState<AgentStatus | null>(null)
+   101→  const [isPaused, setIsPaused] = useState(false)
+   102→  const [language, setLanguage] = useState<Language>('en')
+   103→  const [showCoords, setShowCoords] = useState(false)
+   104→  const [viewMode, setViewMode] = useState<ViewMode>('office')
+   105→  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null)
+   106→  const [showMinimap, setShowMinimap] = useState(true)
+   107→  const [officeTheme, setOfficeTheme] = useState<OfficeTheme>('night')
+   108→  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+   109→  const simulationRef = useRef<ReturnType<typeof setInterval> | null>(null)
+   110→
+   111→  // ===== Fetch initial data =====
+   112→  useEffect(() => {
+   113→    async function fetchData() {
+   114→      try {
+   115→        const [agentsRes, memoRes] = await Promise.all([
+   116→          fetch('/api/shopee-office/agents'),
+   117→          fetch('/api/shopee-office/memo'),
+   118→        ])
+   119→        if (agentsRes.ok) {
+   120→          const data = await agentsRes.json()
+   121→          setAgents(data.agents || [])
+   122→        }
+   123→        if (memoRes.ok) {
+   124→          const data = await memoRes.json()
+   125→          setMemo(data.memo || null)
+   126→        }
+   127→      } catch (err) {
+   128→        console.error('Failed to fetch shopee-office data:', err)
+   129→      } finally {
+   130→        setMemoLoading(false)
+   131→      }
+   132→    }
+   133→    fetchData()
+   134→  }, [])
+   135→
+   136→  // ===== Poll agents every 3 seconds =====
+   137→  useEffect(() => {
+   138→    pollRef.current = setInterval(async () => {
+   139→      if (isPaused) return
+   140→      try {
+   141→        const res = await fetch('/api/shopee-office/agents')
+   142→        if (res.ok) {
+   143→          const data = await res.json()
+   144→          setAgents(data.agents || [])
+   145→        }
+   146→      } catch {
+   147→        // Silent fail for polling
+   148→      }
+   149→    }, 3000)
+   150→
+   151→    return () => {
+   152→      if (pollRef.current) clearInterval(pollRef.current)
+   153→    }
+   154→  }, [isPaused])
+   155→
+   156→  // ===== Simulation: randomize one agent every 5-8s =====
+   157→  useEffect(() => {
+   158→    if (isPaused) return
+   159→
+   160→    simulationRef.current = setInterval(async () => {
+   161→      if (agents.length === 0) return
+   162→      const randomAgent = agents[Math.floor(Math.random() * agents.length)]
+   163→      if (!randomAgent || randomAgent.authStatus === 'offline') return
+   164→
+   165→      const statuses: AgentStatus[] = ['idle', 'writing', 'researching', 'executing', 'syncing', 'error']
+   166→      const randomStatus = statuses[Math.floor(Math.random() * statuses.length)]
+   167→
+   168→      try {
+   169→        const res = await fetch(`/api/shopee-office/agents/${randomAgent.agentId}`, {
+   170→          method: 'POST',
+   171→          headers: { 'Content-Type': 'application/json' },
+   172→          body: JSON.stringify({ status: randomStatus }),
+   173→        })
+   174→        if (res.ok) {
+   175→          const data = await res.json()
+   176→          setAgents((prev) =>
+   177→            prev.map((a) =>
+   178→              a.agentId === data.agent.agentId ? { ...a, ...data.agent } : a
+   179→            )
+   180→          )
+   181→        }
+   182→      } catch {
+   183→        // Silent fail for simulation
+   184→      }
+   185→    }, 5000 + Math.random() * 3000)
+   186→
+   187→    return () => {
+   188→      if (simulationRef.current) clearInterval(simulationRef.current)
+   189→    }
+   190→  }, [isPaused, agents])
+   191→
+   192→  // ===== Handlers =====
+   193→  const handleSetAllStatus = useCallback(async (status: AgentStatus) => {
+   194→    setActiveStatus(status)
+   195→    try {
+   196→      const res = await fetch('/api/shopee-office/agents', {
+   197→        method: 'POST',
+   198→        headers: { 'Content-Type': 'application/json' },
+   199→        body: JSON.stringify({ status }),
+   200→      })
+   201→      if (res.ok) {
+   202→        const data = await res.json()
+   203→        setAgents(data.agents || [])
+   204→      }
+   205→    } catch {
+   206→      console.error('Failed to set all agents status')
+   207→    }
+   208→  }, [])
+   209→
+   210→  const handleSetAgentStatus = useCallback(async (agentId: string, status: string) => {
+   211→    try {
+   212→      const res = await fetch(`/api/shopee-office/agents/${agentId}`, {
+   213→        method: 'POST',
+   214→        headers: { 'Content-Type': 'application/json' },
+   215→        body: JSON.stringify({ status }),
+   216→      })
+   217→      if (res.ok) {
+   218→        const data = await res.json()
+   219→        setAgents((prev) =>
+   220→          prev.map((a) =>
+   221→            a.agentId === data.agent.agentId ? { ...a, ...data.agent } : a
+   222→          )
+   223→        )
+   224→      }
+   225→    } catch {
+   226→      console.error('Failed to set agent status')
+   227→    }
+   228→  }, [])
+   229→
+   230→  const handleApproveAgent = useCallback(async (agentId: string) => {
+   231→    try {
+   232→      const res = await fetch(`/api/shopee-office/agents/${agentId}`, {
+   233→        method: 'POST',
+   234→        headers: { 'Content-Type': 'application/json' },
+   235→        body: JSON.stringify({ authStatus: 'approved' }),
+   236→      })
+   237→      if (res.ok) {
+   238→        const data = await res.json()
+   239→        setAgents((prev) =>
+   240→          prev.map((a) =>
+   241→            a.agentId === data.agent.agentId ? { ...a, ...data.agent } : a
+   242→          )
+   243→        )
+   244→      }
+   245→    } catch {
+   246→      console.error('Failed to approve agent')
+   247→    }
+   248→  }, [])
+   249→
+   250→  const handleRejectAgent = useCallback(async (agentId: string) => {
+   251→    try {
+   252→      const res = await fetch(`/api/shopee-office/agents/${agentId}`, {
+   253→        method: 'POST',
+   254→        headers: { 'Content-Type': 'application/json' },
+   255→        body: JSON.stringify({ authStatus: 'offline' }),
+   256→      })
+   257→      if (res.ok) {
+   258→        const data = await res.json()
+   259→        setAgents((prev) =>
+   260→          prev.map((a) =>
+   261→            a.agentId === data.agent.agentId ? { ...a, ...data.agent } : a
+   262→          )
+   263→        )
+   264→      }
+   265→    } catch {
+   266→      console.error('Failed to reject agent')
+   267→    }
+   268→  }, [])
+   269→
+   270→  // ===== Profile back handler =====
+   271→  const handleProfileBack = useCallback(() => {
+   272→    setSelectedAgentId(null)
+   273→    setViewMode('grid')
+   274→  }, [])
+   275→
+   276→  // ===== Keyboard shortcuts =====
+   277→  useEffect(() => {
+   278→    function handleKeyDown(e: KeyboardEvent) {
+   279→      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+   280→
+   281→      const statusMap: Record<string, AgentStatus> = {
+   282→        '1': 'idle',
+   283→        '2': 'writing',
+   284→        '3': 'researching',
+   285→        '4': 'executing',
+   286→        '5': 'syncing',
+   287→        '6': 'error',
+   288→      }
+   289→
+   290→      if (statusMap[e.key]) {
+   291→        e.preventDefault()
+   292→        handleSetAllStatus(statusMap[e.key])
+   293→      }
+   294→
+   295→      if (e.key === ' ') {
+   296→        e.preventDefault()
+   297→        setIsPaused((prev) => !prev)
+   298→      }
+   299→
+   300→      if (e.key === 'm' || e.key === 'M') {
+   301→        setShowMinimap((prev) => !prev)
+   302→      }
+   303→
+   304→      // Tab switching shortcuts
+   305→      if (e.key === 'q') setViewMode('office')
+   306→      if (e.key === 'w') setViewMode('grid')
+   307→      if (e.key === 'e') setViewMode('pipeline')
+   308→      if (e.key === 'r') setViewMode('isometric')
+   309→      if (e.key === 't') setViewMode('chat')
+   310→    }
+   311→
+   312→    window.addEventListener('keydown', handleKeyDown)
+   313→    return () => window.removeEventListener('keydown', handleKeyDown)
+   314→  }, [handleSetAllStatus])
+   315→
+   316→  // ===== Map agents to Phaser format =====
+   317→  const phaserAgents: AgentData[] = agents
+   318→    .filter((a) => a.authStatus !== 'offline')
+   319→    .map(mapApiAgentToPhaser)
+   320→
+   321→  const gridAgents: AgentGridAgent[] = agents.map(mapApiAgentToGrid)
+   322→  const profileAgent: ProfileAgent | null = selectedAgentId
+   323→    ? mapApiAgentToProfile(agents.find((a) => a.agentId === selectedAgentId) || agents[0])
+   324→    : null
+   325→
+   326→  // ===== Status text for overlay =====
+   327→  const activeAgents = agents.filter((a) => a.status !== 'idle' && a.status !== 'error')
+   328→  const errorAgents = agents.filter((a) => a.status === 'error')
+   329→  const onlineAgents = agents.filter((a) => a.authStatus !== 'offline')
+   330→  const totalTasksCompleted = agents.reduce((sum, a) => sum + a.tasksCompleted, 0)
+   331→  const avgTasks = agents.length > 0 ? Math.round(totalTasksCompleted / agents.length) : 0
+   332→  const productivityRate = onlineAgents.length > 0 ? Math.round((activeAgents.length / onlineAgents.length) * 100) : 0
+   333→  let statusText = `${activeAgents.length}/${onlineAgents.length} active`
+   334→  if (errorAgents.length > 0) {
+   335→    statusText += ` | ${errorAgents.length} error${errorAgents.length > 1 ? 's' : ''}`
+   336→  }
+   337→  if (isPaused) {
+   338→    statusText = `⏸ PAUSED — ${statusText}`
+   339→  }
+   340→
+   341→  // ===== View Labels =====
+   342→  const viewLabels: Record<Language, Record<ViewMode, string>> = {
+   343→    en: { office: 'Office', isometric: 'Isometric', grid: 'Agents', profile: 'Profile', pipeline: 'Pipeline', chat: 'Chat', performance: 'Stats' },
+   344→    cn: { office: '办公室', isometric: '等距视图', grid: '代理', profile: '档案', pipeline: '流水线', chat: '聊天', performance: '统计' },
+   345→    jp: { office: 'オフィス', isometric: '等角図', grid: 'エージェント', profile: 'プロファイル', pipeline: 'パイプライン', chat: 'チャット', performance: '統計' },
+   346→  }
+   347→
+   348→  return (
+   349→    <div className={`shopee-office-container office-theme-${officeTheme === 'auto' ? 'night' : officeTheme}`}>
+   350→      {/* ===== Header Bar ===== */}
+   351→      <motion.div
+   352→        className="flex items-center justify-between px-4 max-w-[1280px] mx-auto flex-wrap gap-2"
+   353→        initial={{ opacity: 0 }}
+   354→        animate={{ opacity: 1 }}
+   355→        transition={{ duration: 0.3 }}
+   356→      >
+   357→        <div className="flex items-center gap-3">
+   358→          <span className="text-xl font-bold text-[#EE4D2D] font-mono tracking-wide">
+   359→            🛒 Shopee Office
+   360→          </span>
+   361→          <div className={`shopee-pause-indicator ${isPaused ? 'paused' : 'running'}`}>
+   362→            <span className="w-2 h-2 rounded-full" style={{
+   363→              background: isPaused ? '#eab308' : '#22c55e',
+   364→              animation: isPaused ? 'none' : 'dotPulse 1.5s ease-in-out infinite',
+   365→            }} />
+   366→            <span>{isPaused ? 'PAUSED' : 'LIVE'}</span>
+   367→          </div>
+   368→          {/* Version badge */}
+   369→          <span className="hidden sm:inline-flex px-1.5 py-0.5 rounded text-[8px] font-bold bg-[#EE4D2D15] text-[#EE4D2D] border border-[#EE4D2D33] font-mono">
+   370→            v7.0
+   371→          </span>
+   372→        </div>
+   373→
+   374→        {/* View Mode Tabs */}
+   375→        <div className="flex items-center gap-1 bg-[#0d1020] border border-[#2a2d3e] rounded-md p-1 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+   376→          <ViewTab
+   377→            label={viewLabels[language].office}
+   378→            icon="🏢"
+   379→            isActive={viewMode === 'office'}
+   380→            onClick={() => setViewMode('office')}
+   381→          />
+   382→          <ViewTab
+   383→            label={viewLabels[language].isometric}
+   384→            icon="🏗️"
+   385→            isActive={viewMode === 'isometric'}
+   386→            onClick={() => setViewMode('isometric')}
+   387→          />
+   388→          <ViewTab
+   389→            label={viewLabels[language].grid}
+   390→            icon="👥"
+   391→            isActive={viewMode === 'grid'}
+   392→            onClick={() => setViewMode('grid')}
+   393→          />
+   394→          <ViewTab
+   395→            label={viewLabels[language].pipeline}
+   396→            icon="🔗"
+   397→            isActive={viewMode === 'pipeline'}
+   398→            onClick={() => setViewMode('pipeline')}
+   399→          />
+   400→          <ViewTab
+   401→            label={viewLabels[language].chat}
+   402→            icon="💬"
+   403→            isActive={viewMode === 'chat'}
+   404→            onClick={() => setViewMode('chat')}
+   405→          />
+   406→          <ViewTab
+   407→            label={viewLabels[language].performance}
+   408→            icon="📊"
+   409→            isActive={viewMode === 'performance'}
+   410→            onClick={() => setViewMode('performance')}
+   411→          />
+   412→          {viewMode === 'profile' && (
+   413→            <ViewTab
+   414→              label={viewLabels[language].profile}
+   415→              icon="📋"
+   416→              isActive={viewMode === 'profile'}
+   417→              onClick={() => {}}
+   418→            />
+   419→          )}
+   420→        </div>
+   421→
+   422→        <div className="flex items-center gap-2">
+   423→          {/* Quick stats in header */}
+   424→          <div className="hidden sm:flex items-center gap-4 mr-2">
+   425→            <span className="text-[10px] font-mono text-gray-400">
+   426→              Agents: <span className="text-white font-bold">{onlineAgents.length}</span>
+   427→            </span>
+   428→            <span className="text-[10px] font-mono text-gray-400">
+   429→              Active: <span className="text-green-400 font-bold">{activeAgents.length}</span>
+   430→            </span>
+   431→          </div>
+   432→          <ThemeSelector currentTheme={officeTheme} onThemeChange={setOfficeTheme} />
+   433→          <LanguageToggle language={language} onLanguageChange={setLanguage} />
+   434→        </div>
+   435→      </motion.div>
+   436→
+   437→      {/* ===== Activity Monitor (always visible at top) ===== */}
+   438→      <ActivityMonitor agents={agents} language={language} />
+   439→
+   440→      {/* ===== Animated Content ===== */}
+   441→      <AnimatePresence mode="wait">
+   442→        {/* ===== OFFICE VIEW (Phaser Game) ===== */}
+   443→        {viewMode === 'office' && (
+   444→          <motion.div
+   445→            key="office"
+   446→            initial={{ opacity: 0, y: 10 }}
+   447→            animate={{ opacity: 1, y: 0 }}
+   448→            exit={{ opacity: 0, y: -10 }}
+   449→            transition={{ duration: 0.3 }}
+   450→          >
+   451→            {/* Game Canvas */}
+   452→            <motion.div
+   453→              className="shopee-office-game-wrapper"
+   454→              initial={{ opacity: 0, scale: 0.98 }}
+   455→              animate={{ opacity: 1, scale: 1 }}
+   456→              transition={{ duration: 0.4 }}
+   457→              style={{ position: 'relative' }}
+   458→            >
+   459→              <div className="shopee-office-game-frame">
+   460→                <PhaserGame agents={phaserAgents} />
+   461→                <div className="shopee-office-scanlines" />
+   462→              </div>
+   463→
+   464→              {/* Coordinates toggle (debug) */}
+   465→              <button
+   466→                className={`shopee-coords-btn ${showCoords ? 'shopee-coords-btn-active' : ''}`}
+   467→                onClick={() => setShowCoords(!showCoords)}
+   468→              >
+   469→                {showCoords ? '[x,y] ON' : '[x,y]'}
+   470→              </button>
+   471→
+   472→              {/* Status overlay */}
+   473→              <div className="shopee-status-overlay">
+   474→                {statusText}
+   475→              </div>
+   476→
+   477→              {/* Minimap overlay */}
+   478→              <MinimapOverlay
+   479→                agents={agents}
+   480→                visible={showMinimap}
+   481→                onToggle={() => setShowMinimap(false)}
+   482→              />
+   483→
+   484→              {/* Minimap toggle button */}
+   485→              {!showMinimap && (
+   486→                <button
+   487→                  className="shopee-btn"
+   488→                  onClick={() => setShowMinimap(true)}
+   489→                  style={{
+   490→                    position: 'absolute', bottom: 12, right: 12, zIndex: 10,
+   491→                    fontSize: 9, padding: '3px 8px', opacity: 0.6,
+   492→                  }}
+   493→                >
+   494→                  🗺️ Map
+   495→                </button>
+   496→              )}
+   497→            </motion.div>
+   498→
+   499→            {/* ===== Productivity Stats Bar ===== */}
+   500→            <motion.div
+   501→              className="shopee-stats-bar"
+   502→              initial={{ opacity: 0, y: 10 }}
+   503→              animate={{ opacity: 1, y: 0 }}
+   504→              transition={{ duration: 0.3, delay: 0.5 }}
+   505→            >
+   506→              <div className="shopee-stat-chip">
+   507→                <span>🤖</span>
+   508→                <span>Online:</span>
+   509→                <span className="shopee-stat-chip-value">{onlineAgents.length}</span>
+   510→              </div>
+   511→              <div className="shopee-stat-chip">
+   512→                <span>⚡</span>
+   513→                <span>Active:</span>
+   514→                <span className="shopee-stat-chip-value" style={{ color: '#22c55e' }}>{activeAgents.length}</span>
+   515→              </div>
+   516→              <div className="shopee-stat-chip">
+   517→                <span>✅</span>
+   518→                <span>Tasks:</span>
+   519→                <span className="shopee-stat-chip-value">{totalTasksCompleted}</span>
+   520→              </div>
+   521→              <div className="shopee-stat-chip">
+   522→                <span>📊</span>
+   523→                <span>Avg:</span>
+   524→                <span className="shopee-stat-chip-value">{avgTasks}</span>
+   525→              </div>
+   526→              <div className="shopee-stat-chip">
+   527→                <span>🔥</span>
+   528→                <span>Efficiency:</span>
+   529→                <span className="shopee-stat-chip-value" style={{ color: productivityRate >= 70 ? '#22c55e' : productivityRate >= 40 ? '#eab308' : '#ef4444' }}>{productivityRate}%</span>
+   530→              </div>
+   531→              {errorAgents.length > 0 && (
+   532→                <div className="shopee-stat-chip" style={{ borderColor: 'rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.08)' }}>
+   533→                  <span>🐛</span>
+   534→                  <span>Errors:</span>
+   535→                  <span className="shopee-stat-chip-value" style={{ color: '#ef4444' }}>{errorAgents.length}</span>
+   536→                </div>
+   537→              )}
+   538→            </motion.div>
+   539→
+   540→            {/* ===== Middle Row: Health + Command + Commission ===== */}
+   541→            <div className="shopee-office-panels" style={{ flexWrap: 'wrap' }}>
+   542→              <OfficeHealthCard agents={agents} isPaused={isPaused} language={language} />
+   543→              <AgentCommandPanel agents={agents} selectedAgentId={selectedAgentId} onSetAgentStatus={handleSetAgentStatus} language={language} />
+   544→              <CommissionWidget agents={agents} language={language} />
+   545→            </div>
+   546→
+   547→            {/* ===== Bottom Panels ===== */}
+   548→            <div className="shopee-office-panels">
+   549→              <ControlPanel activeStatus={activeStatus} isPaused={isPaused} onSetAllStatus={handleSetAllStatus} onTogglePause={() => setIsPaused(!isPaused)} language={language} />
+   550→              <AgentsPanel agents={agents} onSetAgentStatus={handleSetAgentStatus} onApproveAgent={handleApproveAgent} onRejectAgent={handleRejectAgent} language={language} />
+   551→              <MemoPanel memo={memo} isLoading={memoLoading} language={language} />
+   552→            </div>
+   553→
+   554→            {/* ===== Activity Timeline ===== */}
+   555→            <div className="shopee-office-panels" style={{ flexWrap: 'wrap' }}>
+   556→              <ActivityTimeline agents={agents} language={language} />
+   557→            </div>
+   558→          </motion.div>
+   559→        )}
+   560→
+   561→        {/* ===== ISOMETRIC VIEW (CSS-based, no Phaser) ===== */}
+   562→        {viewMode === 'isometric' && (
+   563→          <motion.div
+   564→            key="isometric"
+   565→            className="max-w-[1280px] mx-auto"
+   566→            initial={{ opacity: 0, y: 10 }}
+   567→            animate={{ opacity: 1, y: 0 }}
+   568→            exit={{ opacity: 0, y: -10 }}
+   569→            transition={{ duration: 0.3 }}
+   570→          >
+   571→            <IsometricOffice
+   572→              agents={agents}
+   573→              language={language}
+   574→              onSelectAgent={(agentId) => {
+   575→                setSelectedAgentId(agentId)
+   576→                setViewMode('profile')
+   577→              }}
+   578→            />
+   579→
+   580→            {/* Stats + Control + Agents below isometric */}
+   581→            <div className="shopee-office-panels" style={{ flexWrap: 'wrap' }}>
+   582→              <ControlPanel activeStatus={activeStatus} isPaused={isPaused} onSetAllStatus={handleSetAllStatus} onTogglePause={() => setIsPaused(!isPaused)} language={language} />
+   583→              <AgentsPanel agents={agents} onSetAgentStatus={handleSetAgentStatus} onApproveAgent={handleApproveAgent} onRejectAgent={handleRejectAgent} language={language} />
+   584→            </div>
+   585→          </motion.div>
+   586→        )}
+   587→
+   588→        {/* ===== GRID VIEW (Agent Selection) ===== */}
+   589→        {viewMode === 'grid' && (
+   590→          <motion.div
+   591→            key="grid"
+   592→            className="max-w-[680px] mx-auto"
+   593→            initial={{ opacity: 0, scale: 0.97 }}
+   594→            animate={{ opacity: 1, scale: 1 }}
+   595→            exit={{ opacity: 0, scale: 0.97 }}
+   596→            transition={{ duration: 0.35, ease: 'easeOut' }}
+   597→          >
+   598→            <AgentGrid
+   599→              agents={gridAgents}
+   600→              onSelectAgent={(agentId) => {
+   601→                setSelectedAgentId(agentId)
+   602→                setViewMode('profile')
+   603→              }}
+   604→              selectedAgentId={selectedAgentId}
+   605→              language={language}
+   606→            />
+   607→
+   608→            {/* Mini stats bar below grid */}
+   609→            <motion.div
+   610→              className="shopee-stats-bar mt-4"
+   611→              initial={{ opacity: 0, y: 10 }}
+   612→              animate={{ opacity: 1, y: 0 }}
+   613→              transition={{ duration: 0.3, delay: 0.2 }}
+   614→            >
+   615→              <div className="shopee-stat-chip">
+   616→                <span>🤖</span>
+   617→                <span>Online:</span>
+   618→                <span className="shopee-stat-chip-value">{onlineAgents.length}/{agents.length}</span>
+   619→              </div>
+   620→              <div className="shopee-stat-chip">
+   621→                <span>⚡</span>
+   622→                <span>Active:</span>
+   623→                <span className="shopee-stat-chip-value" style={{ color: '#22c55e' }}>{activeAgents.length}</span>
+   624→              </div>
+   625→              <div className="shopee-stat-chip">
+   626→                <span>✅</span>
+   627→                <span>Total Tasks:</span>
+   628→                <span className="shopee-stat-chip-value">{totalTasksCompleted}</span>
+   629→              </div>
+   630→              <div className="shopee-stat-chip">
+   631→                <span>🔥</span>
+   632→                <span>Efficiency:</span>
+   633→                <span className="shopee-stat-chip-value" style={{ color: productivityRate >= 70 ? '#22c55e' : productivityRate >= 40 ? '#eab308' : '#ef4444' }}>{productivityRate}%</span>
+   634→              </div>
+   635→            </motion.div>
+   636→
+   637→            {/* Compact agents list below */}
+   638→            <motion.div
+   639→              className="mt-4"
+   640→              initial={{ opacity: 0, y: 10 }}
+   641→              animate={{ opacity: 1, y: 0 }}
+   642→              transition={{ duration: 0.3, delay: 0.3 }}
+   643→            >
+   644→              <AgentsPanel agents={agents} onSetAgentStatus={handleSetAgentStatus} onApproveAgent={handleApproveAgent} onRejectAgent={handleRejectAgent} language={language} />
+   645→            </motion.div>
+   646→          </motion.div>
+   647→        )}
+   648→
+   649→        {/* ===== PIPELINE VIEW ===== */}
+   650→        {viewMode === 'pipeline' && (
+   651→          <motion.div
+   652→            key="pipeline"
+   653→            className="max-w-[1280px] mx-auto"
+   654→            initial={{ opacity: 0, y: 10 }}
+   655→            animate={{ opacity: 1, y: 0 }}
+   656→            exit={{ opacity: 0, y: -10 }}
+   657→            transition={{ duration: 0.3 }}
+   658→          >
+   659→            <PipelineWorkflow agents={agents} language={language} />
+   660→
+   661→            <div className="shopee-office-panels" style={{ flexWrap: 'wrap' }}>
+   662→              <CommissionWidget agents={agents} language={language} />
+   663→              <ActivityTimeline agents={agents} language={language} />
+   664→            </div>
+   665→
+   666→            <div className="shopee-office-panels" style={{ flexWrap: 'wrap' }}>
+   667→              <AgentCommandPanel agents={agents} selectedAgentId={selectedAgentId} onSetAgentStatus={handleSetAgentStatus} language={language} />
+   668→              <AgentsPanel agents={agents} onSetAgentStatus={handleSetAgentStatus} onApproveAgent={handleApproveAgent} onRejectAgent={handleRejectAgent} language={language} />
+   669→            </div>
+   670→          </motion.div>
+   671→        )}
+   672→
+   673→        {/* ===== CHAT VIEW (Agent Conversation Panel) ===== */}
+   674→        {viewMode === 'chat' && (
+   675→          <motion.div
+   676→            key="chat"
+   677→            className="max-w-[1280px] mx-auto"
+   678→            initial={{ opacity: 0, y: 10 }}
+   679→            animate={{ opacity: 1, y: 0 }}
+   680→            exit={{ opacity: 0, y: -10 }}
+   681→            transition={{ duration: 0.3 }}
+   682→          >
+   683→            <div className="shopee-office-panels" style={{ flexWrap: 'wrap' }}>
+   684→              <AgentChatPanel
+   685→                agents={agents}
+   686→                language={language}
+   687→                onSetAgentStatus={handleSetAgentStatus}
+   688→              />
+   689→              <AgentsPanel
+   690→                agents={agents}
+   691→                onSetAgentStatus={handleSetAgentStatus}
+   692→                onApproveAgent={handleApproveAgent}
+   693→                onRejectAgent={handleRejectAgent}
+   694→                language={language}
+   695→              />
+   696→            </div>
+   697→          </motion.div>
+   698→        )}
+   699→
+   700→        {/* ===== PERFORMANCE VIEW ===== */}
+   701→        {viewMode === 'performance' && (
+   702→          <motion.div
+   703→            key="performance"
+   704→            className="max-w-[1280px] mx-auto"
+   705→            initial={{ opacity: 0, y: 10 }}
+   706→            animate={{ opacity: 1, y: 0 }}
+   707→            exit={{ opacity: 0, y: -10 }}
+   708→            transition={{ duration: 0.3 }}
+   709→          >
+   710→            <div className="shopee-office-panels" style={{ flexWrap: 'wrap' }}>
+   711→              <AgentPerformance agents={agents} language={language} />
+   712→              <CommissionWidget agents={agents} language={language} />
+   713→            </div>
+   714→          </motion.div>
+   715→        )}
+   716→
+   717→        {/* ===== PROFILE VIEW ===== */}
+   718→        {viewMode === 'profile' && profileAgent && (
+   719→          <motion.div
+   720→            key="profile"
+   721→            className="max-w-[460px] mx-auto"
+   722→            initial={{ opacity: 0, x: 30 }}
+   723→            animate={{ opacity: 1, x: 0 }}
+   724→            exit={{ opacity: 0, x: -30 }}
+   725→            transition={{ duration: 0.35, ease: 'easeOut' }}
+   726→          >
+   727→            <AgentProfile
+   728→              agent={profileAgent}
+   729→              onBack={handleProfileBack}
+   730→              onSetAgentStatus={handleSetAgentStatus}
+   731→              language={language}
+   732→            />
+   733→          </motion.div>
+   734→        )}
+   735→      </AnimatePresence>
+   736→    </div>
+   737→  )
+   738→}
+   739→
+   740→export default AgentOfficePage
+   741→
