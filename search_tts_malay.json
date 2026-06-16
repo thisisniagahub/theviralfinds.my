@@ -1,0 +1,92 @@
+[
+  {
+    "url": "https://docs.cloud.google.com/text-to-speech/docs/list-voices-and-types",
+    "name": "Supported voices and languages | Cloud Text-to-Speech",
+    "snippet": "The Cloud Text-to-Speech API provides a voice tier called Neural2. Neural2 voices are based on the same technology used to create a Custom Voice. Neural2 allows ...\nCloud TTS generates audio with natural, human-like quality, which creates speech that sounds like a real person. To start, specify a voice when sending a ...\nCloud TTS generates audio with natural, human-like quality, List of all supported languages. Malay (Malaysia) Standard ms-MY ms-MY-Standard-A FEMALE",
+    "host_name": "docs.cloud.google.com",
+    "rank": 0,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://learn.microsoft.com/en-us/azure/ai-services/speech-service/language-support",
+    "name": "Language and Voice Support for Azure Speech - Foundry Tools",
+    "snippet": "Learn about language and voice support in Azure Speech for speech to text, text to speech, speech translation, and more.",
+    "host_name": "learn.microsoft.com",
+    "rank": 1,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.quora.com/Is-there-any-text-to-speech-program-for-the-Malay-language",
+    "name": "Is there any text-to-speech program for the Malay language? - Quora",
+    "snippet": "The web browser version of Google translate offers voice recognition and text to speech. I would just use that to start of with.\nChange the TTS language to Malay from the top-left corner of the site, below the site title. Start writing some sentences or words in the box.",
+    "host_name": "www.quora.com",
+    "rank": 2,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://cloud.google.com/text-to-speech",
+    "name": "Text-to-Speech: Lifelike AI voices and speech synthesis",
+    "snippet": "Convert text to lifelike audio with Gemini-powered AI voices. Choose from 380+ natural-sounding voices across 75+ languages and variants.",
+    "host_name": "cloud.google.com",
+    "rank": 3,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://techcommunity.microsoft.com/blog/azure-ai-foundry-blog/11-new-languages-and-variants-and-more-voices-are-added-to-azure%E2%80%99s-neural-text-t/3541770",
+    "name": "11 new languages and variants and more voices are added to",
+    "snippet": "With this update, Azure Neural TTS now supports 140 languages/variants with 400 voices out-of-box. With other Cognitive Services including Speech-to-Text, OCR ...",
+    "host_name": "techcommunity.microsoft.com",
+    "rank": 4,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://discuss.google.dev/t/google-cloud-text-to-speech-remove-supported-voice-list-without-notify/180092",
+    "name": "Google Cloud Text-To-Speech Remove Supported Voice List",
+    "snippet": "Welcome to Google Cloud Community! The supported voices and language has introduced new voices last January 27, 2025. The new version of en ...",
+    "host_name": "discuss.google.dev",
+    "rank": 5,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://json2video.com/ai-voices/azure/languages/malay",
+    "name": "Azure Voices in Malay - JSON2Video",
+    "snippet": "Explore the Azure Voices in Malay, a curated collection of voices from Microsoft Azure's text-to-speech services.",
+    "host_name": "json2video.com",
+    "rank": 6,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.linkedin.com/pulse/real-talk-state-ai-voice-2025-which-tts-services-actually-hoffman-kwkvc",
+    "name": "AI Voices Compared: OpenAI, ElevenLabs, Polly, Google, Azure",
+    "snippet": "Want a realistic AI voice for podcasts, audio tours, or content? I tested OpenAI, ElevenLabs, AWS Polly, Google & Azure. See which is best!",
+    "host_name": "www.linkedin.com",
+    "rank": 7,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.speechmatics.com/company/articles-and-news/best-tts-apis-in-2025-top-12-text-to-speech-services-for-developers",
+    "name": "Best TTS APIs in 2026: ElevenLabs, Google, AWS & 9 More",
+    "snippet": "Independent comparison of 12 TTS APIs including ElevenLabs, Google Cloud, Amazon Polly and Speechmatics. Ranked by latency, pricing and ...",
+    "host_name": "www.speechmatics.com",
+    "rank": 8,
+    "date": "",
+    "favicon": ""
+  },
+  {
+    "url": "https://www.cross-plus-a.com/bal4web/changelog.txt",
+    "name": "Changelog - Cross+A",
+    "snippet": "[*] Updated the list of voices for Google Cloud. 2025-06-28 v1.85 [-] Fixed the using of Google TTS. [-] Fixed silence between paragraphs for Microsoft Azure.",
+    "host_name": "www.cross-plus-a.com",
+    "rank": 9,
+    "date": "",
+    "favicon": ""
+  }
+]
