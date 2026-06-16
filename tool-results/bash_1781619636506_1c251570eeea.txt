@@ -1,0 +1,597 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect, useCallback } from 'react'
+     4→import { motion } from 'framer-motion'
+     5→import {
+     6→  Megaphone, Calendar, Clock, Send, Trash2, Sparkles, Video, Camera,
+     7→  MessageCircle, Tv, Twitter, RefreshCw, ExternalLink, AlertCircle,
+     8→  CheckCircle2, XCircle, Loader2, Zap, Share2,
+     9→} from 'lucide-react'
+    10→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    11→import { Button } from '@/components/ui/button'
+    12→import { Textarea } from '@/components/ui/textarea'
+    13→import { Input } from '@/components/ui/input'
+    14→import { Label } from '@/components/ui/label'
+    15→import { Badge } from '@/components/ui/badge'
+    16→import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+    17→import { toast } from 'sonner'
+    18→import { cn } from '@/lib/utils'
+    19→import { useAppStore } from '@/store/app-store'
+    20→
+    21→// ─── Platform Metadata ──────────────────────────────────────────────────────
+    22→
+    23→const PLATFORMS = [
+    24→  { id: 'facebook', name: 'Facebook', icon: MessageCircle, color: '#1877F2', charLimit: 63206 },
+    25→  { id: 'instagram', name: 'Instagram', icon: Camera, color: '#E4405F', charLimit: 2200, requiresImage: true },
+    26→  { id: 'tiktok', name: 'TikTok', icon: Video, color: '#FF0050', charLimit: 2200 },
+    27→  { id: 'twitter', name: 'Twitter/X', icon: Twitter, color: '#0F1419', charLimit: 280 },
+    28→  { id: 'youtube', name: 'YouTube', icon: Tv, color: '#FF0000', charLimit: 5000 },
+    29→]
+    30→
+    31→interface SocialAccountInfo {
+    32→  id: string
+    33→  platform: string
+    34→  platformUsername: string | null
+    35→  isConnected: boolean
+    36→  isDemo: boolean
+    37→  configured: boolean
+    38→  displayName: string
+    39→  color: string
+    40→  characterLimit: number
+    41→  requiresImage: boolean
+    42→}
+    43→
+    44→interface PlatformPostResult {
+    45→  platform: string
+    46→  success: boolean
+    47→  demo: boolean
+    48→  platformPostId?: string
+    49→  platformUrl?: string
+    50→  error?: string
+    51→  publishedAt: string
+    52→  attempt: number
+    53→}
+    54→
+    55→interface ScheduledPost {
+    56→  id: string
+    57→  caption: string
+    58→  platforms: string[]
+    59→  productUrl: string | null
+    60→  affiliateLink: string | null
+    61→  imageUrl: string | null
+    62→  hashtags: string[]
+    63→  status: 'scheduled' | 'publishing' | 'published' | 'failed' | 'partial'
+    64→  scheduledAt: string
+    65→  publishedAt: string | null
+    66→  retryCount: number
+    67→  errorMessage: string | null
+    68→  result?: Record<string, PlatformPostResult> | null
+    69→}
+    70→
+    71→const statusColors: Record<string, string> = {
+    72→  scheduled: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+    73→  publishing: 'bg-blue-100 text-blue-800 border-blue-200',
+    74→  published: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    75→  failed: 'bg-red-100 text-red-800 border-red-200',
+    76→  partial: 'bg-orange-100 text-orange-800 border-orange-200',
+    77→}
+    78→
+    79→const statusIcons: Record<string, typeof CheckCircle2> = {
+    80→  scheduled: Clock,
+    81→  publishing: Loader2,
+    82→  published: CheckCircle2,
+    83→  failed: XCircle,
+    84→  partial: AlertCircle,
+    85→}
+    86→
+    87→// ─── Component ──────────────────────────────────────────────────────────────
+    88→
+    89→export function AutopostPage() {
+    90→  const { setActivePage } = useAppStore()
+    91→  const [tab, setTab] = useState('quick')
+    92→  const [caption, setCaption] = useState('')
+    93→  const [scheduledAt, setScheduledAt] = useState('')
+    94→  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([])
+    95→  const [productUrl, setProductUrl] = useState('')
+    96→  const [imageUrl, setImageUrl] = useState('')
+    97→  const ashtags, setHashtags] = useState('')
+    98→  const [loading, setLoading] = useState(false)
+    99→  const [publishingNow, setPublishingNow] = useState<string | null>(null)
+   100→  const [retrying, setRetrying] = useState<string | null>(null)
+   101→  const [posts, setPosts] = useState<ScheduledPost[]>([])
+   102→  const [accounts, setAccounts] = useState<SocialAccountInfo[]>([])
+   103→  const [bestTimes, setBestTimes] = useState<Record<string, any>>({})
+   104→
+   105→  const togglePlatform = (id: string) => {
+   106→    // Only allow selecting connected platforms
+   107→    const isConnected = accounts.some(a => a.platform === id && a.isConnected)
+   108→    if (!isConnected) {
+   109→      toast.error('Connect this platform in Settings first')
+   110→      return
+   111→    }
+   112→    setSelectedPlatforms(prev =>
+   113→      prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
+   114→    )
+   115→  }
+   116→
+   117→  const fetchPosts = useCallback(async () => {
+   118→    try {
+   119→      const res = await fetch('/api/autopost')
+   120→      if (res.ok) {
+   121→        const data = await res.json()
+   122→        setPosts(data.posts || [])
+   123→      }
+   124→    } catch {}
+   125→  }, [])
+   126→
+   127→  const fetchAccounts = useCallback(async () => {
+   128→    try {
+   129→      const res = await fetch('/api/social/accounts')
+   130→      if (res.ok) {
+   131→        const data = await res.json()
+   132→        setAccounts(data.accounts || [])
+   133→      }
+   134→    } catch {}
+   135→  }, [])
+   136→
+   137→  const fetchBestTimes = useCallback(async () => {
+   138→    try {
+   139→      const res = await fetch('/api/autopost/suggest-times')
+   140→      if (res.ok) {
+   141→        const data = await res.json()
+   142→        setBestTimes(data.platforms || {})
+   143→      }
+   144→    } catch {}
+   145→  }, [])
+   146→
+   147→  // On mount: fetch posts, accounts, best times + trigger execute for any due posts
+   148→  useEffect(() => {
+   149→    let active = true
+   150→    ;(async () => {
+   151→      try {
+   152→        const [postsRes, timesRes, accRes] = await Promise.all([
+   153→          fetch('/api/autopost'),
+   154→          fetch('/api/autopost/suggest-times'),
+   155→          fetch('/api/social/accounts'),
+   156→        ])
+   157→        if (postsRes.ok && active) {
+   158→          const data = await postsRes.json()
+   159→          setPosts(data.posts || [])
+   160→        }
+   161→        if (timesRes.ok && active) {
+   162→          const data = await timesRes.json()
+   163→          setBestTimes(data.platforms || {})
+   164→        }
+   165→        if (accRes.ok && active) {
+   166→          const data = await accRes.json()
+   167→          setAccounts(data.accounts || [])
+   168→        }
+   169→      } catch {}
+   170→
+   171→      // Trigger the execution engine for any due posts (non-blocking)
+   172→      try {
+   173→        await fetch('/api/social/execute', { method: 'POST' })
+   174→        // Re-fetch posts after a delay to reflect any status changes
+   175→        setTimeout(() => { if (active) fetchPosts() }, 2000)
+   176→      } catch {}
+   177→    })()
+   178→    return () => { active = false }
+   179→  }, [fetchPosts])
+   180→
+   181→  // Poll every 15s while there are scheduled/publishing posts
+   182→  useEffect(() => {
+   183→    const hasActive = posts.some(p => p.status === 'scheduled' || p.status === 'publishing')
+   184→    if (!hasActive) return
+   185→    const interval = setInterval(async () => {
+   186→      await fetch('/api/social/execute', { method: 'POST' }).catch(() => {})
+   187→      fetchPosts()
+   188→    }, 15000)
+   189→    return () => clearInterval(interval)
+   190→  }, [posts, fetchPosts])
+   191→
+   192→  const connectedCount = accounts.filter(a => a.isConnected).length
+   193→  const isPlatformConnected = (id: string) => accounts.some(a => a.platform === id && a.isConnected)
+   194→
+   195→  const handleSchedule = async () => {
+   196→    if (!caption) return toast.error('Add a caption')
+   197→    if (selectedPlatforms.length === 0) return toast.error('Select at least one connected platform')
+   198→    if (!scheduledAt) return toast.error('Select schedule time')
+   199→    setLoading(true)
+   200→    try {
+   201→      const res = await fetch('/api/autopost', {
+   202→        method: 'POST',
+   203→        headers: { 'Content-Type': 'application/json' },
+   204→        body: JSON.stringify({
+   205→          caption,
+   206→          platforms: selectedPlatforms,
+   207→          scheduledAt,
+   208→          productUrl: productUrl || undefined,
+   209→          imageUrl: imageUrl || undefined,
+   210→          hashtags: hashtags ? hashtags.split(',').map(h => h.trim()).filter(Boolean) : undefined,
+   211→        }),
+   212→      })
+   213→      if (res.ok) {
+   214→        toast.success('Post scheduled! Will publish at the scheduled time.')
+   215→        setCaption(''); setScheduledAt(''); setProductUrl(''); setImageUrl(''); setHashtags('')
+   216→        fetchPosts()
+   217→      } else {
+   218→        const e = await res.json()
+   219→        toast.error(e.error || 'Failed to schedule')
+   220→      }
+   221→    } catch {
+   222→      toast.error('Network error')
+   223→    }
+   224→    setLoading(false)
+   225→  }
+   226→
+   227→  const publishNow = async (postId: string) => {
+   228→    setPublishingNow(postId)
+   229→    try {
+   230→      const res = await fetch('/api/social/post', {
+   231→        method: 'POST',
+   232→        headers: { 'Content-Type': 'application/json' },
+   233→        body: JSON.stringify({ postId }),
+   234→      })
+   235→      const data = await res.json()
+   236→      if (res.ok) {
+   237→        toast.success(`Published to ${Object.values(data.platforms || {}).filter((p: any) => p.success).length} platform(s)`)
+   238→      } else {
+   239→        toast.error(data.error || 'Publish failed')
+   240→      }
+   241→      fetchPosts()
+   242→    } catch {
+   243→      toast.error('Network error')
+   244→    }
+   245→    setPublishingNow(null)
+   246→  }
+   247→
+   248→  const retryPost = async (postId: string) => {
+   249→    setRetrying(postId)
+   250→    try {
+   251→      const res = await fetch(`/api/social/post/${postId}/retry`, { method: 'POST' })
+   252→      const data = await res.json()
+   253→      if (res.ok) {
+   254→        if (data.status === 'published') toast.success('Retry successful — post published!')
+   255→        else toast.info(`Retry: ${data.status}`)
+   256→      } else {
+   257→        toast.error(data.error || 'Retry failed')
+   258→      }
+   259→      fetchPosts()
+   260→    } catch {
+   261→      toast.error('Network error')
+   262→    }
+   263→    setRetrying(null)
+   264→  }
+   265→
+   266→  const deletePost = async (id: string) => {
+   267→    try {
+   268→      const res = await fetch(`/api/autopost/${id}`, { method: 'DELETE' })
+   269→      if (res.ok) { toast.success('Post deleted'); fetchPosts() }
+   270→    } catch {}
+   271→  }
+   272→
+   273→  const triggerExecute = async () => {
+   274→    try {
+   275→      const res = await fetch('/api/social/execute', { method: 'POST' })
+   276→      const data = await res.json()
+   277→      if (res.ok) {
+   278→        if (data.processed > 0) {
+   279→          toast.success(`Processed ${data.processed} post(s): ${data.published} published, ${data.failed} failed`)
+   280→        } else {
+   281→          toast.info('No due posts to publish')
+   282→        }
+   283→        setTimeout(fetchPosts, 1500)
+   284→      }
+   285→    } catch {
+   286→      toast.error('Failed to trigger execution')
+   287→    }
+   288→  }
+   289→
+   290→  return (
+   291→    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+   292→      <div className="mb-6 flex items-start justify-between gap-3 flex-wrap">
+   293→        <div>
+   294→          <h1 className="text-2xl font-bold flex items-center gap-2">
+   295→            <Megaphone className="h-6 w-6 text-emerald-600" /> AutoPost
+   296→          </h1>
+   297→          <p className="text-muted-foreground">Schedule & automate your social media posts</p>
+   298→        </div>
+   299→        <div className="flex items-center gap-2">
+   300→          <Badge variant="outline" className={cn('gap-1', connectedCount > 0 ? 'text-emerald-600 border-emerald-300' : 'text-amber-600 border-amber-300')}>
+   301→            <Share2 className="size-3" />
+   302→            {connectedCount}/{PLATFORMS.filter(p => p.id !== 'youtube').length} platforms connected
+   303→          </Badge>
+   304→          <Button variant="outline" size="sm" onClick={triggerExecute} className="gap-2">
+   305→            <Zap className="size-3.5" /> Run Now
+   306→          </Button>
+   307→        </div>
+   308→      </div>
+   309→
+   310→      <Tabs value={tab} onValueChange={setTab}>
+   311→        <TabsList className="mb-4">
+   312→          <TabsTrigger value="quick"><Sparkles className="h-4 w-4 mr-1" />Quick Post</TabsTrigger>
+   313→          <TabsTrigger value="queue"><Calendar className="h-4 w-4 mr-1" />Queue</TabsTrigger>
+   314→          <TabsTrigger value="times"><Clock className="h-4 w-4 mr-1" />Best Times</TabsTrigger>
+   315→        </TabsList>
+   316→
+   317→        {/* ─── Quick Post Tab ─── */}
+   318→        <TabsContent value="quick">
+   319→          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+   320→            <div className="lg:col-span-2 space-y-4">
+   321→              <Card>
+   322→                <CardHeader><CardTitle>Create Post</CardTitle></CardHeader>
+   323→                <CardContent className="space-y-4">
+   324→                  <div>
+   325→                    <Label>Caption</Label>
+   326→                    <Textarea value={caption} onChange={e => setCaption(e.target.value)} placeholder="Write your post caption..." rows={4} />
+   327→                    <p className="text-xs text-muted-foreground mt-1">{caption.length} chars</p>
+   328→                  </div>
+   329→                  <div>
+   330→                    <Label>Platforms (only connected ones selectable)</Label>
+   331→                    <div className="flex flex-wrap gap-2 mt-2">
+   332→                      {PLATFORMS.map(p => {
+   333→                        const Icon = p.icon
+   334→                        const on = selectedPlatforms.includes(p.id)
+   335→                        const connected = isPlatformConnected(p.id)
+   336→                        const acc = accounts.find(a => a.platform === p.id)
+   337→                        return (
+   338→                          <button
+   339→                            key={p.id}
+   340→                            onClick={() => togglePlatform(p.id)}
+   341→                            disabled={!connected}
+   342→                            className={cn(
+   343→                              'flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all text-sm',
+   344→                              on ? 'text-white border-transparent' : 'border-muted bg-background',
+   345→                              !connected && 'opacity-50 cursor-not-allowed'
+   346→                            )}
+   347→                            style={on ? { backgroundColor: p.color } : undefined}
+   348→                            title={connected ? `Connected${acc?.isDemo ? ' (Demo)' : ''}` : 'Not connected — go to Settings'}
+   349→                          >
+   350→                            <Icon className="h-4 w-4" />
+   351→                            {p.name}
+   352→                            {connected && acc?.isDemo && <Badge className="bg-white/20 text-white text-[8px] px-1 py-0">DEMO</Badge>}
+   353→                          </button>
+   354→                        )
+   355→                      })}
+   356→                    </div>
+   357→                    {connectedCount === 0 && (
+   358→                      <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
+   359→                        <AlertCircle className="size-3" /> No platforms connected. Visit Settings → Connected Social Accounts to connect.
+   360→                      </p>
+   361→                    )}
+   362→                  </div>
+   363→                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+   364→                    <div><Label>Product URL</Label><Input value={productUrl} onChange={e => setProductUrl(e.target.value)} placeholder="https://shopee.com.my/..." /></div>
+   365→                    <div><Label>Hashtags (comma-separated)</Label><Input value={hashtags} onChange={e => setHashtags(e.target.value)} placeholder="#RacunShopee, #ad" /></div>
+   366→                  </div>
+   367→                  <div><Label>Image URL (optional, required for Instagram)</Label><Input value={imageUrl} onChange={e => setImageUrl(e.target.value)} placeholder="https://..." /></div>
+   368→                  <div><Label>Schedule Time</Label><Input type="datetime-local" value={scheduledAt} onChange={e => setScheduledAt(e.target.value)} /></div>
+   369→                  <Button onClick={handleSchedule} disabled={loading} className="w-full bg-emerald-600 hover:bg-emerald-700">
+   370→                    {loading ? 'Scheduling...' : <><Send className="h-4 w-4 mr-2" />Schedule Post</>}
+   371→                  </Button>
+   372→                </CardContent>
+   373→              </Card>
+   374→            </div>
+   375→
+   376→            {/* Connection Status Sidebar */}
+   377→            <div className="space-y-3">
+   378→              <Card>
+   379→                <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><Share2 className="size-4 text-emerald-600" /> Platform Status</CardTitle></CardHeader>
+   380→                <CardContent className="space-y-2">
+   381→                  {PLATFORMS.map(p => {
+   382→                    const Icon = p.icon
+   383→                    const acc = accounts.find(a => a.platform === p.id)
+   384→                    const connected = !!acc?.isConnected
+   385→                    return (
+   386→                      <div key={p.id} className="flex items-center gap-2 text-sm">
+   387→                        <div className="flex size-7 items-center justify-center rounded text-white" style={{ backgroundColor: p.color }}>
+   388→                          <Icon className="size-3.5" />
+   389→                        </div>
+   390→                        <span className="flex-1">{p.name}</span>
+   391→                        {connected ? (
+   392→                          <Badge className="bg-emerald-500 hover:bg-emerald-600 text-[10px] gap-1">
+   393→                            <CheckCircle2 className="size-2.5" /> {acc?.isDemo ? 'Demo' : 'Live'}
+   394→                          </Badge>
+   395→                        ) : (
+   396→                          <Badge variant="outline" className="text-[10px] text-muted-foreground">Off</Badge>
+   397→                        )}
+   398→                      </div>
+   399→                    )
+   400→                  })}
+   401→                  <div className="pt-2 border-t mt-2">
+   402→                    <Button variant="outline" size="sm" className="w-full gap-2" onClick={() => setActivePage('settings')}>
+   403→                      <Share2 className="size-3.5" /> Manage Connections
+   404→                    </Button>
+   405→                  </div>
+   406→                </CardContent>
+   407→              </Card>
+   408→
+   409→              <Card>
+   410→                <CardHeader className="pb-2"><CardTitle className="text-sm">Post Status Legend</CardTitle></CardHeader>
+   411→                <CardContent className="space-y-1.5 text-xs">
+   412→                  <div className="flex items-center gap-2"><Badge className={statusColors.scheduled + ' text-[10px]'}>Scheduled</Badge> <span className="text-muted-foreground">Waiting for scheduled time</span></div>
+   413→                  <div className="flex items-center gap-2"><Badge className={statusColors.publishing + ' text-[10px]'}>Publishing</Badge> <span className="text-muted-foreground">Currently being posted</span></div>
+   414→                  <div className="flex items-center gap-2"><Badge className={statusColors.published + ' text-[10px]'}>Published</Badge> <span className="text-muted-foreground">All platforms succeeded</span></div>
+   415→                  <div className="flex items-center gap-2"><Badge className={statusColors.partial + ' text-[10px]'}>Partial</Badge> <span className="text-muted-foreground">Some platforms failed</span></div>
+   416→                  <div className="flex items-center gap-2"><Badge className={statusColors.failed + ' text-[10px]'}>Failed</Badge> <span className="text-muted-foreground">All platforms failed (retry available)</span></div>
+   417→                </CardContent>
+   418→              </Card>
+   419→            </div>
+   420→          </div>
+   421→        </TabsContent>
+   422→
+   423→        {/* ─── Queue Tab ─── */}
+   424→        <TabsContent value="queue">
+   425→          <Card>
+   426→            <CardHeader className="flex flex-row items-center justify-between">
+   427→              <CardTitle>Scheduled Posts ({posts.length})</CardTitle>
+   428→              <Button variant="outline" size="sm" onClick={fetchPosts} className="gap-2">
+   429→                <RefreshCw className="size-3.5" /> Refresh
+   430→              </Button>
+   431→            </CardHeader>
+   432→            <CardContent>
+   433→              {posts.length === 0 ? (
+   434→                <p className="text-muted-foreground text-center py-8">No scheduled posts yet. Create one in the Quick Post tab.</p>
+   435→              ) : (
+   436→                <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
+   437→                  {posts.map(post => {
+   438→                    const StatusIcon = statusIcons[post.status] || Clock
+   439→                    const results = post.result || {}
+   440→                    const successCount = Object.values(results).filter(r => r.success).length
+   441→                    const failedCount = Object.values(results).filter(r => !r.success).length
+   442→                    const canRetry = (post.status === 'failed' || post.status === 'partial') && (post.retryCount || 0) < 3
+   443→                    const canPublishNow = post.status === 'scheduled'
+   444→                    const isPublishing = post.status === 'publishing'
+   445→
+   446→                    return (
+   447→                      <div key={post.id} className="border rounded-lg p-4 space-y-3">
+   448→                        <div className="flex items-start justify-between gap-3">
+   449→                          <div className="flex-1 min-w-0">
+   450→                            <p className="font-medium text-sm line-clamp-2">{post.caption}</p>
+   451→                            <div className="flex items-center gap-2 mt-2 flex-wrap">
+   452→                              {post.platforms.map((p: string) => {
+   453→                                const meta = PLATFORMS.find(x => x.id === p)
+   454→                                const Icon = meta?.icon || MessageCircle
+   455→                                const r = results[p]
+   456→                                return (
+   457→                                  <div key={p} className="flex items-center gap-1">
+   458→                                    <div className="flex size-5 items-center justify-center rounded text-white" style={{ backgroundColor: meta?.color || '#888' }}>
+   459→                                      <Icon className="size-3" />
+   460→                                    </div>
+   461→                                    {r && (
+   462→                                      <span className="text-[10px]">
+   463→                                        {r.success ? <CheckCircle2 className="size-3 text-emerald-500" /> : <XCircle className="size-3 text-red-500" />}
+   464→                                      </span>
+   465→                                    )}
+   466→                                  </div>
+   467→                                )
+   468→                              })}
+   469→                              <Badge className={cn('text-[10px] gap-1', statusColors[post.status])}>
+   470→                                <StatusIcon className={cn('size-2.5', isPublishing && 'animate-spin')} />
+   471→                                {post.status}
+   472→                              </Badge>
+   473→                              {post.retryCount > 0 && (
+   474→                                <Badge variant="outline" className="text-[10px]">
+   475→                                  Retry #{post.retryCount}
+   476→                                </Badge>
+   477→                              )}
+   478→                            </div>
+   479→                            <p className="text-xs text-muted-foreground mt-1">
+   480→                              {new Date(post.scheduledAt).toLocaleString()}
+   481→                              {post.publishedAt && ` · Published ${new Date(post.publishedAt).toLocaleString()}`}
+   482→                            </p>
+   483→                            {post.errorMessage && (
+   484→                              <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+   485→                                <AlertCircle className="size-3" /> {post.errorMessage}
+   486→                              </p>
+   487→                            )}
+   488→                          </div>
+   489→                        </div>
+   490→
+   491→                        {/* Per-platform result details */}
+   492→                        {Object.keys(results).length > 0 && (
+   493→                          <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5 bg-muted/30 rounded p-2">
+   494→                            {Object.entries(results).map(([platform, r]) => {
+   495→                              const meta = PLATFORMS.find(x => x.id === platform)
+   496→                              return (
+   497→                                <div key={platform} className="flex items-center gap-2 text-xs">
+   498→                                  <span className="font-medium w-20 truncate">{meta?.name || platform}</span>
+   499→                                  {r.success ? (
+   500→                                    <>
+   501→                                      <CheckCircle2 className="size-3 text-emerald-500" />
+   502→                                      <span className="text-emerald-600 truncate">
+   503→                                        {r.demo ? 'Demo published' : 'Published'}
+   504→                                      </span>
+   505→                                      {r.platformUrl && (
+   506→                                        <a href={r.platformUrl} target="_blank" rel="noopener noreferrer" className="ml-auto text-blue-500 hover:underline">
+   507→                                          <ExternalLink className="size-3" />
+   508→                                        </a>
+   509→                                      )}
+   510→                                    </>
+   511→                                  ) : (
+   512→                                    <>
+   513→                                      <XCircle className="size-3 text-red-500" />
+   514→                                      <span className="text-red-600 truncate" title={r.error}>{r.error || 'Failed'}</span>
+   515→                                    </>
+   516→                                  )}
+   517→                                </div>
+   518→                              )
+   519→                            })}
+   520→                          </div>
+   521→                        )}
+   522→
+   523→                        {/* Action buttons */}
+   524→                        <div className="flex items-center gap-2 flex-wrap">
+   525→                          {canPublishNow && (
+   526→                            <Button size="sm" variant="default" onClick={() => publishNow(post.id)} disabled={publishingNow === post.id} className="gap-2 bg-emerald-600 hover:bg-emerald-700">
+   527→                              {publishingNow === post.id ? <Loader2 className="size-3 animate-spin" /> : <Zap className="size-3" />}
+   528→                              {publishingNow === post.id ? 'Publishing...' : 'Publish Now'}
+   529→                            </Button>
+   530→                          )}
+   531→                          {canRetry && (
+   532→                            <Button size="sm" variant="outline" onClick={() => retryPost(post.id)} disabled={retrying === post.id} className="gap-2">
+   533→                              {retrying === post.id ? <Loader2 className="size-3 animate-spin" /> : <RefreshCw className="size-3" />}
+   534→                              {retrying === post.id ? 'Retrying...' : `Retry (${post.retryCount || 0}/3)`}
+   535→                            </Button>
+   536→                          )}
+   537→                          {successCount > 0 && (
+   538→                            <Badge variant="outline" className="text-[10px] text-emerald-600 gap-1">
+   539→                              <CheckCircle2 className="size-2.5" /> {successCount} succeeded
+   540→                            </Badge>
+   541→                          )}
+   542→                          {failedCount > 0 && (
+   543→                            <Badge variant="outline" className="text-[10px] text-red-600 gap-1">
+   544→                              <XCircle className="size-2.5" /> {failedCount} failed
+   545→                            </Badge>
+   546→                          )}
+   547→                          <Button variant="ghost" size="sm" onClick={() => deletePost(post.id)} className="ml-auto gap-2 text-destructive hover:text-destructive">
+   548→                            <Trash2 className="size-3" /> Delete
+   549→                          </Button>
+   550→                        </div>
+   551→                      </div>
+   552→                    )
+   553→                  })}
+   554→                </div>
+   555→              )}
+   556→            </CardContent>
+   557→          </Card>
+   558→        </TabsContent>
+   559→
+   560→        {/* ─── Best Times Tab ─── */}
+   561→        <TabsContent value="times">
+   562→          <div className="space-y-4">
+   563→            {Object.entries(bestTimes).map(([key, platform]: [string, any]) => (
+   564→              <Card key={key}>
+   565→                <CardHeader className="pb-2">
+   566→                  <CardTitle className="text-base flex items-center gap-2">
+   567→                    <span>{platform.icon}</span>{platform.name}
+   568→                    <span className="text-xs text-muted-foreground ml-auto">Limit: {platform.characterLimit}</span>
+   569→                  </CardTitle>
+   570→                </CardHeader>
+   571→                <CardContent>
+   572→                  <div className="space-y-2">
+   573→                    {platform.timeSlots?.map((slot: any, i: number) => (
+   574→                      <div key={i} className="flex items-center justify-between p-2 rounded bg-muted/50">
+   575→                        <span className="text-sm font-medium">{slot.label}</span>
+   576→                        <div className="flex items-center gap-2">
+   577→                          <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
+   578→                            <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${slot.engagement}%` }} />
+   579→                          </div>
+   580→                          <span className="text-xs text-muted-foreground">{slot.engagement}%</span>
+   581→                        </div>
+   582→                      </div>
+   583→                    ))}
+   584→                    <div className="flex gap-1 mt-1">
+   585→                      {platform.bestDays?.map((d: string) => <Badge key={d} variant="outline" className="text-xs">{d}</Badge>)}
+   586→                    </div>
+   587→                  </div>
+   588→                </CardContent>
+   589→              </Card>
+   590→            ))}
+   591→          </div>
+   592→        </TabsContent>
+   593→      </Tabs>
+   594→    </motion.div>
+   595→  )
+   596→}
+   597→

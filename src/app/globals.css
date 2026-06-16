@@ -143,8 +143,41 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    /* Smooth scrolling + iOS momentum */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    scroll-behavior: smooth;
+    /* Prevent iOS auto-zoom on input focus (font-size < 16px triggers it) */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
   body {
     @apply bg-background text-foreground;
+    /* iOS Safari: prevent rubber-band overscroll on body (we use it per-scroll instead) */
+    overscroll-behavior-y: none;
+    /* Enable iOS momentum scrolling for overflow containers */
+    -webkit-overflow-scrolling: touch;
+    /* Prevent tap highlight color on mobile */
+    -webkit-tap-highlight-color: transparent;
+    /* Better font rendering on mobile */
+    text-rendering: optimizeLegibility;
+    /* Mobile: prevent text selection on long-press for UI chrome (inputs/content can still be selected) */
+    -webkit-touch-callout: none;
+  }
+  /* Re-enable text selection where it makes sense */
+  input, textarea, [contenteditable="true"], p, li, h1, h2, h3, h4, h5, h6, span {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+  /* Inputs should be 16px+ to prevent iOS zoom-on-focus */
+  input, select, textarea {
+    font-size: 16px;
+  }
+  @media (min-width: 640px) {
+    input, select, textarea {
+      font-size: inherit;
+    }
   }
 }
 
@@ -307,3 +340,120 @@
 .status-paused { color: oklch(0.7 0.15 80); }
 .status-expired { color: oklch(0.6 0.2 25); }
 .status-completed { color: oklch(0.6 0.15 240); }
+
+/* ============================================================
+   MOBILE / PWA POLISH
+   ============================================================ */
+
+/* Safe area helpers — iOS notch / dynamic island / home indicator */
+.safe-area-inset-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.safe-area-inset-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.safe-area-inset-left {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+.safe-area-inset-right {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+.safe-area-inset {
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* Sticky header should respect safe-area-inset-top on iPhone */
+.h-safe-top {
+  top: env(safe-area-inset-top, 0px);
+}
+
+/* Mobile bottom nav: 14px (3.5rem) height + safe area inset (already applied via class) */
+@media (max-width: 1023px) {
+  /* Reserve space for the fixed mobile bottom nav */
+  .mobile-nav-spacer {
+    height: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+  }
+  /* Avoid content being hidden behind the mobile bottom nav */
+  main {
+    padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+/* Custom scrollbar — thinner on mobile to save space */
+@media (max-width: 768px) {
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 3px;
+    height: 3px;
+  }
+  /* On mobile, hide scrollbars on horizontal scroll containers for cleaner look */
+  .no-scrollbar-mobile::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar-mobile {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* Touch target minimum size — apply to small buttons that might shrink */
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+/* Disable pull-to-refresh interference for scroll containers
+   (we use a custom pull-to-refresh on the page level) */
+.scroll-container {
+  overscroll-behavior: contain;
+}
+
+/* PWA: Hide caret on installed PWA to feel more native */
+@media all and (display-mode: standalone) {
+  /* When running as installed PWA, hide scrollbars for a more app-like feel */
+  body::-webkit-scrollbar {
+    display: none;
+  }
+  body {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  /* PWA environment bar — use safe area on top */
+  .pwa-top-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+}
+
+/* iOS: better focus ring for keyboard navigation but no focus ring on tap */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+:focus-visible {
+  outline: 2px solid var(--shopee);
+  outline-offset: 2px;
+}
+
+/* Reduce layout shift on mobile when images load */
+img {
+  background-color: var(--muted);
+}
+
+/* Prevent zoom on double-tap (iOS Safari) for buttons & interactive elements */
+button, a, [role="button"], [role="tab"], [role="menuitem"] {
+  touch-action: manipulation;
+}
+
+/* Smoothly animate layout shifts caused by lazy-loaded images */
+img[loading="lazy"] {
+  transition: opacity 0.3s ease;
+}
+
+/* Active state feedback for touch devices */
+@media (hover: none) {
+  button:active, a:active, [role="button"]:active {
+    transform: scale(0.97);
+    transition: transform 0.1s ease;
+  }
+}

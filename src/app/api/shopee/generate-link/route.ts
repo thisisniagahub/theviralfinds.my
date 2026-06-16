@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getShopeeServiceFromDB } from '@/lib/shopee/affiliate-api'
 import { db } from '@/lib/db'
+import { validateBody, generateLinkSchema } from '@/lib/validation'
+import { enforceRateLimit, RATE_LIMITS } from '@/lib/rate-limit-enforce'
+import { handleError } from '@/lib/api-error'
 
 /**
  * POST /api/shopee/generate-link
@@ -10,15 +13,11 @@ import { db } from '@/lib/db'
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { productId, productUrl, subId, deepLinkType } = body
-
-    if (!productId && !productUrl) {
-      return NextResponse.json(
-        { error: 'Either productId or productUrl is required' },
-        { status: 400 }
-      )
+    if (enforceRateLimit(request, RATE_LIMITS.write)) {
+      return enforceRateLimit(request, RATE_LIMITS.write)!
     }
+    const data = await validateBody(request, generateLinkSchema)
+    const { productId, productUrl, subId, deepLinkType } = data
 
     // Get the Shopee service (real API or mock fallback)
     const shopeeService = await getShopeeServiceFromDB()
@@ -32,7 +31,7 @@ export async function POST(request: NextRequest) {
 
     // Generate affiliate link
     const link = await shopeeService.generateAffiliateLink({
-      itemId: productId || undefined,
+      itemId: productId ? String(productId) : undefined,
       productUrl: productUrl || undefined,
       subId: subId || undefined,
       deepLinkType: deepLinkType || 'default',
@@ -73,13 +72,6 @@ export async function POST(request: NextRequest) {
       source: link.source,
     })
   } catch (error) {
-    console.error('Generate affiliate link error:', error)
-    return NextResponse.json(
-      {
-        error: 'Failed to generate affiliate link',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      },
-      { status: 500 }
-    )
+    return handleError(error)
   }
 }

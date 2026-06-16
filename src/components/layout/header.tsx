@@ -12,11 +12,33 @@ import {
   Sparkles,
   Bot,
   ShoppingBag,
+  Wifi,
+  WifiOff,
+  LogOut,
+  UserCircle,
+  ChevronDown,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { useState } from 'react'
+import { useRealtimeStore } from '@/store/realtime-store'
+import { toast } from 'sonner'
 
 const pageTitles: Record<PageId, string> = {
   dashboard: 'Dashboard',
@@ -48,11 +70,35 @@ const SHOPEE_INDICATOR_PAGES: PageId[] = [
 ]
 
 export function AppHeader() {
-  const { activePage, setActivePage, setMobileMenuOpen, setSidebarOpen, sidebarOpen, hermesConnected, shopeeConnected, shopeeDataSource } = useAppStore()
+  const {
+    activePage,
+    setActivePage,
+    setMobileMenuOpen,
+    setSidebarOpen,
+    sidebarOpen,
+    hermesConnected,
+    shopeeConnected,
+    shopeeDataSource,
+    user,
+    isAuthenticated,
+    setAuthView,
+    logout,
+  } = useAppStore()
   const { setTheme, resolvedTheme } = useTheme()
   const [searchFocused, setSearchFocused] = useState(false)
 
+  // Realtime connection state (drives the green/red dot indicator)
+  const realtimeConnected = useRealtimeStore((s) => s.isConnected)
+  const realtimeReconnecting = useRealtimeStore((s) => s.isReconnecting)
+  const realtimeUnread = useRealtimeStore((s) => s.unreadCount)
+
   const showShopeeIndicator = SHOPEE_INDICATOR_PAGES.includes(activePage)
+
+  const realtimeTooltipText = realtimeConnected
+    ? 'Real-time connected — live notifications active'
+    : realtimeReconnecting
+      ? 'Reconnecting to real-time service…'
+      : 'Real-time disconnected — click to retry'
 
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur-lg">
@@ -62,8 +108,9 @@ export function AppHeader() {
           <Button
             variant="ghost"
             size="icon"
-            className="lg:hidden flex-shrink-0"
+            className="lg:hidden flex-shrink-0 size-11 -ml-2"
             onClick={() => setMobileMenuOpen(true)}
+            aria-label="Open navigation menu"
           >
             <Menu className="w-5 h-5" />
           </Button>
@@ -126,32 +173,151 @@ export function AppHeader() {
           <Button
             variant="ghost"
             size="icon"
-            className="md:hidden"
+            className="md:hidden size-11"
             onClick={() => setActivePage('hermes')}
+            aria-label="Open HERMES AI assistant"
           >
             <Bot className="w-5 h-5 text-hermes" />
           </Button>
 
+          {/* Real-time WebSocket connection status indicator */}
+          <TooltipProvider delayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label={realtimeTooltipText}
+                  className="flex items-center gap-1.5 px-2 min-h-[44px] min-w-[44px] rounded-md hover:bg-muted transition-colors"
+                >
+                  <span className="relative flex items-center justify-center">
+                    {realtimeConnected ? (
+                      <Wifi className="w-4 h-4 text-emerald-500" />
+                    ) : (
+                      <WifiOff className="w-4 h-5 text-red-500" />
+                    )}
+                    <span
+                      className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ring-1 ring-background ${
+                        realtimeConnected
+                          ? 'bg-emerald-500 animate-pulse'
+                          : realtimeReconnecting
+                            ? 'bg-amber-500 animate-pulse'
+                            : 'bg-red-500'
+                      }`}
+                    />
+                  </span>
+                  <span
+                    className={`hidden sm:inline text-[11px] font-medium ${
+                      realtimeConnected
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : realtimeReconnecting
+                          ? 'text-amber-600 dark:text-amber-400'
+                          : 'text-red-600 dark:text-red-400'
+                    }`}
+                  >
+                    {realtimeConnected ? 'Live' : realtimeReconnecting ? 'Reconnecting' : 'Offline'}
+                  </span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p className="text-xs">{realtimeTooltipText}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
           <Button
             variant="ghost"
             size="icon"
-            className="relative"
+            className="relative size-11 sm:size-9"
             onClick={() => setActivePage('notifications')}
+            aria-label="View notifications"
           >
             <Bell className="w-5 h-5" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-shopee" />
+            {realtimeUnread > 0 ? (
+              <span className="absolute top-1 right-1 min-w-4 h-4 px-1 rounded-full bg-shopee text-white text-[9px] font-bold flex items-center justify-center">
+                {realtimeUnread > 9 ? '9+' : realtimeUnread}
+              </span>
+            ) : (
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-shopee" />
+            )}
           </Button>
 
           <Button
             variant="ghost"
             size="icon"
+            className="size-11 sm:size-9"
             onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+            aria-label="Toggle dark mode"
           >
             <span className="relative w-5 h-5 inline-flex items-center justify-center">
               <Moon className="w-5 h-5 dark:hidden" />
               <Sun className="w-5 h-5 hidden dark:block" />
             </span>
           </Button>
+
+          {/* User menu / Login button */}
+          {isAuthenticated && user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="flex items-center gap-2 min-h-[44px] px-2 rounded-md hover:bg-muted transition-colors"
+                  aria-label="Open user menu"
+                >
+                  <Avatar className="w-7 h-7">
+                    <AvatarFallback className="bg-shopee/10 text-shopee text-xs font-bold">
+                      {(user.name || user.email || 'U').slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="hidden sm:inline text-sm font-medium max-w-[120px] truncate">
+                    {user.name}
+                  </span>
+                  <ChevronDown className="w-3.5 h-3.5 text-muted-foreground hidden sm:block" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel className="flex flex-col gap-0.5">
+                  <span className="text-sm font-semibold truncate">{user.name}</span>
+                  <span className="text-xs text-muted-foreground font-normal truncate">
+                    {user.email}
+                  </span>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => setActivePage('settings')}
+                  className="cursor-pointer"
+                >
+                  <UserCircle className="w-4 h-4 mr-2" />
+                  Profile & Settings
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setActivePage('earnings')}
+                  className="cursor-pointer"
+                >
+                  <ShoppingBag className="w-4 h-4 mr-2" />
+                  My Earnings
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={async () => {
+                    await logout()
+                    toast.success('You have been signed out.')
+                  }}
+                  className="cursor-pointer text-red-600 dark:text-red-400 focus:text-red-700 dark:focus:text-red-300"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sign Out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Button
+              size="sm"
+              className="bg-shopee hover:bg-shopee-dark text-white"
+              onClick={() => setAuthView('login')}
+            >
+              Sign In
+            </Button>
+          )}
         </div>
       </div>
     </header>

@@ -43,26 +43,35 @@ const allNavItems: NavItem[] = [
 ]
 
 export function MobileSheet() {
-  const { mobileMenuOpen, setMobileMenuOpen, setActivePage } = useAppStore()
+  const { mobileMenuOpen, setMobileMenuOpen, setActivePage, user, isAuthenticated } = useAppStore()
 
   return (
     <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-      <SheetContent side="left" className="p-0 w-72">
+      <SheetContent side="left" className="p-0 w-72 max-w-[85vw]">
         <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="flex items-center gap-3 px-4 py-4 border-b border-border">
-            <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-shopee text-white font-bold text-sm">
+          <div className="flex items-center gap-3 px-4 py-4 border-b border-border min-h-[64px]">
+            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-shopee text-white font-bold text-sm flex-shrink-0">
               TV
             </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-bold text-foreground">TheViralFinds</span>
+            <div className="flex flex-col min-w-0">
+              <span className="text-sm font-bold text-foreground truncate">TheViralFinds</span>
               <span className="text-[10px] text-muted-foreground">Affiliate Manager Pro</span>
             </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="ml-auto h-9 w-9 flex-shrink-0"
+              onClick={() => setMobileMenuOpen(false)}
+              aria-label="Close menu"
+            >
+              <X className="w-4 h-4" />
+            </Button>
           </div>
 
-          {/* Nav Items */}
-          <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto custom-scrollbar">
+          {/* Nav Items — each row min 44px tall for touch */}
+          <nav className="flex-1 py-2 px-2 space-y-1 overflow-y-auto custom-scrollbar overscroll-contain" aria-label="Mobile navigation menu">
             {allNavItems.map((item) => {
               const Icon = item.icon
               const isHermes = item.color === 'hermes'
@@ -73,13 +82,13 @@ export function MobileSheet() {
                     setActivePage(item.id)
                     setMobileMenuOpen(false)
                   }}
-                  className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                  className="flex items-center gap-3 w-full min-h-[44px] px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground active:bg-muted/80 active:scale-[0.99] transition-all"
                 >
                   <Icon className={cn('w-5 h-5 flex-shrink-0', isHermes && 'text-hermes')} />
-                  <span>{item.label}</span>
+                  <span className="flex-1 text-left">{item.label}</span>
                   {item.badge && (
                     <Badge variant="secondary" className={cn(
-                      'ml-auto text-[10px] px-1.5 py-0 border-0',
+                      'text-[10px] px-1.5 py-0 border-0 flex-shrink-0',
                       isHermes ? 'bg-hermes/10 text-hermes' : 'bg-shopee/10 text-shopee'
                     )}>
                       {item.badge}
@@ -92,16 +101,30 @@ export function MobileSheet() {
 
           <Separator />
 
-          {/* User */}
-          <div className="p-3 flex items-center gap-3">
-            <Avatar className="w-8 h-8">
-              <AvatarFallback className="bg-shopee/10 text-shopee text-xs font-bold">AF</AvatarFallback>
+          {/* User — touch-friendly row */}
+          <button
+            onClick={() => {
+              setActivePage('settings')
+              setMobileMenuOpen(false)
+            }}
+            className="p-3 flex items-center gap-3 w-full min-h-[56px] hover:bg-muted/50 transition-colors text-left"
+          >
+            <Avatar className="w-9 h-9 flex-shrink-0">
+              <AvatarFallback className="bg-shopee/10 text-shopee text-xs font-bold">
+                {isAuthenticated && user
+                  ? (user.name || user.email || 'U').slice(0, 2).toUpperCase()
+                  : 'TV'}
+              </AvatarFallback>
             </Avatar>
             <div className="flex flex-col flex-1 min-w-0">
-              <span className="text-sm font-medium truncate">Affiliate Pro</span>
-              <span className="text-[10px] text-muted-foreground">Premium Plan</span>
+              <span className="text-sm font-medium truncate">
+                {isAuthenticated && user ? user.name : 'Guest User'}
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                {isAuthenticated ? (user?.role === 'admin' ? 'Admin Plan' : 'Affiliate Plan') : 'Tap to sign in'}
+              </span>
             </div>
-          </div>
+          </button>
         </div>
       </SheetContent>
     </Sheet>

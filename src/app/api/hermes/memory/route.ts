@@ -1,8 +1,13 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { enforceRateLimit, RATE_LIMITS } from '@/lib/rate-limit-enforce'
+import { handleError, ApiError } from '@/lib/api-error'
 
 export async function GET(request: NextRequest) {
   try {
+    if (enforceRateLimit(request, RATE_LIMITS.read)) {
+      return enforceRateLimit(request, RATE_LIMITS.read)!
+    }
     const { searchParams } = new URL(request.url)
     const agentId = searchParams.get('agentId')
     const sessionId = searchParams.get('sessionId')
@@ -35,42 +40,31 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ memories: formattedMemories, total: formattedMemories.length })
   } catch (error) {
-    console.error('Hermes memory GET error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch memory entries' },
-      { status: 500 }
-    )
+    return handleError(error)
   }
 }
 
 export async function DELETE(request: NextRequest) {
   try {
+    if (enforceRateLimit(request, RATE_LIMITS.write)) {
+      return enforceRateLimit(request, RATE_LIMITS.write)!
+    }
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
 
     if (!id) {
-      return NextResponse.json(
-        { error: 'Memory entry ID is required' },
-        { status: 400 }
-      )
+      throw ApiError.badRequest('Memory entry ID is required')
     }
 
     const existing = await db.agentMemory.findUnique({ where: { id } })
     if (!existing) {
-      return NextResponse.json(
-        { error: 'Memory entry not found' },
-        { status: 404 }
-      )
+      throw ApiError.notFound('Memory entry not found')
     }
 
     await db.agentMemory.delete({ where: { id } })
 
     return NextResponse.json({ message: 'Memory entry deleted successfully' })
   } catch (error) {
-    console.error('Hermes memory DELETE error:', error)
-    return NextResponse.json(
-      { error: 'Failed to delete memory entry' },
-      { status: 500 }
-    )
+    return handleError(error)
   }
 }

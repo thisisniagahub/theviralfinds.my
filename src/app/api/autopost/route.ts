@@ -1,33 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { validateBody, createAutoPostSchema } from '@/lib/validation'
+import { enforceRateLimit, RATE_LIMITS } from '@/lib/rate-limit-enforce'
+import { handleError } from '@/lib/api-error'
 
 // POST /api/autopost - Create a scheduled post
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { caption, platforms, scheduledAt, productUrl, affiliateLink, imageUrl, hashtags } = body
-
-    if (!caption || !platforms || !Array.isArray(platforms) || platforms.length === 0) {
-      return NextResponse.json(
-        { error: 'Caption and at least one platform are required' },
-        { status: 400 }
-      )
+    if (enforceRateLimit(request, RATE_LIMITS.write)) {
+      return enforceRateLimit(request, RATE_LIMITS.write)!
     }
-
-    if (!scheduledAt) {
-      return NextResponse.json(
-        { error: 'scheduledAt is required' },
-        { status: 400 }
-      )
-    }
+    const data = await validateBody(request, createAutoPostSchema)
+    const { caption, platforms, scheduledAt, productUrl, affiliateLink, imageUrl, hashtags } = data
 
     const scheduledDate = new Date(scheduledAt)
-    if (isNaN(scheduledDate.getTime())) {
-      return NextResponse.json(
-        { error: 'Invalid scheduledAt date' },
-        { status: 400 }
-      )
-    }
 
     // Try to generate affiliate link if productUrl is provided but no affiliateLink
     let finalAffiliateLink = affiliateLink || null
@@ -68,22 +54,21 @@ export async function POST(request: NextRequest) {
       hashtags: post.hashtags ? JSON.parse(post.hashtags) : [],
     }, { status: 201 })
   } catch (error) {
-    console.error('Error creating scheduled post:', error)
-    return NextResponse.json(
-      { error: 'Failed to create scheduled post' },
-      { status: 500 }
-    )
+    return handleError(error)
   }
 }
 
 // GET /api/autopost - List scheduled posts
 export async function GET(request: NextRequest) {
   try {
+    if (enforceRateLimit(request, RATE_LIMITS.read)) {
+      return enforceRateLimit(request, RATE_LIMITS.read)!
+    }
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
     const platform = searchParams.get('platform')
-    const page = parseInt(searchParams.get('page') || '1', 10)
-    const limit = parseInt(searchParams.get('limit') || '20', 10)
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1)
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '20', 10) || 20))
     const skip = (page - 1) * limit
 
     const where: Record<string, unknown> = {}
@@ -120,10 +105,6 @@ export async function GET(request: NextRequest) {
       totalPages: Math.ceil(total / limit),
     })
   } catch (error) {
-    console.error('Error fetching scheduled posts:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch scheduled posts' },
-      { status: 500 }
-    )
+    return handleError(error)
   }
 }

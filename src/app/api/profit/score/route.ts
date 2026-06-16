@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { validateBody, profitScoreSchema } from '@/lib/validation'
+import { enforceRateLimit, RATE_LIMITS } from '@/lib/rate-limit-enforce'
+import { handleError } from '@/lib/api-error'
 
 // ─── Category average conversion rates (Shopee MY) ────────────────────────────
 const CATEGORY_CONVERSION: Record<string, number> = {
@@ -144,12 +147,10 @@ interface ProductInput {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { product } = body as { product: ProductInput }
-
-    if (!product) {
-      return NextResponse.json({ error: 'Product data is required' }, { status: 400 })
+    if (enforceRateLimit(request, RATE_LIMITS.ai)) {
+      return enforceRateLimit(request, RATE_LIMITS.ai)!
     }
+    const { product: rawProduct } = await validateBody(request, profitScoreSchema)
 
     const {
       name = 'Unknown Product',
@@ -158,7 +159,7 @@ export async function POST(request: NextRequest) {
       category = 'general',
       sales = 0,
       rating = 4.0,
-    } = product
+    } = rawProduct
 
     // Get category-specific metrics
     const categoryKey = Object.keys(CATEGORY_CONVERSION).find(
@@ -233,7 +234,6 @@ export async function POST(request: NextRequest) {
       product: { name, price, commissionRate, category, sales, rating },
     })
   } catch (error) {
-    console.error('Profit scoring error:', error)
-    return NextResponse.json({ error: 'Failed to score product' }, { status: 500 })
+    return handleError(error)
   }
 }

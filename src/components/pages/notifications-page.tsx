@@ -15,6 +15,8 @@ import {
   Clock,
   Shield,
   Megaphone,
+  Zap,
+  Wifi,
 } from 'lucide-react'
 import {
   Card,
@@ -28,6 +30,8 @@ import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
+import { toast } from 'sonner'
+import { useRealtimeStore } from '@/store/realtime-store'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -140,7 +144,15 @@ export function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>(initialNotifications)
   const [activeTab, setActiveTab] = useState<string>('all')
 
-  const unreadCount = notifications.filter((n) => !n.read).length
+  const realtimeConnected = useRealtimeStore((s) => s.isConnected)
+  const realtimeUnread = useRealtimeStore((s) => s.unreadCount)
+  const realtimeNotifications = useRealtimeStore((s) => s.notifications)
+  const markAllRealtimeRead = useRealtimeStore((s) => s.markAllRead)
+  const markRealtimeRead = useRealtimeStore((s) => s.markRead)
+
+  const [testing, setTesting] = useState<string | null>(null)
+
+  const unreadCount = notifications.filter((n) => !n.read).length + realtimeUnread
 
   const filteredNotifications =
     activeTab === 'all'
@@ -157,6 +169,30 @@ export function NotificationsPage() {
 
   const markAllRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+    markAllRealtimeRead()
+  }
+
+  const triggerTestEvent = async (event: 'conversion' | 'click' | 'commission_xtra' | 'hermes_insight' | 'notification') => {
+    setTesting(event)
+    try {
+      const res = await fetch('/api/realtime/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event }),
+      })
+      const json = await res.json()
+      if (!json.success) {
+        toast.error('Test failed', { description: json.error || 'Notification service unavailable' })
+      } else {
+        toast.info('Test event emitted', {
+          description: `${event} → ${json.delivered}`,
+        })
+      }
+    } catch (err) {
+      toast.error('Test failed', { description: err instanceof Error ? err.message : 'Network error' })
+    } finally {
+      setTesting(null)
+    }
   }
 
   return (
@@ -184,6 +220,114 @@ export function NotificationsPage() {
           <CheckCheck className="size-4" />
           Mark All Read
         </Button>
+      </motion.div>
+
+      {/* Real-time connection + test panel */}
+      <motion.div {...fadeIn}>
+        <Card className="border-shopee/20 bg-shopee/5">
+          <CardContent className="p-4 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Wifi className={cn('size-4', realtimeConnected ? 'text-emerald-500' : 'text-red-500')} />
+                <span className="text-sm font-medium">
+                  Real-time service: {realtimeConnected ? 'Connected' : 'Disconnected'}
+                </span>
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold',
+                    realtimeConnected
+                      ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                      : 'bg-red-500/10 text-red-600 dark:text-red-400',
+                  )}
+                >
+                  <span className={cn('size-1.5 rounded-full', realtimeConnected ? 'bg-emerald-500 animate-pulse' : 'bg-red-500')} />
+                  {realtimeConnected ? 'LIVE' : 'OFFLINE'}
+                </span>
+              </div>
+              <div className="text-[11px] text-muted-foreground">
+                {realtimeUnread > 0 ? `${realtimeUnread} live notification(s) this session` : 'No live notifications yet'}
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Zap className="size-3.5 text-shopee" />
+                <span className="text-xs font-semibold">Test real-time events</span>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Trigger a sample event through the full pipeline (API → notification-service → Socket.io → this browser).
+              </p>
+              <div className="flex flex-wrap gap-2 pt-1">
+                {([
+                  { event: 'conversion', label: '💰 Conversion', color: 'bg-emerald-500 hover:bg-emerald-600' },
+                  { event: 'click', label: '👆 Click', color: 'bg-sky-500 hover:bg-sky-600' },
+                  { event: 'commission_xtra', label: '🔥 Commission XTRA', color: 'bg-amber-500 hover:bg-amber-600' },
+                  { event: 'hermes_insight', label: '🤖 HERMES Insight', color: 'bg-hermes hover:bg-hermes/90' },
+                  { event: 'notification', label: '🔔 Generic', color: 'bg-slate-500 hover:bg-slate-600' },
+                ] as const).map((b) => (
+                  <Button
+                    key={b.event}
+                    size="sm"
+                    variant="secondary"
+                    className={cn('text-white text-xs h-8 gap-1.5', b.color)}
+                    disabled={testing === b.event}
+                    onClick={() => triggerTestEvent(b.event)}
+                  >
+                    {testing === b.event && (
+                      <span className="size-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    )}
+                    {b.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {realtimeNotifications.length > 0 && (
+              <>
+                <Separator />
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold">Live notifications (this session)</span>
+                    <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={markAllRealtimeRead}>
+                      Mark all read
+                    </Button>
+                  </div>
+                  <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
+                    {realtimeNotifications.map((n) => (
+                      <button
+                        key={n.id}
+                        onClick={() => markRealtimeRead(n.id)}
+                        className={cn(
+                          'w-full text-left p-2.5 rounded-lg border transition-colors',
+                          n.read
+                            ? 'border-border bg-background/50 opacity-70'
+                            : 'border-shopee/30 bg-shopee/5 hover:bg-shopee/10',
+                        )}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-medium leading-tight">{n.title}</p>
+                            {n.description && (
+                              <p className="mt-0.5 text-[11px] text-muted-foreground line-clamp-2">{n.description}</p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <Badge variant="outline" className="text-[9px] py-0 px-1.5">
+                              {n.event}
+                            </Badge>
+                            {!n.read && <span className="size-1.5 rounded-full bg-shopee" />}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
       </motion.div>
 
       {/* Tabs */}

@@ -70,6 +70,8 @@ model User {
   passwordHash  String   @default("demo")
   role          UserRole @default(affiliate)
   avatarUrl     String?
+  image         String?
+  emailVerified DateTime?
   shopeeAffId   String?
   isActive      Boolean  @default(true)
   lastLoginAt   DateTime?
@@ -78,10 +80,52 @@ model User {
 
   links         AffiliateLink[]
   clickRecords  ClickRecord[]
+  accounts      Account[]
+  sessions      Session[]
 
   @@index([email])
   @@index([role])
   @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
 }
 
 model AffiliateLink {
@@ -422,10 +466,12 @@ model ScheduledPost {
   affiliateLink String?
   imageUrl      String?
   hashtags      String?   // JSON array
-  status        String    @default("scheduled") // scheduled, publishing, published, failed
+  status        String    @default("scheduled") // scheduled, publishing, published, failed, partial
   scheduledAt   DateTime
   publishedAt   DateTime?
   result        String?   // JSON with platform results
+  retryCount    Int       @default(0)
+  errorMessage  String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -453,4 +499,47 @@ model ContentLibrary {
   @@index([createdAt])
   @@index([isFavorite])
   @@map("content_library")
+}
+
+// ─── Social Account Models (Task 1.2) ──────────────────────────
+
+model SocialAccount {
+  id               String    @id @default(cuid())
+  userId           String
+  platform         String    // facebook, instagram, tiktok, twitter
+  platformUserId   String
+  platformUsername String?
+  accessToken      String
+  refreshToken     String?
+  expiresAt        DateTime?
+  isConnected      Boolean   @default(true)
+  isDemo           Boolean   @default(false)
+  lastUsedAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([userId, platform])
+  @@index([userId])
+  @@index([platform])
+  @@map("social_accounts")
+}
+
+model PostLog {
+  id              String   @id @default(cuid())
+  scheduledPostId String
+  platform        String
+  status          String   @default("pending") // pending, publishing, published, failed
+  attempt         Int      @default(0)
+  maxAttempts     Int      @default(3)
+  platformPostId  String?
+  platformUrl     String?
+  errorMessage    String?
+  publishedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([scheduledPostId])
+  @@index([platform])
+  @@index([status])
+  @@map("post_logs")
 }

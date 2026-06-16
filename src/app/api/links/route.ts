@@ -1,6 +1,9 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import { randomBytes } from 'crypto'
+import { validateBody, createLinkSchema } from '@/lib/validation'
+import { enforceRateLimit, RATE_LIMITS } from '@/lib/rate-limit-enforce'
+import { handleError } from '@/lib/api-error'
 
 function generateShortCode(): string {
   return randomBytes(4).toString('hex')
@@ -8,6 +11,9 @@ function generateShortCode(): string {
 
 export async function GET(request: NextRequest) {
   try {
+    if (enforceRateLimit(request, RATE_LIMITS.read)) {
+      return enforceRateLimit(request, RATE_LIMITS.read)!
+    }
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
     const category = searchParams.get('category')
@@ -49,66 +55,44 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ links: formattedLinks, total: formattedLinks.length })
   } catch (error) {
-    console.error('Links GET error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch links' },
-      { status: 500 }
-    )
+    return handleError(error)
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const {
-      name,
-      productUrl,
-      affiliateUrl,
-      productId,
-      productName,
-      productImage,
-      productPrice,
-      commission,
-      commissionRate,
-      category,
-      campaignId,
-      userId,
-      expiresAt,
-      tags,
-    } = body
-
-    if (!name || !productUrl || !affiliateUrl) {
-      return NextResponse.json(
-        { error: 'name, productUrl, and affiliateUrl are required' },
-        { status: 400 }
-      )
+    if (enforceRateLimit(request, RATE_LIMITS.write)) {
+      return enforceRateLimit(request, RATE_LIMITS.write)!
     }
+    const data = await validateBody(request, createLinkSchema)
 
-    // Generate unique short code
+    // Generate unique short code (retry on collision)
     let shortCode = generateShortCode()
     let existing = await db.affiliateLink.findUnique({ where: { shortCode } })
-    while (existing) {
+    let attempts = 0
+    while (existing && attempts < 5) {
       shortCode = generateShortCode()
       existing = await db.affiliateLink.findUnique({ where: { shortCode } })
+      attempts++
     }
 
     const link = await db.affiliateLink.create({
       data: {
-        name,
-        productUrl,
-        affiliateUrl,
-        productId: productId || null,
-        productName: productName || null,
-        productImage: productImage || null,
-        productPrice: productPrice || null,
-        commission: commission || null,
-        commissionRate: commissionRate || 5,
-        category: category || null,
-        campaignId: campaignId || null,
-        userId: userId || null,
+        name: data.name,
+        productUrl: data.productUrl,
+        affiliateUrl: data.affiliateUrl,
+        productId: data.productId || null,
+        productName: data.productName || null,
+        productImage: data.productImage || null,
+        productPrice: data.productPrice || null,
+        commission: data.commission || null,
+        commissionRate: data.commissionRate || 5,
+        category: data.category || null,
+        campaignId: data.campaignId || null,
+        userId: data.userId || null,
         shortCode,
-        expiresAt: expiresAt ? new Date(expiresAt) : null,
-        tags: tags || null,
+        expiresAt: data.expiresAt ? new Date(data.expiresAt) : null,
+        tags: data.tags || null,
       },
       include: {
         campaign: { select: { id: true, name: true } },
@@ -127,10 +111,6 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     )
   } catch (error) {
-    console.error('Links POST error:', error)
-    return NextResponse.json(
-      { error: 'Failed to create link' },
-      { status: 500 }
-    )
+    return handleError(error)
   }
 }

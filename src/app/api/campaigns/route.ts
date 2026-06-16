@@ -1,8 +1,14 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { validateBody, createCampaignSchema } from '@/lib/validation'
+import { enforceRateLimit, RATE_LIMITS } from '@/lib/rate-limit-enforce'
+import { handleError } from '@/lib/api-error'
 
 export async function GET(request: NextRequest) {
   try {
+    if (enforceRateLimit(request, RATE_LIMITS.read)) {
+      return enforceRateLimit(request, RATE_LIMITS.read)!
+    }
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
 
@@ -35,34 +41,25 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ campaigns: formattedCampaigns, total: formattedCampaigns.length })
   } catch (error) {
-    console.error('Campaigns GET error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch campaigns' },
-      { status: 500 }
-    )
+    return handleError(error)
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { name, description, status, budget, startDate, endDate } = body
-
-    if (!name) {
-      return NextResponse.json(
-        { error: 'Campaign name is required' },
-        { status: 400 }
-      )
+    if (enforceRateLimit(request, RATE_LIMITS.write)) {
+      return enforceRateLimit(request, RATE_LIMITS.write)!
     }
+    const data = await validateBody(request, createCampaignSchema)
 
     const campaign = await db.campaign.create({
       data: {
-        name,
-        description: description || null,
-        status: status || 'active',
-        budget: budget || null,
-        startDate: startDate ? new Date(startDate) : null,
-        endDate: endDate ? new Date(endDate) : null,
+        name: data.name,
+        description: data.description || null,
+        status: data.status || 'active',
+        budget: data.budget || null,
+        startDate: data.startDate ? new Date(data.startDate) : null,
+        endDate: data.endDate ? new Date(data.endDate) : null,
       },
     })
 
@@ -82,10 +79,6 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     )
   } catch (error) {
-    console.error('Campaigns POST error:', error)
-    return NextResponse.json(
-      { error: 'Failed to create campaign' },
-      { status: 500 }
-    )
+    return handleError(error)
   }
 }

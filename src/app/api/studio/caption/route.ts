@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import ZAI from 'z-ai-web-dev-sdk'
+import { validateBody, studioCaptionSchema } from '@/lib/validation'
+import { enforceRateLimit, RATE_LIMITS } from '@/lib/rate-limit-enforce'
+import { handleError, ApiError } from '@/lib/api-error'
 
 const SYSTEM_PROMPT = `You are a professional subtitle/caption generator for short-form video content. You create perfectly timed captions that are optimized for social media videos (TikTok, Reels, Shorts).
 
@@ -25,15 +28,10 @@ Return ONLY the JSON array, no markdown code fences.`
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { script, duration } = body
-
-    if (!script) {
-      return NextResponse.json(
-        { error: 'Script text is required for caption generation' },
-        { status: 400 }
-      )
+    if (enforceRateLimit(request, RATE_LIMITS.ai)) {
+      return enforceRateLimit(request, RATE_LIMITS.ai)!
     }
+    const { script, duration } = await validateBody(request, studioCaptionSchema)
 
     const totalDuration = duration || 60
 
@@ -51,10 +49,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!dialogueText.trim()) {
-      return NextResponse.json(
-        { error: 'No dialogue text found in script' },
-        { status: 400 }
-      )
+      throw ApiError.badRequest('No dialogue text found in script')
     }
 
     const userPrompt = `Generate timed captions for a ${totalDuration}-second video.
@@ -114,11 +109,7 @@ Return ONLY the JSON array.`
       },
     })
   } catch (error) {
-    console.error('Caption generation error:', error)
-    return NextResponse.json(
-      { error: 'Failed to generate captions' },
-      { status: 500 }
-    )
+    return handleError(error)
   }
 }
 

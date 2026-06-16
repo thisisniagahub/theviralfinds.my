@@ -20,6 +20,22 @@ export type PageId =
   | 'notifications'
   | 'settings'
 
+export type AuthView = 'login' | 'register'
+
+export interface AuthUser {
+  id: string
+  name: string
+  email: string
+  role: string
+  image?: string | null
+  avatarUrl?: string | null
+  shopeeAffId?: string | null
+  isActive?: boolean
+  lastLoginAt?: string | null
+  emailVerified?: string | null
+  createdAt?: string
+}
+
 interface AppState {
   activePage: PageId
   setActivePage: (page: PageId) => void
@@ -36,9 +52,22 @@ interface AppState {
   setShopeeDataSource: (source: 'graphql_api' | 'mock') => void
   commandPaletteOpen: boolean
   setCommandPaletteOpen: (open: boolean) => void
+
+  // Auth state
+  user: AuthUser | null
+  isAuthenticated: boolean
+  isLoadingAuth: boolean
+  authView: AuthView
+  setAuthView: (view: AuthView) => void
+  setUser: (user: AuthUser | null) => void
+  checkAuth: () => Promise<void>
+  login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>
+  register: (name: string, email: string, password: string) => Promise<{ ok: boolean; error?: string }>
+  loginWithProvider: (provider: 'google' | 'facebook') => Promise<void>
+  logout: () => Promise<void>
 }
 
-export const useAppStore = create<AppState>((set) => ({
+export const useAppStore = create<AppState>((set, get) => ({
   activePage: 'dashboard',
   setActivePage: (page) => set({ activePage: page }),
   sidebarOpen: true,
@@ -54,4 +83,101 @@ export const useAppStore = create<AppState>((set) => ({
   setShopeeDataSource: (source) => set({ shopeeDataSource: source }),
   commandPaletteOpen: false,
   setCommandPaletteOpen: (open) => set({ commandPaletteOpen: open }),
+
+  // Auth state
+  user: null,
+  isAuthenticated: false,
+  isLoadingAuth: true,
+  authView: 'login',
+  setAuthView: (view) => set({ authView: view }),
+  setUser: (user) =>
+    set({
+      user,
+      isAuthenticated: !!user,
+      isLoadingAuth: false,
+    }),
+
+  checkAuth: async () => {
+    try {
+      const res = await fetch('/api/auth/me', { cache: 'no-store' })
+      if (!res.ok) {
+        set({ user: null, isAuthenticated: false, isLoadingAuth: false })
+        return
+      }
+      const data = await res.json()
+      set({
+        user: data?.user ?? null,
+        isAuthenticated: !!data?.isAuthenticated,
+        isLoadingAuth: false,
+      })
+    } catch {
+      set({ user: null, isAuthenticated: false, isLoadingAuth: false })
+    }
+  },
+
+  login: async (email, password) => {
+    try {
+      const { signIn } = await import('next-auth/react')
+      const result = await signIn('credentials', {
+        redirect: false,
+        email,
+        password,
+      })
+      if (!result || result.error) {
+        return {
+          ok: false,
+          error: result?.error || 'Login failed. Please check your credentials.',
+        }
+      }
+      // Fetch the full user profile
+      await get().checkAuth()
+      return { ok: true }
+    } catch (err) {
+      return {
+        ok: false,
+        error: err instanceof Error ? err.message : 'Login failed. Please try again.',
+      }
+    }
+  },
+
+  register: async (name, email, password) => {
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        return { ok: false, error: data?.error || 'Registration failed.' }
+      }
+      // Auto-login after register
+      const loginRes = await get().login(email, password)
+      return loginRes
+    } catch (err) {
+      return {
+        ok: false,
+        error: err instanceof Error ? err.message : 'Registration failed.',
+      }
+    }
+  },
+
+  loginWithProvider: async (provider) => {
+    try {
+      const { signIn } = await import('next-auth/react')
+      await signIn(provider, { callbackUrl: '/' })
+    } catch (err) {
+      console.error('OAuth login error:', err)
+    }
+  },
+
+  logout: async () => {
+    try {
+      const { signOut } = await import('next-auth/react')
+      await signOut({ redirect: false })
+    } catch {
+      // ignore
+    }
+    set({ user: null, isAuthenticated: false, authView: 'login', activePage: 'dashboard' })
+  },
 }))

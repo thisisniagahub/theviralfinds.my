@@ -1,0 +1,23 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ee4d2d"/>
+      <stop offset="100%" stop-color="#d83a1a"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <rect width="512" height="256" fill="url(#shine)"/>
+  <g transform="translate(256 256)">
+    <!-- Shopping bag icon (white) -->
+    <path d="M -110 -60 L -90 -60 L -90 -80 Q -90 -140 0 -140 Q 90 -140 90 -80 L 90 -60 L 110 -60 L 130 130 L -130 130 Z M -70 -60 L 70 -60 L 70 -80 Q 70 -110 0 -110 Q -70 -110 -70 -80 Z"
+          fill="#ffffff"/>
+    <!-- TVF text -->
+    <text x="0" y="70" font-family="'Arial Black', 'Helvetica Neue', sans-serif"
+          font-size="68" font-weight="900" text-anchor="middle"
+          fill="#ee4d2d" letter-spacing="2">TVF</text>
+  </g>
+</svg>

@@ -1,8 +1,25 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { enforceRateLimit, RATE_LIMITS } from '@/lib/rate-limit-enforce'
+import { handleError } from '@/lib/api-error'
+import { validateBody } from '@/lib/validation'
+import { z } from 'zod'
 
-export async function GET() {
+const createSkillSchema = z.object({
+  name: z.string().min(1, 'name is required').max(200),
+  description: z.string().min(1, 'description is required').max(2000),
+  category: z.string().min(1, 'category is required').max(100),
+  code: z.string().min(1, 'code is required').max(50_000),
+  trigger: z.string().max(500).optional().nullable(),
+  status: z.enum(['draft', 'active', 'paused', 'archived']).optional(),
+  learnedFrom: z.string().max(500).optional().nullable(),
+})
+
+export async function GET(request: NextRequest) {
   try {
+    if (enforceRateLimit(request, RATE_LIMITS.read)) {
+      return enforceRateLimit(request, RATE_LIMITS.read)!
+    }
     const skills = await db.hermesSkill.findMany({
       orderBy: { createdAt: 'desc' },
     })
@@ -14,35 +31,26 @@ export async function GET() {
 
     return NextResponse.json({ skills: formattedSkills, total: formattedSkills.length })
   } catch (error) {
-    console.error('Hermes skills GET error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch skills' },
-      { status: 500 }
-    )
+    return handleError(error)
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { name, description, category, code, trigger, status, learnedFrom } = body
-
-    if (!name || !description || !category || !code) {
-      return NextResponse.json(
-        { error: 'name, description, category, and code are required' },
-        { status: 400 }
-      )
+    if (enforceRateLimit(request, RATE_LIMITS.write)) {
+      return enforceRateLimit(request, RATE_LIMITS.write)!
     }
+    const data = await validateBody(request, createSkillSchema)
 
     const skill = await db.hermesSkill.create({
       data: {
-        name,
-        description,
-        category,
-        code,
-        trigger: trigger || null,
-        status: status || 'draft',
-        learnedFrom: learnedFrom || null,
+        name: data.name,
+        description: data.description,
+        category: data.category,
+        code: data.code,
+        trigger: data.trigger || null,
+        status: data.status || 'draft',
+        learnedFrom: data.learnedFrom || null,
       },
     })
 
@@ -54,10 +62,6 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     )
   } catch (error) {
-    console.error('Hermes skills POST error:', error)
-    return NextResponse.json(
-      { error: 'Failed to create skill' },
-      { status: 500 }
-    )
+    return handleError(error)
   }
 }

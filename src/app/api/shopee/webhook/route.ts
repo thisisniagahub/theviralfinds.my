@@ -1,15 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ShopeeAffiliateService } from '@/lib/shopee/affiliate-api'
+import { emitConversion, emitClick, emitNotificationGeneric } from '@/lib/realtime/emit'
+import { DEMO_USER_ID } from '@/lib/realtime/constants'
+import { enforceRateLimit, RATE_LIMITS } from '@/lib/rate-limit-enforce'
+import { handleError, ApiError } from '@/lib/api-error'
 
 /**
  * POST /api/shopee/webhook
  * Receive Shopee Affiliate webhook events (conversions, clicks, etc.)
- * 
+ *
  * Setup: Configure this URL in your Shopee Affiliate Dashboard > API > Webhook URL
- * The webhook sends real-time conversion/click notifications
+ * The webhook sends real-time conversion/click notifications.
+ *
+ * Flow:
+ *   Shopee ──HTTP──▶ /api/shopee/webhook ──HTTP──▶ notification-service:3003/emit
+ *                                                              │
+ *                                                              ▼
+ *                                                   Socket.io → user's browser
+ *                                                              │
+ *                                                              ▼
+ *                                              sonner toast + sound + bell badge
  */
 export async function POST(request: NextRequest) {
   try {
+    if (enforceRateLimit(request, RATE_LIMITS.webhook)) {
+      return enforceRateLimit(request, RATE_LIMITS.webhook)!
+    }
     const body = await request.text()
     const signature = request.headers.get('x-shopee-signature') || ''
 
@@ -20,7 +36,7 @@ export async function POST(request: NextRequest) {
     })
 
     if (!secretSetting) {
-      return NextResponse.json({ error: 'Shopee not configured' }, { status: 400 })
+      throw ApiError.badRequest('Shopee not configured')
     }
 
     // Verify webhook signature
@@ -31,11 +47,16 @@ export async function POST(request: NextRequest) {
     )
 
     if (!isValid) {
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
+      throw ApiError.unauthorized('Invalid webhook signature')
     }
 
-    // Parse the webhook payload
-    const payload = JSON.parse(body)
+    // Parse the webhook payload (malformed → 400)
+    let payload: { event_type?: string; data?: Record<string, unknown> }
+    try {
+      payload = JSON.parse(body)
+    } catch {
+      throw ApiError.badRequest('Invalid JSON in webhook payload')
+    }
 
     // Process different event types
     switch (payload.event_type) {
@@ -78,12 +99,23 @@ export async function POST(request: NextRequest) {
             description: `${item_name} - Commission: RM ${commission.toFixed(2)}`,
           }
         })
+
+        // ─── Emit real-time socket event ───────────────────────────────
+        // Use the link owner's userId if available, else fall back to demo user.
+        const targetUserId = link?.userId || DEMO_USER_ID
+        await emitConversion(targetUserId, {
+          productName: item_name,
+          itemId: item_id?.toString(),
+          orderId: order_sn,
+          commission: Number(commission) || 0,
+          amount: Number(commission_rate) || 0,
+        })
         break
       }
 
       case 'click': {
         // A new click was tracked
-        const { item_id, sub_id } = payload.data
+        const { item_id, sub_id, item_name } = payload.data
 
         const clickLink = await db.affiliateLink.findFirst({
           where: { productId: item_id?.toString() }
@@ -103,6 +135,14 @@ export async function POST(request: NextRequest) {
             }
           })
         }
+
+        // ─── Emit real-time socket event ───────────────────────────────
+        const clickUserId = clickLink?.userId || DEMO_USER_ID
+        await emitClick(clickUserId, {
+          productName: item_name || clickLink?.productName,
+          itemId: item_id?.toString(),
+          referer: sub_id,
+        })
         break
       }
 
@@ -122,6 +162,13 @@ export async function POST(request: NextRequest) {
             description: `Order ${order_sn} commission status updated to ${commission_status}`,
           }
         })
+
+        // ─── Emit real-time socket event (generic notification) ────────
+        await emitNotificationGeneric(DEMO_USER_ID, {
+          title: `Commission ${commission_status}`,
+          description: `Order ${order_sn} commission status updated to ${commission_status}`,
+          type: 'commission_update',
+        })
         break
       }
 
@@ -131,10 +178,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Shopee webhook error:', error)
-    return NextResponse.json(
-      { error: 'Webhook processing failed' },
-      { status: 500 }
-    )
+    return handleError(error)
   }
 }

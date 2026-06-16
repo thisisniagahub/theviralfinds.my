@@ -68,7 +68,7 @@ const navItems: NavItem[] = [
 ]
 
 export function AppSidebar() {
-  const { activePage, setActivePage, sidebarOpen, setSidebarOpen } = useAppStore()
+  const { activePage, setActivePage, sidebarOpen, setSidebarOpen, user, isAuthenticated, logout, setAuthView } = useAppStore()
   const { setTheme, resolvedTheme } = useTheme()
 
   return (
@@ -103,7 +103,7 @@ export function AppSidebar() {
               key={item.id}
               onClick={() => setActivePage(item.id)}
               className={cn(
-                'flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 nav-item-slide relative',
+                'flex items-center gap-3 w-full min-h-[44px] px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 nav-item-slide relative',
                 isActive
                   ? isSpecial
                     ? `bg-${specialColor}/10 text-${specialColor} dark:bg-${specialColor}/20`
@@ -137,8 +137,9 @@ export function AppSidebar() {
           <Button
             variant="ghost"
             size={sidebarOpen ? 'sm' : 'icon'}
-            className={sidebarOpen ? 'flex-1 justify-start gap-3' : 'justify-center'}
+            className={sidebarOpen ? 'flex-1 justify-start gap-3 min-h-[40px]' : 'justify-center min-h-[44px] min-w-[44px]'}
             onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+            aria-label="Toggle dark mode"
           >
             <span className="relative w-4 h-4 inline-flex items-center justify-center">
               <Moon className="w-4 h-4 dark:hidden" />
@@ -151,8 +152,9 @@ export function AppSidebar() {
         <Button
           variant="ghost"
           size={sidebarOpen ? 'sm' : 'icon'}
-          className="w-full justify-start gap-3"
+          className="w-full justify-start gap-3 min-h-[44px]"
           onClick={() => setSidebarOpen(!sidebarOpen)}
+          aria-label={sidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
         >
           {sidebarOpen ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
           {sidebarOpen && <span className="text-sm">Collapse</span>}
@@ -163,13 +165,45 @@ export function AppSidebar() {
         {/* User */}
         <div className={cn('flex items-center gap-3 px-2 py-2', !sidebarOpen && 'justify-center')}>
           <Avatar className="w-8 h-8">
-            <AvatarFallback className="bg-shopee/10 text-shopee text-xs font-bold">AF</AvatarFallback>
+            <AvatarFallback className="bg-shopee/10 text-shopee text-xs font-bold">
+              {isAuthenticated && user
+                ? (user.name || user.email || 'U').slice(0, 2).toUpperCase()
+                : 'TV'}
+            </AvatarFallback>
           </Avatar>
           {sidebarOpen && (
             <div className="flex flex-col flex-1 min-w-0">
-              <span className="text-sm font-medium truncate">Affiliate Pro</span>
-              <span className="text-[10px] text-muted-foreground">Premium Plan</span>
+              <span className="text-sm font-medium truncate">
+                {isAuthenticated && user ? user.name : 'Guest User'}
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                {isAuthenticated ? (user?.role === 'admin' ? 'Admin Plan' : 'Affiliate Plan') : 'Not signed in'}
+              </span>
             </div>
+          )}
+          {sidebarOpen && isAuthenticated && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 min-h-[44px] min-w-[44px] text-muted-foreground hover:text-red-600"
+              onClick={async () => {
+                await logout()
+              }}
+              aria-label="Sign out"
+              title="Sign out"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </Button>
+          )}
+          {sidebarOpen && !isAuthenticated && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-9 min-h-[44px] text-xs bg-shopee/10 text-shopee hover:bg-shopee/20"
+              onClick={() => setAuthView('login')}
+            >
+              Sign In
+            </Button>
           )}
         </div>
       </div>

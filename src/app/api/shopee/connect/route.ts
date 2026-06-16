@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { validateBody, shopeeConnectSchema } from '@/lib/validation'
+import { enforceRateLimit, RATE_LIMITS } from '@/lib/rate-limit-enforce'
+import { handleError } from '@/lib/api-error'
 
 /**
  * POST /api/shopee/connect
@@ -7,21 +10,16 @@ import { db } from '@/lib/db'
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { appId, secret, region, accessToken } = body
-
-    if (!appId || !secret) {
-      return NextResponse.json(
-        { error: 'App ID and Secret are required' },
-        { status: 400 }
-      )
+    if (enforceRateLimit(request, RATE_LIMITS.write)) {
+      return enforceRateLimit(request, RATE_LIMITS.write)!
     }
+    const { appId, secret, region, accessToken } = await validateBody(request, shopeeConnectSchema)
 
     // Save credentials to database
     const settings = [
       { key: 'shopee_app_id', value: appId },
       { key: 'shopee_secret', value: secret },
-      { key: 'shopee_region', value: region || 'my' },
+      { key: 'shopee_region', value: region.toLowerCase() },
       ...(accessToken ? [{ key: 'shopee_access_token', value: accessToken }] : []),
     ]
 
@@ -38,7 +36,7 @@ export async function POST(request: NextRequest) {
     const service = new ShopeeAffiliateService({
       appId,
       secret,
-      region: region || 'my',
+      region: region.toLowerCase(),
       accessToken,
     })
 
@@ -65,11 +63,7 @@ export async function POST(request: NextRequest) {
       region: testResult.region,
     })
   } catch (error) {
-    console.error('Shopee connect error:', error)
-    return NextResponse.json(
-      { error: 'Failed to connect to Shopee API', details: error instanceof Error ? error.message : 'Unknown error' },
-      { status: 500 }
-    )
+    return handleError(error)
   }
 }
 
@@ -94,10 +88,6 @@ export async function GET() {
       lastConnected: settingsMap.shopee_last_connected || null,
     })
   } catch (error) {
-    console.error('Get Shopee status error:', error)
-    return NextResponse.json(
-      { connected: false, error: 'Failed to get connection status' },
-      { status: 500 }
-    )
+    return handleError(error)
   }
 }

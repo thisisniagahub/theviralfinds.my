@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import ZAI from 'z-ai-web-dev-sdk'
+import { validateBody, studioScriptSchema } from '@/lib/validation'
+import { enforceRateLimit, RATE_LIMITS } from '@/lib/rate-limit-enforce'
+import { handleError } from '@/lib/api-error'
 
 const TEMPLATE_DESCRIPTIONS: Record<string, string> = {
   before_after: `Before/After format: Show the "before" state (problem/pain), then reveal the "after" state (transformation). Great for beauty, skincare, home improvement products. Include dramatic reveal moment.`,
@@ -58,15 +61,10 @@ Adjust the number of scenes and timing based on the total duration. For 15s scri
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { product, template, duration, platform, language } = body
-
-    if (!product || !template || !duration) {
-      return NextResponse.json(
-        { error: 'Product name, template type, and duration are required' },
-        { status: 400 }
-      )
+    if (enforceRateLimit(request, RATE_LIMITS.ai)) {
+      return enforceRateLimit(request, RATE_LIMITS.ai)!
     }
+    const { product, template, duration, platform, language } = await validateBody(request, studioScriptSchema)
 
     const templateDesc = TEMPLATE_DESCRIPTIONS[template] || TEMPLATE_DESCRIPTIONS.demo
     const langInstruction = LANGUAGE_INSTRUCTIONS[language || 'english'] || LANGUAGE_INSTRUCTIONS.english
@@ -139,11 +137,7 @@ Return ONLY the JSON object, no markdown code fences.`
       },
     })
   } catch (error) {
-    console.error('Script generation error:', error)
-    return NextResponse.json(
-      { error: 'Failed to generate script' },
-      { status: 500 }
-    )
+    return handleError(error)
   }
 }
 

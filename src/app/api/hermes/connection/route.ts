@@ -1,5 +1,8 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { validateBody, hermesConnectionSchema } from '@/lib/validation'
+import { enforceRateLimit, RATE_LIMITS } from '@/lib/rate-limit-enforce'
+import { handleError } from '@/lib/api-error'
 
 export async function GET() {
   try {
@@ -31,25 +34,16 @@ export async function GET() {
       },
     })
   } catch (error) {
-    console.error('Hermes connection GET error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch connection status' },
-      { status: 500 }
-    )
+    return handleError(error)
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { endpoint, apiKey, model, name } = body
-
-    if (!endpoint) {
-      return NextResponse.json(
-        { error: 'Endpoint URL is required' },
-        { status: 400 }
-      )
+    if (enforceRateLimit(request, RATE_LIMITS.write)) {
+      return enforceRateLimit(request, RATE_LIMITS.write)!
     }
+    const { endpoint, apiKey, model, name } = await validateBody(request, hermesConnectionSchema)
 
     // Test connection by trying to create a simple AI request
     let isConnected = false
@@ -106,10 +100,6 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('Hermes connection POST error:', error)
-    return NextResponse.json(
-      { error: 'Failed to save connection settings' },
-      { status: 500 }
-    )
+    return handleError(error)
   }
 }

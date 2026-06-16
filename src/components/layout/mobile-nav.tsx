@@ -24,28 +24,36 @@ export function MobileNav() {
   const { activePage, setActivePage } = useAppStore()
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 lg:hidden border-t border-border bg-background/95 backdrop-blur-lg safe-area-inset-bottom">
-      <div className="flex items-center justify-around h-16 px-2" role="tablist">
+    <nav
+      aria-label="Primary mobile navigation"
+      className="fixed bottom-0 left-0 right-0 z-40 lg:hidden border-t border-border bg-background/95 backdrop-blur-lg safe-area-inset-bottom"
+    >
+      <ul
+        className="flex items-center justify-around h-14 sm:h-16 px-1"
+        role="tablist"
+      >
         {mobileNavItems.map((item) => {
           const Icon = item.icon
           const isActive = activePage === item.id
           return (
-            <button
-              key={item.id}
-              role="tab"
-              aria-selected={isActive}
-              onClick={() => setActivePage(item.id)}
-              className={cn(
-                'flex flex-col items-center justify-center gap-0.5 px-3 py-1 rounded-lg transition-colors min-w-[56px]',
-                isActive ? 'text-shopee' : 'text-muted-foreground'
-              )}
-            >
-              <Icon className="w-5 h-5" />
-              <span className="text-[10px] font-medium">{item.label}</span>
-            </button>
+            <li key={item.id} className="flex-1 flex justify-center">
+              <button
+                role="tab"
+                aria-selected={isActive}
+                aria-label={item.label}
+                onClick={() => setActivePage(item.id)}
+                className={cn(
+                  'flex flex-col items-center justify-center gap-0.5 w-full min-h-[44px] min-w-[44px] rounded-lg transition-colors active:scale-95 active:bg-muted/60',
+                  isActive ? 'text-shopee' : 'text-muted-foreground'
+                )}
+              >
+                <Icon className="w-5 h-5 flex-shrink-0" />
+                <span className="text-[10px] font-medium leading-none">{item.label}</span>
+              </button>
+            </li>
           )
         })}
-      </div>
-    </div>
+      </ul>
+    </nav>
   )
 }

@@ -1,6 +1,9 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 import ZAI from 'z-ai-web-dev-sdk'
+import { validateBody, hermesChatSchema } from '@/lib/validation'
+import { enforceRateLimit, RATE_LIMITS } from '@/lib/rate-limit-enforce'
+import { handleError } from '@/lib/api-error'
 
 const SYSTEM_PROMPT = `You are Hermes, a Shopee Affiliate Marketing Expert AI Agent. You help affiliate marketers optimize their campaigns, analyze product trends, generate promotional content, and maximize their earnings on Shopee Malaysia.
 
@@ -17,15 +20,10 @@ Always provide actionable, practical advice. Use data-driven insights when possi
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { message, conversationId } = body
-
-    if (!message) {
-      return NextResponse.json(
-        { error: 'Message is required' },
-        { status: 400 }
-      )
+    if (enforceRateLimit(request, RATE_LIMITS.ai)) {
+      return enforceRateLimit(request, RATE_LIMITS.ai)!
     }
+    const { message, conversationId } = await validateBody(request, hermesChatSchema)
 
     // Get or create conversation
     let conversation = conversationId
@@ -127,11 +125,7 @@ export async function POST(request: NextRequest) {
       createdAt: assistantMessage.createdAt.toISOString(),
     })
   } catch (error) {
-    console.error('Hermes chat error:', error)
-    return NextResponse.json(
-      { error: 'Failed to process chat message' },
-      { status: 500 }
-    )
+    return handleError(error)
   }
 }
 

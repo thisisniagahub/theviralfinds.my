@@ -1,10 +1,16 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { validateBody, updateNotificationsSchema } from '@/lib/validation'
+import { enforceRateLimit, RATE_LIMITS } from '@/lib/rate-limit-enforce'
+import { handleError, ApiError } from '@/lib/api-error'
 
 export async function GET(request: NextRequest) {
   try {
+    if (enforceRateLimit(request, RATE_LIMITS.read)) {
+      return enforceRateLimit(request, RATE_LIMITS.read)!
+    }
     const { searchParams } = new URL(request.url)
-    const limit = parseInt(searchParams.get('limit') || '20', 10)
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '20', 10) || 20))
     const type = searchParams.get('type')
 
     const where: Record<string, unknown> = {}
@@ -15,7 +21,7 @@ export async function GET(request: NextRequest) {
     const notifications = await db.notification.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      take: Math.min(limit, 100),
+      take: limit,
     })
 
     const unreadCount = await db.notification.count({
@@ -36,42 +42,37 @@ export async function GET(request: NextRequest) {
       total: notifications.length,
     })
   } catch (error) {
-    console.error('Notifications GET error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch notifications' },
-      { status: 500 }
-    )
+    return handleError(error)
   }
 }
 
 export async function PATCH(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { id, ids, markAll } = body
+    if (enforceRateLimit(request, RATE_LIMITS.write)) {
+      return enforceRateLimit(request, RATE_LIMITS.write)!
+    }
+    const { id, ids, markAll } = await validateBody(request, updateNotificationsSchema)
 
     if (markAll) {
-      await db.notification.updateMany({
+      const result = await db.notification.updateMany({
         where: { read: false },
         data: { read: true },
       })
-      return NextResponse.json({ message: 'All notifications marked as read' })
+      return NextResponse.json({ message: `${result.count} notifications marked as read` })
     }
 
-    if (ids && Array.isArray(ids)) {
-      await db.notification.updateMany({
+    if (ids && ids.length > 0) {
+      const result = await db.notification.updateMany({
         where: { id: { in: ids } },
         data: { read: true },
       })
-      return NextResponse.json({ message: `${ids.length} notifications marked as read` })
+      return NextResponse.json({ message: `${result.count} notifications marked as read` })
     }
 
     if (id) {
       const notification = await db.notification.findUnique({ where: { id } })
       if (!notification) {
-        return NextResponse.json(
-          { error: 'Notification not found' },
-          { status: 404 }
-        )
+        throw ApiError.notFound('Notification not found')
       }
       await db.notification.update({
         where: { id },
@@ -80,15 +81,9 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ message: 'Notification marked as read' })
     }
 
-    return NextResponse.json(
-      { error: 'Provide id, ids, or markAll in request body' },
-      { status: 400 }
-    )
+    // Unreachable due to schema refine(), but satisfy TS
+    throw ApiError.badRequest('Provide id, ids, or markAll in request body')
   } catch (error) {
-    console.error('Notifications PATCH error:', error)
-    return NextResponse.json(
-      { error: 'Failed to update notifications' },
-      { status: 500 }
-    )
+    return handleError(error)
   }
 }

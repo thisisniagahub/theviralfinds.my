@@ -53,6 +53,8 @@ import {
   ShoppingCart,
   CheckCircle,
 } from 'lucide-react'
+import { ExportButtons } from '@/components/ui/export-buttons'
+import { Separator } from '@/components/ui/separator'
 
 // --- Mock Data ---
 
@@ -174,24 +176,31 @@ export function AnalyticsPage() {
             Track your affiliate link performance and audience insights
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Calendar className="text-muted-foreground size-4" />
-          {(['7d', '30d', '90d', 'custom'] as const).map((range) => (
-            <Button
-              key={range}
-              variant={dateRange === range ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setDateRange(range)}
-            >
-              {range === '7d'
-                ? 'Last 7 days'
-                : range === '30d'
-                  ? 'Last 30 days'
-                  : range === '90d'
-                    ? 'Last 90 days'
-                    : 'Custom'}
-            </Button>
-          ))}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Calendar className="text-muted-foreground size-4" />
+            {(['7d', '30d', '90d', 'custom'] as const).map((range) => (
+              <Button
+                key={range}
+                variant={dateRange === range ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDateRange(range)}
+              >
+                {range === '7d'
+                  ? 'Last 7 days'
+                  : range === '30d'
+                    ? 'Last 30 days'
+                    : range === '90d'
+                      ? 'Last 90 days'
+                      : 'Custom'}
+              </Button>
+            ))}
+          </div>
+          <Separator orientation="vertical" className="hidden h-6 sm:block" />
+          <ExportButtons
+            type="analytics"
+            period={dateRange === 'custom' ? undefined : dateRange}
+          />
         </div>
       </motion.div>
 

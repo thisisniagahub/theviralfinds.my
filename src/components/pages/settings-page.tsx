@@ -62,6 +62,8 @@ import {
 import { cn } from '@/lib/utils'
 import { useAppStore } from '@/store/app-store'
 import { toast } from 'sonner'
+import { LogOut, ShieldCheck, CalendarClock, LogIn, MailCheck } from 'lucide-react'
+import { SocialAccountsSection } from '@/components/social/social-accounts-section'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -98,7 +100,17 @@ export function SettingsPage() {
   const [weeklyDigest, setWeeklyDigest] = useState(true)
 
   // Shopee Affiliate API Connection
-  const { shopeeConnected, setShopeeConnected, shopeeDataSource, setShopeeDataSource } = useAppStore()
+  const {
+    shopeeConnected,
+    setShopeeConnected,
+    shopeeDataSource,
+    setShopeeDataSource,
+    user: authUser,
+    isAuthenticated,
+    logout,
+    setAuthView,
+    checkAuth,
+  } = useAppStore()
   const [shopeeAppId, setShopeeAppId] = useState('')
   const [shopeeSecret, setShopeeSecret] = useState('')
   const [shopeeRegion, setShopeeRegion] = useState('my')
@@ -146,6 +158,42 @@ export function SettingsPage() {
         setShopeeDataSource('mock')
       })
   }, [setShopeeConnected, setShopeeDataSource])
+
+  // Sync profile form fields with the authenticated user
+  useEffect(() => {
+    if (authUser) {
+      setProfileName(authUser.name)
+      setProfileEmail(authUser.email)
+      if (authUser.shopeeAffId) setShopeeAffId(authUser.shopeeAffId)
+    }
+  }, [authUser])
+
+  // Save profile handler — calls /api/auth/me PATCH
+  const [savingProfile, setSavingProfile] = useState(false)
+  const handleSaveProfile = async () => {
+    setSavingProfile(true)
+    try {
+      const res = await fetch('/api/auth/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: profileName,
+          shopeeAffId,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        toast.error(data?.error || 'Failed to save profile')
+      } else {
+        toast.success('Profile saved successfully')
+        await checkAuth()
+      }
+    } catch {
+      toast.error('Failed to save profile')
+    } finally {
+      setSavingProfile(false)
+    }
+  }
 
   // Test Shopee connection - save credentials then test
   const handleTestShopeeConnection = async () => {
@@ -253,6 +301,88 @@ export function SettingsPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
+          {/* Authentication & Account Summary */}
+          <motion.div {...fadeIn}>
+            <Card className="card-hover border-shopee/20">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <ShieldCheck className="size-4 text-shopee" />
+                  Account & Authentication
+                </CardTitle>
+                <CardDescription>
+                  Your sign-in status and account details
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {isAuthenticated && authUser ? (
+                  <>
+                    <div className="flex items-start gap-4">
+                      <Avatar className="size-14">
+                        <AvatarFallback className="bg-shopee/10 text-shopee text-base font-bold">
+                          {(authUser.name || authUser.email || 'U').slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold truncate">{authUser.name}</p>
+                          {authUser.emailVerified && (
+                            <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-0 text-[10px] gap-1">
+                              <MailCheck className="size-2.5" /> Verified
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">{authUser.email}</p>
+                        <div className="flex flex-wrap items-center gap-2 pt-1">
+                          <Badge variant="secondary" className="bg-shopee/10 text-shopee border-0 text-[10px] capitalize">
+                            {authUser.role}
+                          </Badge>
+                          {authUser.lastLoginAt && (
+                            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                              <CalendarClock className="size-3" />
+                              Last login: {new Date(authUser.lastLoginAt).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <Separator />
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <div className="text-xs text-muted-foreground">
+                        Want to use a different account? Sign out safely.
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-red-600 dark:text-red-400 border-red-200 dark:border-red-900 hover:bg-red-50 dark:hover:bg-red-950/30 gap-2"
+                        onClick={async () => {
+                          await logout()
+                          toast.success('You have been signed out.')
+                        }}
+                      >
+                        <LogOut className="size-3.5" />
+                        Sign Out
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="text-sm text-muted-foreground">
+                      You are not signed in. Sign in to sync your profile.
+                    </div>
+                    <Button
+                      size="sm"
+                      className="bg-shopee hover:bg-shopee-dark text-white gap-2"
+                      onClick={() => setAuthView('login')}
+                    >
+                      <LogIn className="size-3.5" />
+                      Sign In
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+
           {/* Profile Section */}
           <motion.div {...fadeIn}>
             <Card className="card-hover">
@@ -323,9 +453,9 @@ export function SettingsPage() {
                   </div>
                 </div>
                 <div className="flex justify-end">
-                  <Button className="gap-2">
+                  <Button className="gap-2" onClick={handleSaveProfile} disabled={savingProfile}>
                     <Save className="size-4" />
-                    Save Profile
+                    {savingProfile ? 'Saving...' : 'Save Profile'}
                   </Button>
                 </div>
               </CardContent>
@@ -707,6 +837,9 @@ export function SettingsPage() {
               </CardContent>
             </Card>
           </motion.div>
+
+          {/* Connected Social Accounts (AutoPost) */}
+          <SocialAccountsSection />
 
           {/* Danger Zone */}
           <motion.div {...fadeIn}>

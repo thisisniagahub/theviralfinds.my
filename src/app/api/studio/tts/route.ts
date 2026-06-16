@@ -1,17 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import ZAI from 'z-ai-web-dev-sdk'
+import { validateBody, studioTtsSchema } from '@/lib/validation'
+import { enforceRateLimit, RATE_LIMITS } from '@/lib/rate-limit-enforce'
+import { handleError } from '@/lib/api-error'
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { text, voice, speed } = body
-
-    if (!text) {
-      return NextResponse.json(
-        { error: 'Text is required for TTS' },
-        { status: 400 }
-      )
+    if (enforceRateLimit(request, RATE_LIMITS.ai)) {
+      return enforceRateLimit(request, RATE_LIMITS.ai)!
     }
+    const { text, voice, speed } = await validateBody(request, studioTtsSchema)
 
     // Truncate text if too long (TTS models have limits)
     const truncatedText = text.length > 2000 ? text.slice(0, 2000) + '...' : text
@@ -94,11 +92,7 @@ export async function POST(request: NextRequest) {
       estimatedFileSize: `${Math.round(truncatedText.length * 0.5)}KB`,
     })
   } catch (error) {
-    console.error('TTS error:', error)
-    return NextResponse.json(
-      { error: 'Failed to generate voiceover' },
-      { status: 500 }
-    )
+    return handleError(error)
   }
 }
 

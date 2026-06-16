@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getShopeeServiceFromDB } from '@/lib/shopee/affiliate-api'
+import { enforceRateLimit, RATE_LIMITS } from '@/lib/rate-limit-enforce'
+import { handleError, ApiError } from '@/lib/api-error'
 
 /**
  * GET /api/shopee/products
@@ -9,6 +11,9 @@ import { getShopeeServiceFromDB } from '@/lib/shopee/affiliate-api'
  */
 export async function GET(request: NextRequest) {
   try {
+    if (enforceRateLimit(request, RATE_LIMITS.read)) {
+      return enforceRateLimit(request, RATE_LIMITS.read)!
+    }
     const { searchParams } = new URL(request.url)
     const query = searchParams.get('q') || ''
     const category = searchParams.get('category') || undefined
@@ -28,10 +33,15 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20')
 
     if (!query) {
-      return NextResponse.json(
-        { error: 'Search query parameter "q" is required' },
-        { status: 400 }
-      )
+      throw ApiError.badRequest('Search query parameter "q" is required')
+    }
+
+    // Sanity-check pagination params
+    if (isNaN(page) || page < 1) {
+      throw ApiError.badRequest('Invalid "page" parameter')
+    }
+    if (isNaN(limit) || limit < 1 || limit > 100) {
+      throw ApiError.badRequest('Invalid "limit" parameter (must be 1-100)')
     }
 
     // Get the Shopee service (real API or mock fallback)
@@ -64,10 +74,6 @@ export async function GET(request: NextRequest) {
       connected: !shopeeService.isUsingMock,
     })
   } catch (error) {
-    console.error('Product search error:', error)
-    return NextResponse.json(
-      { error: 'Failed to search products' },
-      { status: 500 }
-    )
+    return handleError(error)
   }
 }

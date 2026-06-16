@@ -5,19 +5,24 @@ import { AppSidebar } from '@/components/layout/sidebar'
 import { AppHeader } from '@/components/layout/header'
 import { MobileNav } from '@/components/layout/mobile-nav'
 import { MobileSheet } from '@/components/layout/mobile-sheet'
+import { RealtimeProvider } from '@/components/realtime/realtime-provider'
+import { RegisterSW } from '@/components/pwa/register-sw'
+import { PullToRefreshWrapper } from '@/components/pwa/pull-to-refresh-wrapper'
 import { ThemeProvider } from 'next-themes'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { SessionProvider } from 'next-auth/react'
+import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query'
 import { useState, useEffect, lazy, Suspense, useCallback } from 'react'
 import { Toaster } from '@/components/ui/sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
+import { ErrorBoundary } from '@/components/error-boundary'
+import { NetworkBanner } from '@/components/network-banner'
+import { PageSkeleton } from '@/components/ui/inline-skeleton'
 import {
   LayoutDashboard, ShoppingBag, Link2, BarChart3, Calculator,
   Megaphone, Wallet, Bot, Award, Trophy, Users, Bell, Settings,
   Plus, Sparkles, HelpCircle, FileText, Shield, Lock, Plug,
-  DollarSign, ChevronLeft, ChevronRight, X, LogIn,
+  DollarSign, ChevronLeft, ChevronRight, X, LogIn, Loader2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -43,21 +48,11 @@ const LeaderboardPage = lazy(() => import('@/components/pages/leaderboard-page')
 const ReferralsPage = lazy(() => import('@/components/pages/referrals-page').then(m => ({ default: m.ReferralsPage })))
 const NotificationsPage = lazy(() => import('@/components/pages/notifications-page').then(m => ({ default: m.NotificationsPage })))
 const SettingsPage = lazy(() => import('@/components/pages/settings-page').then(m => ({ default: m.SettingsPage })))
+const LoginPage = lazy(() => import('@/components/pages/login-page').then(m => ({ default: m.LoginPage })))
+const RegisterPage = lazy(() => import('@/components/pages/register-page').then(m => ({ default: m.RegisterPage })))
 
 function PageLoader() {
-  return (
-    <div className="space-y-6 p-1">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-28 rounded-xl" />
-        ))}
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Skeleton className="h-72 rounded-xl" />
-        <Skeleton className="h-72 rounded-xl" />
-      </div>
-    </div>
-  )
+  return <PageSkeleton />
 }
 
 const pageComponents: Record<PageId, React.LazyExoticComponent<React.ComponentType>> = {
@@ -195,36 +190,85 @@ function OnboardingTour({ show, onClose }: { show: boolean; onClose: () => void 
   )
 }
 
+function AuthScreen() {
+  const { authView } = useAppStore()
+  return (
+    <Suspense fallback={<AuthLoader />}>
+      {authView === 'register' ? <RegisterPage /> : <LoginPage />}
+    </Suspense>
+  )
+}
+
+function AuthLoader() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-12 h-12 rounded-xl bg-shopee text-white flex items-center justify-center">
+          <ShoppingBag className="w-6 h-6" />
+        </div>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="w-4 h-4 animate-spin" /> Loading TheViralFindsMY...
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function AppContent() {
-  const { activePage, setActivePage } = useAppStore()
+  const { activePage, setActivePage, isAuthenticated, isLoadingAuth, checkAuth } = useAppStore()
+  const queryClient = useQueryClient()
   const [showTour, setShowTour] = useState(false)
 
   useEffect(() => {
+    checkAuth()
+  }, [checkAuth])
+
+  useEffect(() => {
+    if (!isAuthenticated) return
     const seen = localStorage.getItem('tvf_tour_seen')
     if (!seen) {
       const timer = setTimeout(() => setShowTour(true), 800)
       return () => clearTimeout(timer)
     }
-  }, [])
+  }, [isAuthenticated])
 
   const completeTour = useCallback(() => {
     setShowTour(false)
     localStorage.setItem('tvf_tour_seen', 'true')
   }, [])
 
+  // Pull-to-refresh: invalidate all queries so they refetch with fresh data
+  const handleRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries()
+    toast.success('Refreshed', { description: 'Latest data loaded.' })
+  }, [queryClient])
+
   const PageComponent = pageComponents[activePage]
+
+  // Show auth screen (login/register) when not authenticated
+  if (isLoadingAuth) {
+    return <AuthLoader />
+  }
+  if (!isAuthenticated) {
+    return <AuthScreen />
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      <NetworkBanner />
       <div className="flex flex-1">
         <AppSidebar />
         <MobileSheet />
         <div className="flex-1 flex flex-col min-w-0">
           <AppHeader />
-          <main className="flex-1 p-4 lg:p-6 pb-20 lg:pb-6">
-            <Suspense fallback={<PageLoader />}>
-              <PageComponent />
-            </Suspense>
+          <main className="flex-1 p-4 lg:p-6 pb-24 lg:pb-6 relative">
+            <PullToRefreshWrapper onRefresh={handleRefresh}>
+              <ErrorBoundary>
+                <Suspense fallback={<PageLoader />}>
+                  <PageComponent />
+                </Suspense>
+              </ErrorBoundary>
+            </PullToRefreshWrapper>
           </main>
 
           {/* Footer */}
@@ -320,6 +364,9 @@ function AppContent() {
       <AnimatePresence>
         {showTour && <OnboardingTour show={showTour} onClose={completeTour} />}
       </AnimatePresence>
+
+      {/* PWA: Service Worker registration + update toast */}
+      <RegisterSW />
     </div>
   )
 }
@@ -336,10 +383,14 @@ export default function Home() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-        <AppContent />
-        <Toaster position="top-right" richColors />
-      </ThemeProvider>
+      <SessionProvider session={null}>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <RealtimeProvider>
+            <AppContent />
+            <Toaster position="top-right" richColors />
+          </RealtimeProvider>
+        </ThemeProvider>
+      </SessionProvider>
     </QueryClientProvider>
   )
 }

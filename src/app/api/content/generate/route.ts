@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import ZAI from 'z-ai-web-dev-sdk'
+import { validateBody, contentGenerateSchema } from '@/lib/validation'
+import { enforceRateLimit, RATE_LIMITS } from '@/lib/rate-limit-enforce'
+import { handleError, ApiError } from '@/lib/api-error'
 
 const CONTENT_TYPE_PROMPTS: Record<string, string> = {
   caption: `Generate a social media caption for a Malaysian Shopee affiliate product. 
@@ -60,23 +63,10 @@ const TONE_INSTRUCTIONS: Record<string, string> = {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { type, product, niche, platform, language, tone } = body
-
-    if (!type || !product) {
-      return NextResponse.json(
-        { error: 'Missing required fields: type and product' },
-        { status: 400 }
-      )
+    if (enforceRateLimit(request, RATE_LIMITS.ai)) {
+      return enforceRateLimit(request, RATE_LIMITS.ai)!
     }
-
-    const validTypes = ['caption', 'script', 'hashtags', 'live_script', 'review', 'comparison']
-    if (!validTypes.includes(type)) {
-      return NextResponse.json(
-        { error: `Invalid type. Must be one of: ${validTypes.join(', ')}` },
-        { status: 400 }
-      )
-    }
+    const { type, product, niche, platform, language, tone } = await validateBody(request, contentGenerateSchema)
 
     const zai = await ZAI.create()
 
@@ -130,10 +120,7 @@ Return ONLY the content, no meta-commentary or explanations.`
     const generatedContent = completion.choices?.[0]?.message?.content || ''
 
     if (!generatedContent) {
-      return NextResponse.json(
-        { error: 'Failed to generate content. Please try again.' },
-        { status: 500 }
-      )
+      throw ApiError.internal('Failed to generate content. Please try again.')
     }
 
     return NextResponse.json({
@@ -146,10 +133,6 @@ Return ONLY the content, no meta-commentary or explanations.`
       niche: niche || null,
     })
   } catch (error) {
-    console.error('Content generation error:', error)
-    return NextResponse.json(
-      { error: 'Failed to generate content. Please try again.' },
-      { status: 500 }
-    )
+    return handleError(error)
   }
 }

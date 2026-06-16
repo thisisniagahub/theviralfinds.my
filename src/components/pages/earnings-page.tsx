@@ -60,6 +60,7 @@ import {
   Target,
   Banknote,
 } from 'lucide-react'
+import { ExportButtons } from '@/components/ui/export-buttons'
 
 // --- Mock Data ---
 
@@ -195,13 +196,15 @@ export function EarningsPage() {
             Track your commissions, payouts, and earning goals
           </p>
         </div>
-        <Dialog open={payoutOpen} onOpenChange={setPayoutOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Banknote className="size-4" />
-              Request Payout
-            </Button>
-          </DialogTrigger>
+        <div className="flex flex-wrap items-center gap-2">
+          <ExportButtons type="earnings" period="30d" />
+          <Dialog open={payoutOpen} onOpenChange={setPayoutOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Banknote className="size-4" />
+                Request Payout
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Request Payout</DialogTitle>
@@ -255,6 +258,7 @@ export function EarningsPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </motion.div>
 
       {/* Summary Cards */}

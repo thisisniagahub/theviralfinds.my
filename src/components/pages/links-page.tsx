@@ -66,6 +66,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { ExportButtons } from '@/components/ui/export-buttons'
 
 // --- Types ---
 type LinkStatus = 'active' | 'paused' | 'expired'
@@ -592,6 +593,7 @@ export function LinksPage() {
             )}
             {isSyncing ? 'Syncing...' : 'Sync Stats'}
           </Button>
+          <ExportButtons type="links" />
           {isShopeeConnected && (
             <Badge className="bg-emerald-500 text-white border-0 gap-1 text-[10px]">
               <Zap className="size-3" />

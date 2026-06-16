@@ -1,8 +1,24 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { enforceRateLimit, RATE_LIMITS } from '@/lib/rate-limit-enforce'
+import { handleError } from '@/lib/api-error'
+import { validateBody } from '@/lib/validation'
+import { z } from 'zod'
 
-export async function GET() {
+const createTaskSchema = z.object({
+  name: z.string().min(1, 'name is required').max(200),
+  description: z.string().max(2000).optional().nullable(),
+  schedule: z.string().max(200).optional().nullable(),
+  skillId: z.string().max(100).optional().nullable(),
+  status: z.enum(['scheduled', 'running', 'completed', 'failed', 'paused']).optional(),
+  nextRunAt: z.string().datetime().optional().nullable(),
+})
+
+export async function GET(request: NextRequest) {
   try {
+    if (enforceRateLimit(request, RATE_LIMITS.read)) {
+      return enforceRateLimit(request, RATE_LIMITS.read)!
+    }
     const tasks = await db.hermesTask.findMany({
       orderBy: { createdAt: 'desc' },
     })
@@ -17,34 +33,25 @@ export async function GET() {
 
     return NextResponse.json({ tasks: formattedTasks, total: formattedTasks.length })
   } catch (error) {
-    console.error('Hermes tasks GET error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch tasks' },
-      { status: 500 }
-    )
+    return handleError(error)
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { name, description, schedule, skillId, status, nextRunAt } = body
-
-    if (!name) {
-      return NextResponse.json(
-        { error: 'name is required' },
-        { status: 400 }
-      )
+    if (enforceRateLimit(request, RATE_LIMITS.write)) {
+      return enforceRateLimit(request, RATE_LIMITS.write)!
     }
+    const data = await validateBody(request, createTaskSchema)
 
     const task = await db.hermesTask.create({
       data: {
-        name,
-        description: description || null,
-        schedule: schedule || null,
-        skillId: skillId || null,
-        status: status || 'scheduled',
-        nextRunAt: nextRunAt ? new Date(nextRunAt) : null,
+        name: data.name,
+        description: data.description || null,
+        schedule: data.schedule || null,
+        skillId: data.skillId || null,
+        status: data.status || 'scheduled',
+        nextRunAt: data.nextRunAt ? new Date(data.nextRunAt) : null,
       },
     })
 
@@ -59,10 +66,6 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     )
   } catch (error) {
-    console.error('Hermes tasks POST error:', error)
-    return NextResponse.json(
-      { error: 'Failed to create task' },
-      { status: 500 }
-    )
+    return handleError(error)
   }
 }

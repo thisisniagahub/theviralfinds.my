@@ -1,20 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-
-interface CalculatorInput {
-  product: {
-    name?: string
-    price: number
-    commissionRate: number
-  }
-  dailyViews: number
-  clickRate: number        // 1-20% → 0.01-0.20
-  conversionRate: number   // 0.5-15% → 0.005-0.15
-  commissionType?: 'same-shop' | 'different-shop'
-}
+import { validateBody, profitCalculatorSchema } from '@/lib/validation'
+import { enforceRateLimit, RATE_LIMITS } from '@/lib/rate-limit-enforce'
+import { handleError } from '@/lib/api-error'
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json() as CalculatorInput
+    if (enforceRateLimit(request, RATE_LIMITS.read)) {
+      return enforceRateLimit(request, RATE_LIMITS.read)!
+    }
+    const body = await validateBody(request, profitCalculatorSchema)
     const {
       product,
       dailyViews = 500,
@@ -22,13 +16,6 @@ export async function POST(request: NextRequest) {
       conversionRate = 3,  // percentage
       commissionType = 'same-shop',
     } = body
-
-    if (!product || !product.price || !product.commissionRate) {
-      return NextResponse.json(
-        { error: 'Product price and commission rate are required' },
-        { status: 400 }
-      )
-    }
 
     const price = product.price
     const commissionRate = product.commissionRate
@@ -111,7 +98,6 @@ export async function POST(request: NextRequest) {
       goalTracker: goalViews,
     })
   } catch (error) {
-    console.error('Profit calculator error:', error)
-    return NextResponse.json({ error: 'Failed to calculate projections' }, { status: 500 })
+    return handleError(error)
   }
 }
