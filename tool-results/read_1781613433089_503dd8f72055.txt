@@ -1,0 +1,900 @@
+     1→<p align="center">
+     2→  <img src="https://img.shields.io/badge/version-8.0-ee4d2d?style=for-the-badge" alt="Version" />
+     3→  <img src="https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js" alt="Next.js" />
+     4→  <img src="https://img.shields.io/badge/TypeScript-5-3178c6?style=for-the-badge&logo=typescript" alt="TypeScript" />
+     5→  <img src="https://img.shields.io/badge/Shopee_Affiliate-Official-ee4d2d?style=for-the-badge" alt="Shopee" />
+     6→  <img src="https://img.shields.io/badge/HERMES_AI-Agent-8b5cf6?style=for-the-badge" alt="Hermes" />
+     7→</p>
+     8→
+     9→<h1 align="center">TheViralFindsMY</h1>
+    10→
+    11→<h3 align="center">AI-Powered Shopee Affiliate Manager for the Malaysian Market</h3>
+    12→
+    13→<p align="center">
+    14→  <em>Discover. Promote. Earn. — Supercharged with HERMES AI Intelligence</em>
+    15→</p>
+    16→
+    17→---
+    18→
+    19→## Table of Contents
+    20→
+    21→- [Overview](#overview)
+    22→- [Key Features](#key-features)
+    23→- [Architecture](#architecture)
+    24→- [Tech Stack](#tech-stack)
+    25→- [Getting Started](#getting-started)
+    26→  - [Prerequisites](#prerequisites)
+    27→  - [Installation](#installation)
+    28→  - [Environment Variables](#environment-variables)
+    29→- [Project Structure](#project-structure)
+    30→- [Feature Modules](#feature-modules)
+    31→  - [1. Dashboard & Analytics](#1-dashboard--analytics)
+    32→  - [2. Product Discovery & Affiliate Links](#2-product-discovery--affiliate-links)
+    33→  - [3. Social Media Auto-Post](#3-social-media-auto-post)
+    34→  - [4. AI Content Generator](#4-ai-content-generator)
+    35→  - [5. Trend & Competitor Spy](#5-trend--competitor-spy)
+    36→  - [6. Profit Optimizer](#6-profit-optimizer)
+    37→  - [7. Content Studio (Mobile Creator)](#7-content-studio-mobile-creator)
+    38→  - [8. HERMES AI Hub](#8-hermes-ai-hub)
+    39→  - [9. Earnings & Payouts](#9-earnings--payouts)
+    40→  - [10. Gamification](#10-gamification)
+    41→- [Shopee API Integration](#shopee-api-integration)
+    42→  - [Dual Data Source System](#dual-data-source-system)
+    43→  - [GraphQL Client](#graphql-client)
+    44→  - [Webhook Events](#webhook-events)
+    45→  - [Getting Shopee API Access](#getting-shopee-api-access)
+    46→- [HERMES AI Agent](#hermes-ai-agent)
+    47→- [API Reference](#api-reference)
+    48→- [Database Schema](#database-schema)
+    49→- [Malaysian Market Focus](#malaysian-market-focus)
+    50→- [Contributing](#contributing)
+    51→- [License](#license)
+    52→
+    53→---
+    54→
+    55→## Overview
+    56→
+    57→**TheViralFindsMY** is a comprehensive, production-ready Shopee Affiliate management platform built specifically for the Malaysian market. It combines real-time product discovery, AI-powered content creation, intelligent automation, and deep analytics into a single, unified dashboard.
+    58→
+    59→The platform is designed to help Malaysian Shopee affiliates maximize their earnings through:
+    60→
+    61→- **Smart product discovery** with AI scoring and Commission XTRA detection
+    62→- **Automated content creation** in Manglish, Bahasa Malaysia, and English
+    63→- **Social media scheduling** optimized for Malaysian peak engagement times
+    64→- **Trend monitoring** with competitor intelligence and keyword tracking
+    65→- **HERMES AI Agent** for conversational insights, task automation, and skill management
+    66→
+    67→> **Target Market:** Malaysia (RM currency, Shopee Malaysia, Malaysian consumer behavior)
+    68→> **Language Support:** English, Bahasa Malaysia, Manglish (Malaysian English)
+    69→
+    70→---
+    71→
+    72→## Key Features
+    73→
+    74→| # | Feature | Description | Badge |
+    75→|---|---------|-------------|-------|
+    76→| 1 | **Dashboard** | Real-time stats, earnings trends, top products, activity feed | Core |
+    77→| 2 | **Product Discovery** | Search Shopee products, generate affiliate links, track commissions | Core |
+    78→| 3 | **Affiliate Links** | Create, manage, and track short affiliate links with click analytics | Core |
+    79→| 4 | **Analytics** | Click/conversion charts, country/device breakdowns, period comparisons | Core |
+    80→| 5 | **Commission Calculator** | Project earnings with same-shop/different-shop models, break-even analysis | Core |
+    81→| 6 | **Campaigns** | Organize links into campaigns with budgets and date ranges | Core |
+    82→| 7 | **Earnings & Payouts** | Track commissions, payout history, earning goals | Core |
+    83→| 8 | **Social Media Auto-Post** | Schedule posts to TikTok, IG, FB, YouTube, Twitter/X with AI captions | `NEW` |
+    84→| 9 | **AI Content Generator** | Video scripts, captions, hashtags, Shopee Live scripts in Manglish/BM | `AI` |
+    85→| 10 | **Trend Spy** | Trending products, keyword discovery, competitor analysis, seasonal alerts | `NEW` |
+    86→| 11 | **Profit Optimizer** | AI product scoring (0-100), Commission XTRA finder, earnings calculator | `AI` |
+    87→| 12 | **Content Studio** | Video script templates, TTS voiceover, timed captions, SRT export | `NEW` |
+    88→| 13 | **HERMES AI Hub** | Conversational AI, skills, tasks, insights, memory, automation | `AI` |
+    89→| 14 | **Achievements** | Badge system for milestones and earning goals | Gamification |
+    90→| 15 | **Leaderboard** | Affiliate ranking with period comparisons | Gamification |
+    91→| 16 | **Referrals** | Referral program management and tracking | Gamification |
+    92→| 17 | **Notifications** | Real-time alerts for conversions, commissions, and system events | System |
+    93→| 18 | **Settings** | Shopee API credentials, app preferences, connection management | System |
+    94→
+    95→---
+    96→
+    97→## Architecture
+    98→
+    99→```
+   100→┌─────────────────────────────────────────────────────────────────┐
+   101→│                        Client (Browser)                         │
+   102→│  ┌───────────┐  ┌──────────┐  ┌──────────┐  ┌──────────────┐  │
+   103→│  │ Zustand   │  │ React    │  │ TanStack │  │ Framer       │  │
+   104→│  │ Store     │  │ Query    │  │ Charts   │  │ Motion       │  │
+   105→│  └─────┬─────┘  └────┬─────┘  └──────────┘  └──────────────┘  │
+   106→│        │              │                                          │
+   107→│  ┌─────▼──────────────▼──────────────────────────────────────┐  │
+   108→│  │              shadcn/ui Component Library                   │  │
+   109→│  │     (46 components: Cards, Dialogs, Tables, Charts...)    │  │
+   110→│  └─────────────────────────┬─────────────────────────────────┘  │
+   111→└────────────────────────────┼────────────────────────────────────┘
+   112→                             │ fetch()
+   113→┌────────────────────────────▼────────────────────────────────────┐
+   114→│                     Next.js 16 API Routes                       │
+   115→│  ┌─────────┐ ┌──────────┐ ┌────────┐ ┌────────┐ ┌──────────┐  │
+   116→│  │ /api/   │ │/api/     │ │/api/   │ │/api/   │ │/api/     │  │
+   117→│  │shopee/* │ │hermes/*  │ │trends/*│ │content/*│ │profit/*  │  │
+   118→│  └────┬────┘ └────┬─────┘ └───┬────┘ └───┬────┘ └────┬─────┘  │
+   119→│       │           │           │          │           │          │
+   120→│  ┌────▼───────────▼───────────▼──────────▼───────────▼──────┐  │
+   121→│  │              z-ai-web-dev-sdk (AI Engine)                 │  │
+   122→│  │     LLM Chat | Web Search | TTS | Image Generation       │  │
+   123→│  └──────────────────────────────────────────────────────────┘  │
+   124→│       │                                                        │
+   125→│  ┌────▼─────────────────────────────────────────────────────┐  │
+   126→│  │              Prisma ORM (SQLite)                          │  │
+   127→│  │     18 Models: User, Link, Campaign, Conversion...       │  │
+   128→│  └──────────────────────────────────────────────────────────┘  │
+   129→└─────────────────────────────────────────────────────────────────┘
+   130→         │                                    │
+   131→    ┌────▼────┐                        ┌──────▼──────┐
+   132→    │ Shopee  │                        │   SQLite    │
+   133→    │ GraphQL │                        │  Database   │
+   134→    │   API   │                        │ (db/*.db)   │
+   135→    └─────────┘                        └─────────────┘
+   136→```
+   137→
+   138→### Design Principles
+   139→
+   140→1. **Dual Data Source** — Every Shopee API call gracefully falls back to realistic mock data when API access is unavailable
+   141→2. **AI-First** — All content generation, analysis, and insights use z-ai-web-dev-sdk with algorithmic fallbacks
+   142→3. **Demo-Ready** — The app is fully functional with demo data out of the box — no external accounts needed
+   143→4. **Malaysian-Optimized** — Currency, language, peak times, seasonal events, and consumer behavior tuned for Malaysia
+   144→5. **Client-Side Routing** — Single-page app using Zustand store for navigation (not Next.js file-based routing)
+   145→
+   146→---
+   147→
+   148→## Tech Stack
+   149→
+   150→### Core Framework
+   151→| Technology | Version | Purpose |
+   152→|-----------|---------|---------|
+   153→| **Next.js** | 16 | React framework with App Router |
+   154→| **TypeScript** | 5 | Type-safe JavaScript |
+   155→| **React** | 19 | UI library |
+   156→
+   157→### UI & Styling
+   158→| Technology | Version | Purpose |
+   159→|-----------|---------|---------|
+   160→| **Tailwind CSS** | 4 | Utility-first CSS framework |
+   161→| **shadcn/ui** | Latest | 46 pre-built UI components (New York style) |
+   162→| **Radix UI** | Latest | Headless UI primitives (Dialog, Popover, Tabs, etc.) |
+   163→| **Lucide React** | Latest | Icon library |
+   164→| **Framer Motion** | 12 | Animations and transitions |
+   165→| **Recharts** | 2.15 | Data visualization charts |
+   166→| **next-themes** | 0.4 | Dark/light mode support |
+   167→
+   168→### State & Data
+   169→| Technology | Version | Purpose |
+   170→|-----------|---------|---------|
+   171→| **Zustand** | 5 | Client-side state management |
+   172→| **TanStack Query** | 5 | Server state management & caching |
+   173→| **TanStack Table** | 8 | Advanced data tables |
+   174→| **React Hook Form** | 7 | Form handling with Zod validation |
+   175→
+   176→### Backend & Database
+   177→| Technology | Version | Purpose |
+   178→|-----------|---------|---------|
+   179→| **Prisma** | 6 | ORM with SQLite |
+   180→| **z-ai-web-dev-sdk** | 0.0.18 | AI capabilities (LLM, TTS, Web Search) |
+   181→| **NextAuth.js** | 4 | Authentication (available) |
+   182→
+   183→### Utilities
+   184→| Technology | Version | Purpose |
+   185→|-----------|---------|---------|
+   186→| **date-fns** | 4 | Date manipulation |
+   187→| **uuid** | 11 | Unique ID generation |
+   188→| **sonner** | 2 | Toast notifications |
+   189→| **vaul** | 1 | Drawer component |
+   190→| **cmdk** | 1 | Command palette (⌘K) |
+   191→
+   192→---
+   193→
+   194→## Getting Started
+   195→
+   196→### Prerequisites
+   197→
+   198→- **Node.js** >= 18
+   199→- **Bun** (recommended) or npm
+   200→- **Git**
+   201→
+   202→### Installation
+   203→
+   204→```bash
+   205→# Clone the repository
+   206→git clone https://github.com/thisisniagahub/theviralfindsmy.git
+   207→cd theviralfindsmy
+   208→
+   209→# Install dependencies
+   210→bun install
+   211→
+   212→# Set up the database
+   213→bun run db:push
+   214→
+   215→# Start the development server
+   216→bun run dev
+   217→```
+   218→
+   219→The app will be available at `http://localhost:3000`.
+   220→
+   221→### Environment Variables
+   222→
+   223→Create a `.env` file in the project root:
+   224→
+   225→```env
+   226→# Database
+   227→DATABASE_URL="file:./db/custom.db"
+   228→
+   229→# (Optional) Shopee Affiliate API
+   230→# SHOPEE_APP_ID=your_app_id
+   231→# SHOPEE_SECRET=your_secret
+   232→# SHOPEE_REGION=my
+   233→
+   234→# (Optional) NextAuth
+   235→# NEXTAUTH_SECRET=your_secret
+   236→# NEXTAUTH_URL=http://localhost:3000
+   237→```
+   238→
+   239→> **Note:** The app works fully in demo mode without any API credentials. All Shopee features use realistic Malaysian market mock data.
+   240→
+   241→### Available Scripts
+   242→
+   243→| Script | Description |
+   244→|--------|-------------|
+   245→| `bun run dev` | Start development server on port 3000 |
+   246→| `bun run build` | Build for production |
+   247→| `bun run lint` | Run ESLint checks |
+   248→| `bun run db:push` | Push Prisma schema to database |
+   249→| `bun run db:generate` | Generate Prisma client |
+   250→| `bun run db:migrate` | Run database migrations |
+   251→| `bun run db:reset` | Reset database with fresh schema |
+   252→
+   253→---
+   254→
+   255→## Project Structure
+   256→
+   257→```
+   258→theviralfindsmy/
+   259→├── prisma/
+   260→│   └── schema.prisma           # 18 Prisma models
+   261→├── db/
+   262→│   └── custom.db               # SQLite database
+   263→├── src/
+   264→│   ├── app/
+   265→│   │   ├── page.tsx            # Main SPA entry (all 18 pages)
+   266→│   │   ├── layout.tsx          # Root layout
+   267→│   │   ├── globals.css         # Global styles + Shopee/Hermes theme
+   268→│   │   └── api/                # 28 API route handlers
+   269→│   │       ├── dashboard/
+   270→│   │       ├── analytics/
+   271→│   │       ├── earnings/
+   272→│   │       ├── links/
+   273→│   │       ├── campaigns/
+   274→│   │       ├── notifications/
+   275→│   │       ├── products/search/
+   276→│   │       ├── shopee/         # 8 Shopee-specific routes
+   277→│   │       ├── hermes/         # 6 Hermes AI routes
+   278→│   │       ├── trends/         # 3 Trend Spy routes
+   279→│   │       ├── content/        # 3 Content generation routes
+   280→│   │       ├── autopost/       # 3 Auto-post routes
+   281→│   │       ├── studio/         # 3 Studio routes
+   282→│   │       ├── profit/         # 3 Profit optimizer routes
+   283→│   │       └── seed/           # Database seeder
+   284→│   ├── components/
+   285→│   │   ├── layout/             # 4 layout components
+   286→│   │   │   ├── sidebar.tsx     # Desktop sidebar navigation
+   287→│   │   │   ├── header.tsx      # Top header with search
+   288→│   │   │   ├── mobile-nav.tsx  # Bottom nav (mobile)
+   289→│   │   │   └── mobile-sheet.tsx # Slide-out menu (mobile)
+   290→│   │   ├── pages/              # 18 page components
+   291→│   │   │   ├── dashboard-page.tsx
+   292→│   │   │   ├── products-page.tsx
+   293→│   │   │   ├── links-page.tsx
+   294→│   │   │   ├── analytics-page.tsx
+   295→│   │   │   ├── campaigns-page.tsx
+   296→│   │   │   ├── calculator-page.tsx
+   297→│   │   │   ├── earnings-page.tsx
+   298→│   │   │   ├── autopost-page.tsx
+   299→│   │   │   ├── content-page.tsx
+   300→│   │   │   ├── trends-page.tsx
+   301→│   │   │   ├── profit-page.tsx
+   302→│   │   │   ├── studio-page.tsx
+   303→│   │   │   ├── hermes-page.tsx
+   304→│   │   │   ├── achievements-page.tsx
+   305→│   │   │   ├── leaderboard-page.tsx
+   306→│   │   │   ├── referrals-page.tsx
+   307→│   │   │   ├── notifications-page.tsx
+   308→│   │   │   └── settings-page.tsx
+   309→│   │   └── ui/                 # 46 shadcn/ui components
+   310→│   ├── lib/
+   311→│   │   ├── utils.ts            # cn() utility
+   312→│   │   ├── db.ts               # Prisma client singleton
+   313→│   │   └── shopee/             # Shopee integration layer
+   314→│   │       ├── affiliate-api.ts  # Main service (auto-switch)
+   315→│   │       ├── graphql-client.ts # GraphQL + HMAC-SHA256 auth
+   316→│   │       └── mock-data.ts      # Malaysian market mock data
+   317→│   ├── store/
+   318→│   │   └── app-store.ts        # Zustand store (6 state slices)
+   319→│   ├── types/
+   320→│   │   └── index.ts            # TypeScript interfaces
+   321→│   └── hooks/
+   322→│       ├── use-toast.ts        # Toast notifications
+   323→│       └── use-mobile.ts       # Mobile detection
+   324→├── public/                     # Static assets
+   325→├── package.json
+   326→├── tsconfig.json
+   327→├── next.config.ts
+   328→└── tailwind.config.ts
+   329→```
+   330→
+   331→---
+   332→
+   333→## Feature Modules
+   334→
+   335→### 1. Dashboard & Analytics
+   336→
+   337→**Dashboard** (`/` → `dashboard` page)
+   338→
+   339→The central command center displaying real-time performance metrics:
+   340→
+   341→- **Stats Cards:** Total clicks, conversions, earnings, conversion rate with 30-day trend comparison
+   342→- **Activity Feed:** Recent clicks, conversions, and link activity
+   343→- **Top Products:** Best-performing affiliate products by earnings
+   344→- **Quick Actions:** Generate link, create campaign, post to social
+   345→
+   346→**Analytics** (`analytics` page)
+   347→
+   348→Deep-dive performance analysis:
+   349→
+   350→- **Time-series Charts:** Clicks and conversions over 7/30/90 days
+   351→- **Geographic Breakdown:** Click origins by country
+   352→- **Device Analysis:** Desktop vs mobile vs tablet distribution
+   353→- **Category Performance:** Which product categories convert best
+   354→- **Period Comparison:** Compare current vs previous period metrics
+   355→
+   356→**API Routes:**
+   357→| Route | Method | Description |
+   358→|-------|--------|-------------|
+   359→| `/api/dashboard` | GET | Aggregated stats with trend calculations |
+   360→| `/api/analytics` | GET | Time-series and breakdown data |
+   361→
+   362→---
+   363→
+   364→### 2. Product Discovery & Affiliate Links
+   365→
+   366→**Products** (`products` page)
+   367→
+   368→Discover and search Shopee products to promote:
+   369→
+   370→- **Product Search:** Search by keyword with real Shopee API or mock data
+   371→- **Commission Preview:** See commission rates before generating links
+   372→- **One-Click Link Generation:** Create affiliate links instantly
+   373→- **Category Filters:** Browse by category, price range, commission rate
+   374→- **Demo/Live Badge:** Visual indicator of data source (mock vs real API)
+   375→
+   376→**Affiliate Links** (`links` page)
+   377→
+   378→Manage all your affiliate links:
+   379→
+   380→- **Link Management:** Create, pause, expire links
+   381→- **Click Tracking:** Real-time click counts with device/geo data
+   382→- **Short Codes:** Auto-generated unique short codes for each link
+   383→- **Campaign Association:** Organize links into campaigns
+   384→- **Performance Metrics:** CTR, conversion rate, earnings per link
+   385→
+   386→**API Routes:**
+   387→| Route | Method | Description |
+   388→|-------|--------|-------------|
+   389→| `/api/shopee/products` | GET | Search products (real or mock) |
+   390→| `/api/shopee/generate-link` | POST | Generate affiliate link + save to DB |
+   391→| `/api/links` | GET, POST | List/create affiliate links |
+   392→| `/api/products/search` | GET | AI-powered product search via web |
+   393→
+   394→---
+   395→
+   396→### 3. Social Media Auto-Post
+   397→
+   398→**Auto Post** (`autopost` page) — `NEW`
+   399→
+   400→Schedule and manage social media posts optimized for Malaysian audiences:
+   401→
+   402→- **Multi-Platform:** TikTok, Instagram, Facebook, YouTube Shorts, Twitter/X
+   403→- **AI Caption Generation:** Auto-generate captions in Manglish/Bahasa/English
+   404→- **Affiliate Link Insertion:** Auto-insert Shopee affiliate links into posts
+   405→- **Smart Scheduling:** AI-recommended posting times based on Malaysian peak hours
+   406→- **Engagement Heatmap:** 24-hour engagement probability chart
+   407→- **7-Day Suggestions:** Next optimal posting windows for each platform
+   408→
+   409→**Malaysian Peak Times:**
+   410→| Time Slot | Engagement Level | Description |
+   411→|-----------|-----------------|-------------|
+   412→| 7:00 - 9:00 PM | **Golden Hour** | Highest engagement, after work browsing |
+   413→| 12:00 - 2:00 PM | **Lunch Rush** | Second peak, lunch break browsing |
+   414→| 9:00 PM - 12:00 AM | **Impulse Hour** | Late night shopping, impulse buys |
+   415→| 6:00 - 8:00 AM | **Morning Commute** | Moderate engagement, news/social check |
+   416→
+   417→**API Routes:**
+   418→| Route | Method | Description |
+   419→|-------|--------|-------------|
+   420→| `/api/autopost` | POST, GET | Create/list scheduled posts |
+   421→| `/api/autopost/suggest-times` | GET | AI-suggested posting times |
+   422→| `/api/autopost/[id]` | PATCH, DELETE | Update/delete a post |
+   423→
+   424→---
+   425→
+   426→### 4. AI Content Generator
+   427→
+   428→**AI Content** (`content` page) — `AI`
+   429→
+   430→Generate marketing content tailored for the Malaysian market:
+   431→
+   432→- **Content Types:**
+   433→  - Social media captions (platform-specific)
+   434→  - Video scripts (Hook → Problem → Solution → CTA)
+   435→  - Hashtag sets (#RacunShopee, #Budol, #SkincareMalaysia)
+   436→  - Shopee Live scripts (interactive, engagement-focused)
+   437→  - Product reviews and comparisons
+   438→
+   439→- **Language Options:** English, Bahasa Malaysia, Manglish
+   440→- **Tone Options:** Casual, Professional, Excited, Funny
+   441→- **Content Library:** Save, favorite, and reuse generated content
+   442→- **Template System:** 8 pre-built templates for quick content creation
+   443→
+   444→**Templates:**
+   445→| Template | Platform | Style |
+   446→|----------|----------|-------|
+   447→| Before/After | TikTok | Transformation reveal |
+   448→| Unboxing | TikTok | Product reveal + first impressions |
+   449→| Demo/Review | TikTok | Feature showcase |
+   450→| Try-On Haul | Instagram Reels | Fashion/beauty showcase |
+   451→| Live Script | Shopee Live | Interactive selling script |
+   452→| Product Comparison | Facebook | Side-by-side analysis |
+   453→| Price Reveal | TikTok/IG | Suspense + value reveal |
+   454→| Problem-Solution | All Platforms | Pain point → product solution |
+   455→
+   456→**API Routes:**
+   457→| Route | Method | Description |
+   458→|-------|--------|-------------|
+   459→| `/api/content/generate` | POST | AI content generation |
+   460→| `/api/content/templates` | GET | Pre-built content templates |
+   461→| `/api/content/library` | GET, POST, PATCH, DELETE | Content library CRUD |
+   462→
+   463→---
+   464→
+   465→### 5. Trend & Competitor Spy
+   466→
+   467→**Trend Spy** (`trends` page) — `NEW`
+   468→
+   469→Monitor market trends and competitor activity:
+   470→
+   471→- **Trending Products:** AI-discovered trending products with trend direction indicators
+   472→- **Keyword Discovery:** Trending search terms with volume and competition data
+   473→- **Competitor Analysis:** Top Malaysian affiliate profiles and strategies
+   474→- **Seasonal Alerts:** Upcoming Malaysian shopping events (Raya, 11.11, 12.12, CNY)
+   475→
+   476→**Seasonal Calendar (Malaysia):**
+   477→| Event | Period | Commission Boost |
+   478→|-------|--------|-----------------|
+   479→| Chinese New Year | Jan-Feb | 2-3x |
+   480→| Ramadan/Raya | Mar-Apr | 3-5x |
+   481→| Mid-Year Sale | 6-7 | 2-3x |
+   482→| 9.9 Sale | September 9 | 2-4x |
+   483→| 10.10 Sale | October 10 | 2-4x |
+   484→| 11.11 Sale | November 11 | 3-5x |
+   485→| 12.12 Sale | December 12 | 3-5x |
+   486→| Year-End Sale | December | 2-3x |
+   487→
+   488→**API Routes:**
+   489→| Route | Method | Description |
+   490→|-------|--------|-------------|
+   491→| `/api/trends/discover` | GET | AI-powered trending product discovery |
+   492→| `/api/trends/competitor` | GET | Competitor analysis |
+   493→| `/api/trends/keywords` | GET | Trending keywords with volume data |
+   494→
+   495→---
+   496→
+   497→### 6. Profit Optimizer
+   498→
+   499→**Profit Optimizer** (`profit` page) — `AI`
+   500→
+   501→AI-powered product scoring and commission maximization:
+   502→
+   503→- **Product Scoring Engine:** Multi-factor profitability scoring (0-100)
+   504→  | Factor | Weight | Description |
+   505→  |--------|--------|-------------|
+   506→  | Commission Rate | 25% | Base + XTRA commission percentage |
+   507→  | Conversion Rate | 30% | Historical conversion probability |
+   508→  | Average Order Value | 20% | Price × commission potential |
+   509→  | Competition Level | 10% | Number of competing affiliates |
+   510→  | Sales Volume | 10% | Product popularity and demand |
+   511→  | Trend Direction | 5% | Growing/stable/declining |
+   512→
+   513→- **Score Levels:**
+   514→  - `HOT` (80-100): Promote immediately
+   515→  - `GOOD` (60-79): Strong potential
+   516→  - `AVERAGE` (40-59): Consider carefully
+   517→  - `SKIP` (0-39): Not recommended
+   518→
+   519→- **Commission XTRA Finder:** Auto-discover products with extra commission bonuses (up to 40-50% additional)
+   520→- **Earnings Calculator:** Project daily/monthly/yearly earnings with break-even analysis
+   521→
+   522→**API Routes:**
+   523→| Route | Method | Description |
+   524→|-------|--------|-------------|
+   525→| `/api/profit/score` | POST | Product profitability scoring |
+   526→| `/api/profit/calculator` | POST | Commission earnings calculator |
+   527→| `/api/profit/xtra` | GET | Commission XTRA product finder |
+   528→
+   529→---
+   530→
+   531→### 7. Content Studio (Mobile Creator)
+   532→
+   533→**Content Studio** (`studio` page) — `NEW`
+   534→
+   535→Create video content optimized for mobile-first creation:
+   536→
+   537→- **Video Script Generator:** 8 script templates with timed scenes
+   538→  | Template | Structure |
+   539→  |----------|-----------|
+   540→  | Before/After | Problem → Product → Application → Result → CTA |
+   541→  | Unboxing | Teaser → Unbox → Feature → Demo → CTA |
+   542→  | Demo | Hook → Feature → Benefit → Demo → CTA |
+   543→  | Price Reveal | Hook → Build-up → Reveal → Justify → CTA |
+   544→  | Comparison | Problem → Option A → Option B → Verdict → CTA |
+   545→  | Problem-Solution | Pain → Agitate → Solution → Result → CTA |
+   546→  | Testimonial | Story → Struggle → Discovery → Result → CTA |
+   547→  | Top 5 | Hook → Items → Bonus → CTA |
+   548→
+   549→- **TTS Voiceover:** Text-to-speech in Bahasa Malaysia and English
+   550→- **Timed Captions:** SRT and JSON subtitle generation for short-form videos
+   551→- **Multi-Language:** Scripts in English, Bahasa, or Manglish
+   552→
+   553→**API Routes:**
+   554→| Route | Method | Description |
+   555→|-------|--------|-------------|
+   556→| `/api/studio/script` | POST | AI video script generation |
+   557→| `/api/studio/caption` | POST | Timed subtitle generation |
+   558→| `/api/studio/tts` | POST | Text-to-speech synthesis |
+   559→
+   560→---
+   561→
+   562→### 8. HERMES AI Hub
+   563→
+   564→**Hermes AI** (`hermes` page) — `AI`
+   565→
+   566→Your intelligent affiliate marketing assistant powered by HERMES Agent:
+   567→
+   568→- **Conversational AI:** Chat with HERMES about products, strategies, and insights
+   569→- **Skills Management:** Create, activate, and manage AI skills
+   570→- **Task Automation:** Schedule recurring tasks with cron expressions
+   571→- **Smart Insights:** AI-generated business insights based on your data
+   572→- **Persistent Memory:** HERMES remembers conversations and learns preferences
+   573→- **Connection Management:** Configure and test AI backend connection
+   574→
+   575→**Insight Types:**
+   576→| Type | Description |
+   577→|------|-------------|
+   578→| Trend | Market trend alerts and opportunities |
+   579→| Opportunity | Revenue opportunities detected |
+   580→| Alert | Performance issues requiring attention |
+   581→| Recommendation | Actionable improvement suggestions |
+   582→
+   583→**API Routes:**
+   584→| Route | Method | Description |
+   585→|-------|--------|-------------|
+   586→| `/api/hermes/chat` | POST | Chat with HERMES AI |
+   587→| `/api/hermes/connection` | GET, POST | Get/test connection |
+   588→| `/api/hermes/insights` | GET | AI-generated insights |
+   589→| `/api/hermes/skills` | GET, POST | Skill management |
+   590→| `/api/hermes/tasks` | GET, POST | Task management |
+   591→| `/api/hermes/memory` | GET, DELETE | Memory management |
+   592→
+   593→---
+   594→
+   595→### 9. Earnings & Payouts
+   596→
+   597→**Earnings** (`earnings` page)
+   598→
+   599→Comprehensive earnings tracking and payout management:
+   600→
+   601→- **Earnings Summary:** Total earnings, pending, confirmed, paid
+   602→- **Daily Earnings Chart:** Visual earnings trend over time
+   603→- **Recent Conversions:** Latest commission-confirming orders
+   604→- **Payout History:** All payout requests with status tracking
+   605→- **Earning Goals:** Set and track monthly/weekly/yearly earning targets
+   606→
+   607→**Calculator** (`calculator` page)
+   608→
+   609→Commission projection calculator:
+   610→
+   611→- **Same-Shop Model:** Multiple items from same shop (higher commission)
+   612→- **Different-Shop Model:** Items from different shops
+   613→- **Projection:** Daily/monthly/yearly earnings estimates
+   614→- **Break-Even:** How many clicks needed to hit target
+   615→
+   616→**API Routes:**
+   617→| Route | Method | Description |
+   618→|-------|--------|-------------|
+   619→| `/api/earnings` | GET | Earnings data with chart and goals |
+   620→| `/api/shopee/commissions` | GET | Commission orders from Shopee |
+   621→| `/api/profit/calculator` | POST | Earnings projection calculator |
+   622→
+   623→---
+   624→
+   625→### 10. Gamification
+   626→
+   627→**Achievements** (`achievements` page)
+   628→
+   629→Badge-based milestone system to motivate and track progress:
+   630→
+   631→- Earning milestones (first RM100, RM1,000, RM10,000)
+   632→- Click milestones (100, 1,000, 10,000 clicks)
+   633→- Conversion milestones (first conversion, 100 conversions)
+   634→- Streak achievements (posting streaks, engagement streaks)
+   635→
+   636→**Leaderboard** (`leaderboard` page)
+   637→
+   638→Competitive affiliate ranking:
+   639→
+   640→- Period-based rankings (weekly, monthly, all-time)
+   641→- Metrics: total earnings, clicks, conversions
+   642→- Compare against top Malaysian affiliates
+   643→
+   644→**Referrals** (`referrals` page)
+   645→
+   646→Referral program management:
+   647→
+   648→- Track referral status (pending, active, converted)
+   649→- Commission tracking for referrals
+   650→- Referral link generation
+   651→
+   652→---
+   653→
+   654→## Shopee API Integration
+   655→
+   656→### Dual Data Source System
+   657→
+   658→The app implements an intelligent dual data source that automatically switches between real and mock data:
+   659→
+   660→```
+   661→┌──────────────┐     Credentials     ┌──────────────┐
+   662→│  User Input  │ ──────────────────► │  AppSetting  │
+   663→│  (Settings)  │                     │  (Database)  │
+   664→└──────────────┘                     └──────┬───────┘
+   665→                                            │
+   666→                              ┌──────────────▼──────────────┐
+   667→                              │    ShopeeAffiliateService    │
+   668→                              │                              │
+   669→                              │  if credentials valid:       │
+   670→                              │    → ShopeeGraphQLClient     │
+   671→                              │  else:                       │
+   672→                              │    → ShopeeMockService       │
+   673→                              └──────────────┬───────────────┘
+   674→                                             │
+   675→                              ┌──────────────▼───────────────┐
+   676→                              │   Unified Response Format    │
+   677→                              │   source: "graphql_api" |    │
+   678→                              │            "mock"            │
+   679→                              └──────────────────────────────┘
+   680→```
+   681→
+   682→Every API response includes a `source` field indicating whether data came from the real API (`graphql_api`) or mock service (`mock`).
+   683→
+   684→### GraphQL Client
+   685→
+   686→The `ShopeeGraphQLClient` implements the official Shopee Affiliate Open API:
+   687→
+   688→- **Authentication:** HMAC-SHA256 signature on every request
+   689→- **Regional Endpoints:** Malaysia, Singapore, Indonesia, Thailand, Philippines, Vietnam
+   690→- **Operations:** Product search, link generation, commission orders, click stats
+   691→- **Error Handling:** Graceful fallback to mock data on API errors
+   692→
+   693→### Webhook Events
+   694→
+   695→| Event | Description | Processing |
+   696→|-------|-------------|------------|
+   697→| `order_conversion` | Customer completed purchase | Save conversion + create notification |
+   698→| `click` | Affiliate link clicked | Increment click counter |
+   699→| `commission_update` | Commission status changed | Update conversion status |
+   700→
+   701→Webhook verification uses HMAC-SHA256 signature validation.
+   702→
+   703→### Getting Shopee API Access
+   704→
+   705→1. Register at [Shopee Affiliate Program](https://affiliate.shopee.com.my/)
+   706→2. Go to **Account > API > Open API**
+   707→3. Request access to the Shopee Affiliate Open API Platform
+   708→4. Generate your **App ID** and **Secret**
+   709→5. Enter credentials in **Settings > Shopee Integration**
+   710→
+   711→> **Important:** Shopee Affiliate Open API uses GraphQL specification. You must request access separately — having an App ID/Secret is not sufficient without API platform access.
+   712→
+   713→---
+   714→
+   715→## HERMES AI Agent
+   716→
+   717→HERMES is an AI agent integration inspired by Nous Research's HERMES architecture, adapted for affiliate marketing intelligence:
+   718→
+   719→### Capabilities
+   720→
+   721→| Feature | Description |
+   722→|---------|-------------|
+   723→| **Chat** | Natural language conversations about affiliate strategies |
+   724→| **Skills** | Custom AI skills that can be created, trained, and deployed |
+   725→| **Tasks** | Automated recurring tasks (cron-based scheduling) |
+   726→| **Insights** | AI-generated business insights from your data |
+   727→| **Memory** | Persistent conversation memory across sessions |
+   728→
+   729→### Architecture
+   730→
+   731→```
+   732→User Query → HERMES Chat API → z-ai-web-dev-sdk (LLM)
+   733→                                  │
+   734→                    ┌─────────────┼─────────────┐
+   735→                    ▼             ▼             ▼
+   736→              Skills Engine   Task Runner   Insight Generator
+   737→                    │             │             │
+   738→                    ▼             ▼             ▼
+   739→              HermesSkill    HermesTask    HermesInsight
+   740→              (Database)     (Database)    (Database)
+   741→```
+   742→
+   743→### Pre-built Skills
+   744→
+   745→| Skill | Trigger | Description |
+   746→|-------|---------|-------------|
+   747→| Product Analyzer | "analyze product" | Score products for profitability |
+   748→| Content Writer | "write content" | Generate marketing content |
+   749→| Trend Monitor | "check trends" | Discover trending products |
+   750→| Competitor Spy | "spy competitor" | Analyze competitor strategies |
+   751→| Commission Finder | "find commission" | Locate Commission XTRA products |
+   752→
+   753→---
+   754→
+   755→## API Reference
+   756→
+   757→### Complete Route Table
+   758→
+   759→| Route | Method | Auth | Cache | Description |
+   760→|-------|--------|------|-------|-------------|
+   761→| `/api/dashboard` | GET | - | - | Dashboard stats |
+   762→| `/api/analytics` | GET | - | - | Analytics data |
+   763→| `/api/earnings` | GET | - | - | Earnings overview |
+   764→| `/api/links` | GET, POST | - | - | Link CRUD |
+   765→| `/api/campaigns` | GET, POST | - | - | Campaign CRUD |
+   766→| `/api/notifications` | GET, PATCH | - | - | Notifications |
+   767→| `/api/seed` | POST | - | - | Database seeder |
+   768→| `/api/products/search` | GET | - | - | AI product search |
+   769→| `/api/shopee/config` | GET, POST, DELETE | - | - | Shopee credentials |
+   770→| `/api/shopee/connect` | POST, GET | - | - | Connection test |
+   771→| `/api/shopee/status` | GET | - | 5min | Connection status |
+   772→| `/api/shopee/webhook` | POST | HMAC | - | Webhook receiver |
+   773→| `/api/shopee/products` | GET | - | - | Product search |
+   774→| `/api/shopee/commissions` | GET | - | - | Commission orders |
+   775→| `/api/shopee/stats` | GET | - | - | Click stats |
+   776→| `/api/shopee/generate-link` | POST | - | - | Generate affiliate link |
+   777→| `/api/hermes/chat` | POST | - | - | AI chat |
+   778→| `/api/hermes/connection` | GET, POST | - | - | AI connection |
+   779→| `/api/hermes/insights` | GET | - | - | AI insights |
+   780→| `/api/hermes/skills` | GET, POST | - | - | Skill management |
+   781→| `/api/hermes/tasks` | GET, POST | - | - | Task management |
+   782→| `/api/hermes/memory` | GET, DELETE | - | - | Memory management |
+   783→| `/api/trends/discover` | GET | - | 30min | Trending products |
+   784→| `/api/trends/competitor` | GET | - | 30min | Competitor analysis |
+   785→| `/api/trends/keywords` | GET | - | 30min | Trending keywords |
+   786→| `/api/content/generate` | POST | - | - | Content generation |
+   787→| `/api/content/templates` | GET | - | - | Content templates |
+   788→| `/api/content/library` | GET, POST, PATCH, DELETE | - | - | Content library |
+   789→| `/api/autopost` | POST, GET | - | - | Scheduled posts |
+   790→| `/api/autopost/suggest-times` | GET | - | - | Best posting times |
+   791→| `/api/autopost/[id]` | PATCH, DELETE | - | - | Post management |
+   792→| `/api/studio/script` | POST | - | - | Video scripts |
+   793→| `/api/studio/caption` | POST | - | - | Timed captions |
+   794→| `/api/studio/tts` | POST | - | - | Text-to-speech |
+   795→| `/api/profit/score` | POST | - | - | Product scoring |
+   796→| `/api/profit/calculator` | POST | - | - | Earnings calculator |
+   797→| `/api/profit/xtra` | GET | - | - | Commission XTRA finder |
+   798→
+   799→---
+   800→
+   801→## Database Schema
+   802→
+   803→The app uses 18 Prisma models stored in SQLite:
+   804→
+   805→### Core Models
+   806→```
+   807→User ──┬── AffiliateLink ──── ClickRecord
+   808→       │                  └── Conversion
+   809→       ├── Campaign
+   810→       └── Referral
+   811→
+   812→Payout          EarningGoal        Notification
+   813→AppSetting      Achievement        LeaderboardEntry
+   814→```
+   815→
+   816→### HERMES Models
+   817→```
+   818→HermesConnection ── HermesConversation ── HermesMessage
+   819→HermesSkill       HermesTask           HermesInsight
+   820→AgentMemory
+   821→```
+   822→
+   823→### Feature Models
+   824→```
+   825→ScheduledPost    ContentLibrary
+   826→```
+   827→
+   828→### Enums
+   829→```
+   830→LinkStatus:     active | paused | expired
+   831→CampaignStatus: active | paused | completed
+   832→ConversionStatus: pending | confirmed | rejected | paid
+   833→PayoutStatus:   pending | processing | completed | failed
+   834→GoalStatus:     active | achieved | failed
+   835→GoalPeriod:     monthly | weekly | yearly | custom
+   836→UserRole:       admin | affiliate | viewer
+   837→HermesSkillStatus: active | draft | archived | learning
+   838→```
+   839→
+   840→---
+   841→
+   842→## Malaysian Market Focus
+   843→
+   844→This platform is purpose-built for the Malaysian Shopee affiliate ecosystem:
+   845→
+   846→### Commission Structure
+   847→| Type | Rate | Notes |
+   848→|------|------|-------|
+   849→| Base Commission | 2.5% - 12% | Product category dependent |
+   850→| Commission XTRA | Up to 40-50% extra | Promotional periods |
+   851→| Shopee Live | Up to 80% | Live streaming commissions |
+   852→
+   853→### Top Malaysian Affiliates (Reference)
+   854→| Affiliate | Lifetime Earnings | Platform |
+   855→|-----------|------------------|----------|
+   856→| Sabrinabeautyhub | RM5M+ | TikTok + Shopee |
+   857→| Faisaldotmy | RM5M+ | TikTok |
+   858→| Erawan1308 | RM7,200/mo | Multi-platform |
+   859→
+   860→### Best Platforms for Malaysian Affiliates
+   861→| Platform | Organic Reach | Conversion | Best For |
+   862→|----------|--------------|------------|----------|
+   863→| TikTok | Highest | High | Beauty, Fashion, Gadgets |
+   864→| Shopee Live | Medium | Very High | Flash sales, Demo |
+   865→| Instagram Reels | Medium | Medium | Beauty, Lifestyle |
+   866→| Facebook | Medium | Medium | General, Family products |
+   867→
+   868→### Hashtag Strategy
+   869→| Hashtag | Usage | Category |
+   870→|---------|-------|----------|
+   871→| #RacunShopee | Viral products | General |
+   872→| #Budol | Wishlist items | General |
+   873→| #SkincareMalaysia | Beauty products | Beauty |
+   874→| #ShopeeMY | Platform tag | General |
+   875→| #ReviewMalaysia | Product reviews | General |
+   876→| #BarangMurah | Budget finds | Value |
+   877→
+   878→---
+   879→
+   880→## Contributing
+   881→
+   882→1. Fork the repository
+   883→2. Create a feature branch: `git checkout -b feature/amazing-feature`
+   884→3. Commit your changes: `git commit -m 'Add amazing feature'`
+   885→4. Push to the branch: `git push origin feature/amazing-feature`
+   886→5. Open a Pull Request
+   887→
+   888→---
+   889→
+   890→## License
+   891→
+   892→This project is proprietary software for TheViralFindsMY.
+   893→
+   894→---
+   895→
+   896→<p align="center">
+   897→  <strong>Built with ❤️ for Malaysian Affiliates</strong><br/>
+   898→  <em>TheViralFindsMY v8.0 — Discover. Promote. Earn.</em>
+   899→</p>
+   900→

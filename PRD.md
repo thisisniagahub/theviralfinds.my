@@ -1,10 +1,10 @@
 # Product Requirements Document (PRD)
 
-# TheViralFindsMY — AI-Powered Shopee Affiliate Manager
+# TheViralFindsMY — AI-Powered Multi-Platform Affiliate Manager
 
-**Version:** 8.0  
-**Date:** March 2025  
-**Status:** Production  
+**Version:** 8.1  
+**Date:** June 2025  
+**Status:** Production (v8.0) — Improvements Planned
 **Author:** TheViralFindsMY Team  
 **Market:** Malaysia (Primary)  
 
@@ -36,7 +36,10 @@
 12. [Malaysian Market Requirements](#12-malaysian-market-requirements)
 13. [Success Metrics](#13-success-metrics)
 14. [Roadmap](#14-roadmap)
-15. [Appendix](#15-appendix)
+15. [Competitive Analysis](#15-competitive-analysis)
+16. [Improvement Specifications](#16-improvement-specifications)
+17. [Monetization Strategy](#17-monetization-strategy)
+18. [Appendix](#18-appendix)
 
 ---
 
@@ -1465,40 +1468,353 @@ All promotional planning must account for these Malaysian shopping events:
 - [x] Mobile-responsive design
 - [x] Onboarding tour
 
-### v8.1 (Planned) — Enhancements
+### v8.1 (Planned) — Fix & Strengthen Core
 
-- [ ] Real Shopee API integration testing (when API access approved)
-- [ ] Actual social media API posting (TikTok, Instagram, Facebook)
-- [ ] User authentication with NextAuth.js
-- [ ] Multi-user support with role-based access
-- [ ] Email notifications for trends and insights
-- [ ] CSV/PDF export for all reports
-- [ ] Browser push notifications for real-time events
+- [ ] User authentication with NextAuth.js (email + social login)
+- [ ] Real platform API posting (Facebook, Instagram at minimum)
+- [ ] Real-time WebSocket notification system
+- [ ] Mobile UX polish and PWA support
+- [ ] Data export: CSV and PDF report generation
+- [ ] Error handling and edge case hardening
+- [ ] Comprehensive test coverage for API routes
 
-### v9.0 (Future) — Scale
+### v9.0 (Planned) — Multi-Platform
 
-- [ ] Team collaboration features
-- [ ] API key management for team members
-- [ ] Advanced A/B testing for content
-- [ ] Predictive analytics (ML-based trend forecasting)
-- [ ] Shopify/Lazada integration
-- [ ] White-label option for agencies
-- [ ] Mobile native app (React Native)
-- [ ] Real-time WebSocket notifications
-- [ ] Advanced dashboard customization
+- [ ] TikTok Shop Affiliate API integration
+- [ ] Lazada Affiliate Network integration
+- [ ] Shopee Live Dashboard (80% commission products)
+- [ ] Multi-platform commission comparison view
+- [ ] Unified earnings dashboard (all platforms)
+- [ ] Cross-platform product matcher (find same product, pick best commission)
+- [ ] Platform-specific link generation
 
-### v10.0 (Vision) — Intelligence
+### v10.0 (Planned) — AI Superpowers
 
-- [ ] Fully autonomous content scheduling based on AI recommendations
-- [ ] Computer vision for product image analysis
-- [ ] Voice-controlled affiliate management
-- [ ] Cross-platform performance correlation analysis
+- [ ] AI Product Recommender (audience-based suggestions)
+- [ ] AI Video Thumbnail Generator
+- [ ] Smart Commission XTRA Alert Bot (push notifications)
+- [ ] AI A/B Content Testing (3 variants with predicted CTR)
+- [ ] HERMES Proactive Insights (push instead of pull)
+- [ ] AI Audience Analyzer (click data → audience insights)
+- [ ] Auto-Hashtag Optimizer (track performance → suggest optimal mix)
+- [ ] AI Content Calendar Generator (weekly plan based on trends + seasonal)
+
+### v11.0 (Vision) — Monetize & Scale
+
+- [ ] Freemium pricing model with Stripe/payment integration
+- [ ] Affiliate Content Marketplace (buy/sell templates)
+- [ ] Team/Agency multi-user dashboard with role-based access
+- [ ] White-label option for enterprises
+- [ ] API as a Service (developer access)
+- [ ] React Native mobile app
+- [ ] Advanced analytics with predictive forecasting
 - [ ] Automated campaign optimization
-- [ ] Marketplace for affiliate content templates
 
 ---
 
-## 15. Appendix
+## 15. Competitive Analysis
+
+### Market Landscape
+
+> **Key Finding:** NO existing platform combines Shopee-specific integration + AI content generation + Malaysian market optimization + multi-platform support. TheViralFindsMY has a significant first-mover advantage.
+
+### Direct Competitors
+
+| Competitor | Type | Strengths | Weaknesses | Price |
+|-----------|------|-----------|-----------|-------|
+| **Shopee Affiliate Dashboard** (Official) | Platform-native | Official data, real-time, free | No AI, no scheduling, no content gen, basic analytics | Free |
+| **Involve Asia** | Affiliate network | Multi-brand, established in MY | Not Shopee-specific, no AI tools, no content gen, approval required | Free |
+| **ShopBack** | Cashback platform | Large user base, brand trust | User-facing (buyers), not creator tools, no affiliate management | Free |
+
+### Partial Competitors
+
+| Competitor | Overlap | Gap vs Us | Price |
+|-----------|---------|-----------|-------|
+| **Hootsuite** | Social scheduling + analytics | No affiliate tracking, no Shopee, no AI content, no Malaysian focus | USD99-249/mo |
+| **Blaze.ai** | AI content + social media | No Shopee, no affiliate links, no commission tracking, no MY market | USD79-899/mo |
+| **ContentGenerator.io** | AI content automation | No Shopee, no affiliate management, no Malaysian market | USD29-99/mo |
+| **ShopReel AI** | TikTok video automation | TikTok only, no Shopee, no MY market | Freemium |
+| **Affilimate** | Analytics + revenue optimization | No Shopee support, no content gen, no social scheduling | USD99-499/mo |
+| **Tapfiliate** | Affiliate tracking | For merchants (not affiliates), no AI, no content | USD69-249/mo |
+| **Trackdesk** | Click/conversion tracking | For merchants, no AI, no content tools | USD67-327/mo |
+
+### Competitive Advantage Matrix
+
+| Capability | TheViralFindsMY | Shopee Official | Involve Asia | Hootsuite | Blaze.ai | Affilimate |
+|-----------|-----------------|-----------------|--------------|-----------|----------|------------|
+| Shopee API Integration | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| TikTok Shop Integration | 🔄 Planned | ❌ | ❌ | ❌ | ❌ | ❌ |
+| AI Content (Manglish/BM/EN) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Auto-Post Scheduling | ✅ | ❌ | ❌ | ✅ | ✅ | ❌ |
+| Profit Scoring (0-100) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Commission XTRA Finder | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Trend & Competitor Spy | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| HERMES AI Agent | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Video Script Generator | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| TTS Voiceover (BM) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Malaysian Peak Times | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Seasonal Calendar | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Gamification | ✅ | ❌ | Partial | ❌ | ❌ | ❌ |
+| Demo Mode (No API needed) | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Malaysian Market Focus | ✅ | ✅ | Partial | ❌ | ❌ | ❌ |
+
+### Competitive Threats
+
+| Threat | Likelihood | Impact | Mitigation |
+|--------|-----------|--------|------------|
+| Shopee upgrades official dashboard with AI | Medium | High | Move faster, add multi-platform (Shopee can't) |
+| Involve Asia adds Shopee + AI features | Low | High | First-mover advantage, deeper Shopee integration |
+| Global AI tools localise for SEA | Medium | Medium | Malaysian-specific features (Manglish, peak times, Raya) |
+| New startup enters same niche | Low | Medium | Build community, lock in users with HERMES memory |
+
+---
+
+## 16. Improvement Specifications
+
+### 16.1 User Authentication (NextAuth.js)
+
+**Priority:** URGENT | **Fasa:** 1 | **Effort:** Medium
+
+**Problem:** Without authentication, all users share the same data. No security, no multi-user capability, no monetization possible.
+
+**Solution:** Implement NextAuth.js v4 with multiple providers.
+
+**Functional Requirements:**
+
+| ID | Requirement | Priority |
+|----|------------|----------|
+| AUTH-01 | Email/password registration and login | Must |
+| AUTH-02 | Google OAuth login | Must |
+| AUTH-03 | Facebook OAuth login | Should |
+| AUTH-04 | User session management with JWT tokens | Must |
+| AUTH-05 | Protected API routes (middleware) | Must |
+| AUTH-06 | User profile page (name, avatar, Shopee ID) | Must |
+| AUTH-07 | Role-based access (admin, affiliate, viewer) | Should |
+| AUTH-08 | Password reset via email | Could |
+| AUTH-09 | Two-factor authentication | Could |
+| AUTH-10 | Session activity logging | Could |
+
+**Database Changes:**
+- Update `User` model to include `emailVerified`, `image`, `accounts`, `sessions`
+- Add `Account` and `Session` models for NextAuth.js
+
+---
+
+### 16.2 Real Platform API Posting
+
+**Priority:** HIGH | **Fasa:** 1 | **Effort:** Large
+
+**Problem:** Auto-Post currently saves to database but doesn't actually publish to social media platforms.
+
+**Solution:** Implement real API connections for at least Facebook and Instagram, with draft sharing for TikTok.
+
+**Functional Requirements:**
+
+| ID | Requirement | Priority |
+|----|------------|----------|
+| POST-01 | Facebook Graph API integration (Page posting) | Must |
+| POST-02 | Instagram Graph API integration (Business account) | Must |
+| POST-03 | TikTok draft/video upload via API | Should |
+| POST-04 | Twitter/X API v2 posting | Should |
+| POST-05 | YouTube Shorts upload | Could |
+| POST-06 | OAuth connection flow per platform | Must |
+| POST-07 | Platform credential management in Settings | Must |
+| POST-08 | Post status tracking (scheduled → publishing → published/failed) | Must |
+| POST-09 | Retry failed posts (max 3 attempts) | Should |
+| POST-10 | Post analytics after publishing (reach, engagement) | Could |
+
+**Database Changes:**
+- Add `SocialAccount` model (platform, accessToken, refreshToken, expiresAt)
+- Update `ScheduledPost` to include `platformPostIds` (JSON)
+
+---
+
+### 16.3 Real-Time WebSocket Notifications
+
+**Priority:** HIGH | **Fasa:** 1 | **Effort:** Medium
+
+**Problem:** Users don't know about conversions, clicks, or commission changes in real-time.
+
+**Solution:** Socket.io-based notification service with mini-service architecture.
+
+**Functional Requirements:**
+
+| ID | Requirement | Priority |
+|----|------------|----------|
+| WS-01 | Socket.io mini-service on separate port | Must |
+| WS-02 | Real-time conversion alerts | Must |
+| WS-03 | Real-time click notifications | Must |
+| WS-04 | Commission XTRA activation alerts | Should |
+| WS-05 | HERMES insight push notifications | Should |
+| WS-06 | Browser push notification support | Could |
+| WS-07 | Notification sound effects | Could |
+| WS-08 | Connection status indicator in header | Must |
+
+---
+
+### 16.4 TikTok Shop Affiliate API Integration
+
+**Priority:** URGENT | **Fasa:** 2 | **Effort:** Large
+
+**Problem:** TikTok is #1 platform for Malaysian affiliates (highest organic reach), but we don't support it.
+
+**Solution:** Integrate TikTok Shop Affiliate API for product search, link generation, and commission tracking.
+
+**Functional Requirements:**
+
+| ID | Requirement | Priority |
+|----|------------|----------|
+| TTS-01 | TikTok Shop Partner API registration and auth | Must |
+| TTS-02 | Product search via TikTok Shop API | Must |
+| TTS-03 | Affiliate link generation for TikTok Shop | Must |
+| TTS-04 | Commission order tracking | Must |
+| TTS-05 | Cross-platform commission comparison (Shopee vs TikTok) | Must |
+| TTS-06 | TikTok-specific content templates | Should |
+| TTS-07 | TikTok Shop trend monitoring | Should |
+| TTS-08 | TikTok video performance tracking | Could |
+
+**Database Changes:**
+- Add `TikTokShopAccount` model
+- Add `platform` field to `AffiliateLink` (shopee/tiktok/lazada)
+- Add `PlatformEarnings` model for unified dashboard
+
+---
+
+### 16.5 Shopee Live Dashboard
+
+**Priority:** HIGH | **Fasa:** 2 | **Effort:** Large
+
+**Problem:** Shopee Live offers up to 80% commission — the highest earning opportunity — but no tool helps affiliates manage and optimize live sessions.
+
+**Solution:** Dedicated Shopee Live management dashboard.
+
+**Functional Requirements:**
+
+| ID | Requirement | Priority |
+|----|------------|----------|
+| SL-01 | Live session scheduler and countdown | Must |
+| SL-02 | Commission rate display (base + Live bonus) | Must |
+| SL-03 | Product queue management for live sessions | Must |
+| SL-04 | Live script generator (opening, demo, Q&A, flash sale) | Must |
+| SL-05 | Real-time viewer and conversion tracking | Should |
+| SL-06 | Flash sale timer integration | Should |
+| SL-07 | Post-live analytics (viewers, conversions, earnings) | Should |
+| SL-08 | Live session recording and replay | Could |
+
+---
+
+### 16.6 AI Superpowers (Fasa 3)
+
+#### 16.6.1 AI Product Recommender
+
+**Solution:** Based on user's audience profile (age, gender, interests from click data) and past conversion performance, recommend the best products to promote.
+
+**Algorithm:**
+```
+Recommendation Score = Audience_Match (40%) + Commission_Potential (30%) + Trend_Signal (20%) + Competition_Gap (10%)
+
+Where:
+  Audience_Match = similarity(user_audience_profile, product_buyer_profile)
+  Commission_Potential = commission_rate × avg_order_value × conversion_rate
+  Trend_Signal = trending_direction × velocity
+  Competition_Gap = 1 - normalized(number_of_competing_affiliates)
+```
+
+#### 16.6.2 Smart Commission XTRA Alert Bot
+
+**Solution:** Monitor Commission XTRA availability and push alerts to users via WebSocket and email.
+
+**Alert Types:**
+| Alert | Trigger | Channel |
+|-------|---------|---------|
+| XTRA Activated | New Commission XTRA product in user's niche | WebSocket + Email |
+| XTRA Expiring | Commission XTRA ending within 24 hours | WebSocket + Push |
+| High-Value XTRA | Commission XTRA > 30% in user's category | WebSocket + Email + Push |
+| Competitor XTRA | Top competitor promoting XTRA product | WebSocket |
+
+#### 16.6.3 AI A/B Content Testing
+
+**Solution:** Generate 3 content variants and predict performance using historical data.
+
+```
+For each generated content:
+  1. Generate 3 variants (different hooks/CTAs/tone)
+  2. Score each variant using AI (predicted CTR, engagement)
+  3. Present to user with prediction scores
+  4. After posting, track actual performance
+  5. Feed results back to improve prediction model
+```
+
+---
+
+## 17. Monetization Strategy
+
+### Pricing Model: Freemium with Tiered Subscriptions
+
+| Tier | Price (RM/month) | Target Segment | Conversion Rate | Key Value |
+|------|------------------|---------------|-----------------|-----------|
+| **Free** | RM0 | New affiliates, students | 100% (acquisition) | Basic tools to get started |
+| **Pro** | RM49 | Active affiliates | 5-8% of Free | AI content + auto-post + insights |
+| **Business** | RM149 | Agencies, power users | 8-12% of Pro | Multi-platform + team + analytics |
+| **Enterprise** | Custom (RM2,000+) | Brands, networks | Negotiated | White-label + API + SLA |
+
+### Feature Gate Matrix
+
+| Feature | Free | Pro | Business | Enterprise |
+|---------|------|-----|----------|------------|
+| Dashboard & Analytics | ✅ Basic | ✅ Full | ✅ Full | ✅ Full |
+| Product Search | ✅ 50/month | ✅ Unlimited | ✅ Unlimited | ✅ Unlimited |
+| Link Generation | ✅ 20/month | ✅ Unlimited | ✅ Unlimited | ✅ Unlimited |
+| AI Content Generation | ❌ | ✅ 50/month | ✅ Unlimited | ✅ Unlimited |
+| Auto-Post Scheduling | ❌ | ✅ 3 platforms | ✅ All platforms | ✅ All platforms |
+| Profit Scoring | ❌ | ✅ | ✅ | ✅ |
+| Commission XTRA Finder | ❌ | ✅ | ✅ + Alerts | ✅ + Alerts |
+| Trend Spy | ❌ | ✅ | ✅ | ✅ |
+| HERMES AI Chat | ❌ | ✅ 50 msgs/day | ✅ Unlimited | ✅ Custom model |
+| TikTok Shop Integration | ❌ | ❌ | ✅ | ✅ |
+| Team Members | 1 | 1 | 5 | Unlimited |
+| Data Export | ❌ | ✅ CSV | ✅ CSV + PDF | ✅ All formats |
+| API Access | ❌ | ❌ | ❌ | ✅ |
+| White-Label | ❌ | ❌ | ❌ | ✅ |
+| Priority Support | ❌ | ❌ | ✅ | ✅ + SLA |
+
+### Revenue Projections
+
+```
+Year 1 (Conservative):
+  Free Users:     10,000
+  Pro Users:        500 × RM49/mo  = RM24,500/mo → RM294,000/yr
+  Business Users:    50 × RM149/mo = RM7,450/mo  → RM89,400/yr
+  Enterprise:         5 × RM2,000/mo = RM10,000/mo → RM120,000/yr
+  ──────────────────────────────────────────────
+  Total Year 1: ~RM503,400
+
+Year 2 (Growth):
+  Free Users:     25,000
+  Pro Users:      1,500 × RM49/mo  = RM73,500/mo → RM882,000/yr
+  Business Users:   200 × RM149/mo = RM29,800/mo → RM357,600/yr
+  Enterprise:        15 × RM2,000/mo = RM30,000/mo → RM360,000/yr
+  ──────────────────────────────────────────────
+  Total Year 2: ~RM1,599,600
+
+Year 3 (Scale):
+  Free Users:     50,000
+  Pro Users:      3,000 × RM49/mo  = RM147,000/mo → RM1,764,000/yr
+  Business Users:   500 × RM149/mo = RM74,500/mo  → RM894,000/yr
+  Enterprise:        30 × RM2,000/mo = RM60,000/mo → RM720,000/yr
+  ──────────────────────────────────────────────
+  Total Year 3: ~RM3,378,000
+```
+
+### Payment Integration
+
+- **Stripe** for international cards
+- **Billplz** / **SenangPay** for Malaysian bank transfers and FPX
+- **RevenueCat** for mobile in-app purchases (future)
+
+---
+
+## 18. Appendix
 
 ### A. Glossary
 
@@ -1568,6 +1884,6 @@ All promotional planning must account for these Malaysian shopping events:
 ---
 
 <p align="center">
-  <strong>TheViralFindsMY — Product Requirements Document v8.0</strong><br/>
-  <em>Last updated: March 2025</em>
+  <strong>TheViralFindsMY — Product Requirements Document v8.1</strong><br/>
+  <em>Last updated: June 2025</em>
 </p>

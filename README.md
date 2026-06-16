@@ -1,17 +1,18 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/version-8.0-ee4d2d?style=for-the-badge" alt="Version" />
+  <img src="https://img.shields.io/badge/version-8.1-ee4d2d?style=for-the-badge" alt="Version" />
   <img src="https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=next.js" alt="Next.js" />
   <img src="https://img.shields.io/badge/TypeScript-5-3178c6?style=for-the-badge&logo=typescript" alt="TypeScript" />
   <img src="https://img.shields.io/badge/Shopee_Affiliate-Official-ee4d2d?style=for-the-badge" alt="Shopee" />
+  <img src="https://img.shields.io/badge/TikTok_Shop-API-000000?style=for-the-badge&logo=tiktok" alt="TikTok" />
   <img src="https://img.shields.io/badge/HERMES_AI-Agent-8b5cf6?style=for-the-badge" alt="Hermes" />
 </p>
 
 <h1 align="center">TheViralFindsMY</h1>
 
-<h3 align="center">AI-Powered Shopee Affiliate Manager for the Malaysian Market</h3>
+<h3 align="center">AI-Powered Multi-Platform Affiliate Manager for the Malaysian Market</h3>
 
 <p align="center">
-  <em>Discover. Promote. Earn. — Supercharged with HERMES AI Intelligence</em>
+  <em>Discover. Promote. Earn. — Multi-Platform + AI Supercharged with HERMES Intelligence</em>
 </p>
 
 ---
@@ -19,6 +20,7 @@
 ## Table of Contents
 
 - [Overview](#overview)
+- [Competitive Landscape](#competitive-landscape)
 - [Key Features](#key-features)
 - [Architecture](#architecture)
 - [Tech Stack](#tech-stack)
@@ -38,15 +40,16 @@
   - [8. HERMES AI Hub](#8-hermes-ai-hub)
   - [9. Earnings & Payouts](#9-earnings--payouts)
   - [10. Gamification](#10-gamification)
-- [Shopee API Integration](#shopee-api-integration)
-  - [Dual Data Source System](#dual-data-source-system)
-  - [GraphQL Client](#graphql-client)
-  - [Webhook Events](#webhook-events)
-  - [Getting Shopee API Access](#getting-shopee-api-access)
+- [Multi-Platform Integration](#multi-platform-integration)
+  - [Shopee API Integration](#shopee-api-integration)
+  - [TikTok Shop Integration (Planned)](#tiktok-shop-integration-planned)
+  - [Lazada Integration (Planned)](#lazada-integration-planned)
 - [HERMES AI Agent](#hermes-ai-agent)
 - [API Reference](#api-reference)
 - [Database Schema](#database-schema)
 - [Malaysian Market Focus](#malaysian-market-focus)
+- [Improvement Roadmap](#improvement-roadmap)
+- [Monetization Strategy](#monetization-strategy)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -56,16 +59,43 @@
 
 **TheViralFindsMY** is a comprehensive, production-ready Shopee Affiliate management platform built specifically for the Malaysian market. It combines real-time product discovery, AI-powered content creation, intelligent automation, and deep analytics into a single, unified dashboard.
 
-The platform is designed to help Malaysian Shopee affiliates maximize their earnings through:
+The platform is designed to help Malaysian affiliates maximize their earnings through:
 
 - **Smart product discovery** with AI scoring and Commission XTRA detection
 - **Automated content creation** in Manglish, Bahasa Malaysia, and English
 - **Social media scheduling** optimized for Malaysian peak engagement times
 - **Trend monitoring** with competitor intelligence and keyword tracking
 - **HERMES AI Agent** for conversational insights, task automation, and skill management
+- **Multi-platform support** — Shopee, TikTok Shop, Lazada in one dashboard (roadmap)
 
 > **Target Market:** Malaysia (RM currency, Shopee Malaysia, Malaysian consumer behavior)
 > **Language Support:** English, Bahasa Malaysia, Manglish (Malaysian English)
+
+---
+
+## Competitive Landscape
+
+> **Key Finding:** NO existing platform combines Shopee-specific integration + AI content creation + Malaysian market optimization + multi-platform support. TheViralFindsMY has first-mover advantage.
+
+| Competitor | Shopee | AI Content | Multi-Platform | MY Market | All-in-One |
+|-----------|--------|-----------|----------------|-----------|------------|
+| **TheViralFindsMY** | ✅ | ✅ | 🔄 Roadmap | ✅ | ✅ |
+| Shopee Official Dashboard | ✅ | ❌ | ❌ | ✅ | ❌ |
+| Involve Asia | ❌ | ❌ | Partial | Partial | ❌ |
+| ShopBack | ❌ | ❌ | ❌ | ✅ | ❌ |
+| Hootsuite | ❌ | Partial | ✅ | ❌ | ❌ |
+| Blaze.ai | ❌ | ✅ | ✅ | ❌ | ❌ |
+| ContentGenerator.io | ❌ | ✅ | ✅ | ❌ | ❌ |
+| ShopReel AI | ❌ | ✅ | TikTok only | ❌ | ❌ |
+| Affilimate | ❌ | ❌ | ❌ | ❌ | ❌ |
+
+**Our Unique Advantages:**
+1. 🇲🇾 **Malaysian-First** — Only tool 100% focused on Malaysian market (RM, Manglish, peak times, seasonal events)
+2. 🤖 **AI-Native** — Not "add AI" but built AI-first from ground up (content gen, scoring, insights, HERMES)
+3. 🗣️ **Manglish/BM Content** — No other tool generates content in Malaysian languages
+4. 📊 **Profit Scoring** — Proprietary 0-100 scoring algorithm for product profitability
+5. 🎮 **Gamified** — Achievements + leaderboard motivate consistent engagement
+6. 🧠 **HERMES Memory** — AI that remembers preferences and proactively suggests
 
 ---
 
@@ -651,7 +681,9 @@ Referral program management:
 
 ---
 
-## Shopee API Integration
+## Multi-Platform Integration
+
+### Shopee API Integration
 
 ### Dual Data Source System
 
@@ -709,6 +741,26 @@ Webhook verification uses HMAC-SHA256 signature validation.
 5. Enter credentials in **Settings > Shopee Integration**
 
 > **Important:** Shopee Affiliate Open API uses GraphQL specification. You must request access separately — having an App ID/Secret is not sufficient without API platform access.
+
+### TikTok Shop Integration (Planned)
+
+TikTok Shop Affiliate API is now available for developers, opening integration opportunities:
+
+- **Affiliate Product Search** — Browse TikTok Shop affiliate products
+- **Link Generation** — Create TikTok Shop affiliate tracking links
+- **Commission Tracking** — Track earnings across TikTok Shop
+- **Cross-Platform Comparison** — Compare commissions: Shopee vs TikTok Shop vs Lazada
+- **Video Integration** — Connect TikTok content with affiliate performance
+
+> **Status:** Planned for Fasa 2 (Q3 2025). TikTok Shop Partner API documentation available at [TikTok Shop Partner Center](https://partner.tiktokshop.com/)
+
+### Lazada Integration (Planned)
+
+- **Lazada Affiliate Network** — Access Lazada's affiliate product catalog
+- **Commission Comparison** — Find the best commission rates across platforms
+- **Unified Dashboard** — Track all platforms in one view
+
+> **Status:** Planned for Fasa 2 (Q3 2025)
 
 ---
 
@@ -887,6 +939,82 @@ This platform is purpose-built for the Malaysian Shopee affiliate ecosystem:
 
 ---
 
+## Improvement Roadmap
+
+### Fasa 1: Fix & Strengthen Core (Q2 2025)
+
+| # | Improvement | Status | Priority |
+|---|------------|--------|----------|
+| 1.1 | User Authentication (NextAuth.js) | 🔲 Pending | URGENT |
+| 1.2 | Real Platform API Posting (FB/IG/TikTok) | 🔲 Pending | HIGH |
+| 1.3 | Real-Time WebSocket Notifications | 🔲 Pending | HIGH |
+| 1.4 | Mobile UX Polish & PWA Support | 🔲 Pending | MEDIUM |
+| 1.5 | Data Export (CSV/PDF Reports) | 🔲 Pending | MEDIUM |
+| 1.6 | Error Handling & Edge Case Hardening | 🔲 Pending | MEDIUM |
+
+### Fasa 2: Expand Platforms (Q3 2025)
+
+| # | Improvement | Status | Priority |
+|---|------------|--------|----------|
+| 2.1 | TikTok Shop Affiliate API Integration | 🔲 Pending | URGENT |
+| 2.2 | Lazada Affiliate Integration | 🔲 Pending | HIGH |
+| 2.3 | Shopee Live Dashboard (80% commission!) | 🔲 Pending | HIGH |
+| 2.4 | Multi-Platform Commission Comparison | 🔲 Pending | HIGH |
+| 2.5 | Unified Earnings Dashboard (All Platforms) | 🔲 Pending | HIGH |
+| 2.6 | Cross-Platform Product Matcher | 🔲 Pending | MEDIUM |
+
+### Fasa 3: AI Superpowers (Q4 2025)
+
+| # | Improvement | Status | Priority |
+|---|------------|--------|----------|
+| 3.1 | AI Product Recommender (audience-based) | 🔲 Pending | HIGH |
+| 3.2 | AI Video Thumbnail Generator | 🔲 Pending | HIGH |
+| 3.3 | Smart Commission XTRA Alert Bot | 🔲 Pending | HIGH |
+| 3.4 | AI A/B Content Testing (3 variants) | 🔲 Pending | MEDIUM |
+| 3.5 | HERMES Proactive Insights (push, not pull) | 🔲 Pending | MEDIUM |
+| 3.6 | AI Audience Analyzer | 🔲 Pending | MEDIUM |
+| 3.7 | Auto-Hashtag Optimizer | 🔲 Pending | LOW |
+| 3.8 | AI Content Calendar Generator | 🔲 Pending | MEDIUM |
+
+### Fasa 4: Monetize & Scale (Q1 2026)
+
+| # | Improvement | Status | Priority |
+|---|------------|--------|----------|
+| 4.1 | Freemium Pricing Model Implementation | 🔲 Pending | URGENT |
+| 4.2 | Affiliate Content Marketplace | 🔲 Pending | HIGH |
+| 4.3 | Team/Agency Multi-User Dashboard | 🔲 Pending | HIGH |
+| 4.4 | White-Label Option for Enterprises | 🔲 Pending | MEDIUM |
+| 4.5 | API as a Service (Developer Access) | 🔲 Pending | MEDIUM |
+| 4.6 | React Native Mobile App | 🔲 Pending | MEDIUM |
+
+> **Full implementation checklist:** See [CHECKLIST.md](./CHECKLIST.md) for detailed task tracking.
+
+---
+
+## Monetization Strategy
+
+### Pricing Tiers
+
+| Tier | Price | Target | Key Features |
+|------|-------|--------|-------------|
+| **Free** | RM0/month | New affiliates & students | Dashboard, product search, link gen, basic analytics, 5 content/month |
+| **Pro** | RM49/month | Active affiliates | + AI content (50/month), auto-post (3 platforms), profit score, HERMES chat, Commission XTRA finder, trend spy |
+| **Business** | RM149/month | Agencies & power users | + Team (5 users), TikTok Shop integration, all platforms, A/B testing, unlimited content, AI calendar, commission alerts |
+| **Enterprise** | Custom | Large networks & brands | Unlimited team, white-label, API access, custom AI model, priority support, SLA 99.9% |
+
+### Revenue Projection (Conservative)
+
+```
+Free Users:     10,000 (acquisition funnel)
+Pro Users:        500 × RM49  = RM24,500/month
+Business Users:    50 × RM149 = RM7,450/month
+Enterprise:         5 × RM2,000 = RM10,000/month
+─────────────────────────────────────────────
+Total: ~RM42,000/month (RM504K/year)
+```
+
+---
+
 ## License
 
 This project is proprietary software for TheViralFindsMY.
@@ -895,5 +1023,5 @@ This project is proprietary software for TheViralFindsMY.
 
 <p align="center">
   <strong>Built with ❤️ for Malaysian Affiliates</strong><br/>
-  <em>TheViralFindsMY v8.0 — Discover. Promote. Earn.</em>
+  <em>TheViralFindsMY v8.1 — Discover. Promote. Earn. Across Platforms.</em>
 </p>
