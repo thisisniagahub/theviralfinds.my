@@ -27,6 +27,11 @@ import {
   Zap,
   Bot,
   Sparkles,
+  CalendarClock,
+  PenTool,
+  Target,
+  TrendingUp,
+  Film,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -49,6 +54,11 @@ const navItems: NavItem[] = [
   { id: 'calculator', label: 'Calculator', icon: Calculator },
   { id: 'campaigns', label: 'Campaigns', icon: Megaphone },
   { id: 'earnings', label: 'Earnings', icon: Wallet },
+  { id: 'autopost', label: 'Auto Post', icon: CalendarClock, badge: 'NEW', color: 'autopost' },
+  { id: 'content', label: 'AI Content', icon: PenTool, badge: 'AI', color: 'content' },
+  { id: 'trends', label: 'Trend Spy', icon: TrendingUp, badge: 'NEW', color: 'trends' },
+  { id: 'profit', label: 'Profit Optimizer', icon: Target, badge: 'AI', color: 'profit' },
+  { id: 'studio', label: 'Content Studio', icon: Film, badge: 'NEW', color: 'studio' },
   { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
   { id: 'achievements', label: 'Achievements', icon: Award },
   { id: 'referrals', label: 'Referrals', icon: Users },
@@ -86,7 +96,8 @@ export function AppSidebar() {
         {navItems.map((item) => {
           const Icon = item.icon
           const isActive = activePage === item.id
-          const isHermes = item.color === 'hermes'
+          const isSpecial = item.color === 'hermes' || item.color === 'autopost' || item.color === 'content' || item.color === 'trends' || item.color === 'profit' || item.color === 'studio'
+          const specialColor = item.color === 'hermes' ? 'hermes' : item.color === 'autopost' ? 'emerald' : item.color === 'content' ? 'violet' : item.color === 'trends' ? 'amber' : item.color === 'profit' ? 'rose' : item.color === 'studio' ? 'sky' : 'shopee'
           return (
             <button
               key={item.id}
@@ -94,21 +105,21 @@ export function AppSidebar() {
               className={cn(
                 'flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 nav-item-slide relative',
                 isActive
-                  ? isHermes
-                    ? 'bg-hermes/10 text-hermes dark:bg-hermes/20 hermes-glow'
+                  ? isSpecial
+                    ? `bg-${specialColor}/10 text-${specialColor} dark:bg-${specialColor}/20`
                     : 'bg-shopee/10 text-shopee dark:bg-shopee/20 nav-glow'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground'
               )}
             >
               <Icon className={cn(
                 'w-5 h-5 flex-shrink-0',
-                isActive && isHermes ? 'text-hermes' : isActive ? 'text-shopee' : ''
+                isActive && isSpecial ? `text-${specialColor}` : isActive ? 'text-shopee' : ''
               )} />
               {sidebarOpen && <span>{item.label}</span>}
               {sidebarOpen && item.badge && (
                 <Badge variant="secondary" className={cn(
                   'ml-auto text-[10px] px-1.5 py-0 border-0',
-                  isHermes ? 'bg-hermes/10 text-hermes' : 'bg-shopee/10 text-shopee'
+                  isSpecial ? `bg-${specialColor}/10 text-${specialColor}` : 'bg-shopee/10 text-shopee'
                 )}>
                   {item.badge}
                 </Badge>

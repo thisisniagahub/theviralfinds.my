@@ -1,0 +1,1083 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect, useCallback } from 'react'
+     4→import { motion, AnimatePresence } from 'framer-motion'
+     5→import {
+     6→  FileText, Sparkles, Copy, Save, RotateCcw, Pencil, Trash2,
+     7→  Search, Hash, Video, MessageSquare, BookOpen, BarChart3,
+     8→  Zap, Star, Clock, CheckCircle2, Loader2, ArrowRight, X,
+     9→} from 'lucide-react'
+    10→import {
+    11→  Card, CardContent, CardHeader, CardTitle, CardDescription,
+    12→} from '@/components/ui/card'
+    13→import { Button } from '@/components/ui/button'
+    14→import { Badge } from '@/components/ui/badge'
+    15→import { Input } from '@/components/ui/input'
+    16→import { Label } from '@/components/ui/label'
+    17→import { Textarea } from '@/components/ui/textarea'
+    18→import {
+    19→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    20→} from '@/components/ui/select'
+    21→import {
+    22→  Tabs, TabsContent, TabsList, TabsTrigger,
+    23→} from '@/components/ui/tabs'
+    24→import { Separator } from '@/components/ui/separator'
+    25→import { toast } from 'sonner'
+    26→
+    27→// ─── Types ────────────────────────────────────────────────────────────────────
+    28→
+    29→interface GeneratedContent {
+    30→  content: string
+    31→  type: string
+    32→  platform: string
+    33→  language: string
+    34→  tone: string
+    35→  product: string
+    36→  niche: string | null
+    37→}
+    38→
+    39→interface ContentTemplate {
+    40→  id: string
+    41→  name: string
+    42→  description: string
+    43→  category: string
+    44→  type: string
+    45→  platform: string
+    46→  icon: string
+    47→  template: string
+    48→  language: string
+    49→  tone: string
+    50→}
+    51→
+    52→interface LibraryItem {
+    53→  id: string
+    54→  type: string
+    55→  platform: string
+    56→  niche: string | null
+    57→  product: string | null
+    58→  content: string
+    59→  language: string
+    60→  tone: string
+    61→  usageCount: number
+    62→  isFavorite: boolean
+    63→  createdAt: string
+    64→  updatedAt: string
+    65→}
+    66→
+    67→// ─── Constants ────────────────────────────────────────────────────────────────
+    68→
+    69→const CONTENT_TYPES = [
+    70→  { value: 'caption', label: 'Caption', icon: MessageSquare },
+    71→  { value: 'script', label: 'Video Script', icon: Video },
+    72→  { value: 'hashtags', label: 'Hashtags', icon: Hash },
+    73→  { value: 'live_script', label: 'Live Script', icon: Zap },
+    74→  { value: 'review', label: 'Review', icon: BookOpen },
+    75→  { value: 'comparison', label: 'Comparison', icon: BarChart3 },
+    76→] as const
+    77→
+    78→const PLATFORMS = [
+    79→  { value: 'tiktok', label: 'TikTok' },
+    80→  { value: 'instagram', label: 'Instagram' },
+    81→  { value: 'facebook', label: 'Facebook' },
+    82→  { value: 'youtube', label: 'YouTube' },
+    83→  { value: 'shopee_live', label: 'Shopee Live' },
+    84→] as const
+    85→
+    86→const TRENDING_HASHTAGS = [
+    87→  '#RacunShopee', '#Budol', '#SkincareMalaysia', '#ShopeeMY',
+    88→  '#ShopeeHaul', '#AffiliateMalaysia', '#PromosiShopee', '#BudakShopee',
+    89→  '#Shopee11', '#ReviewShopee', '#MustHave', '#WorthIt',
+    90→  '#BarangViral', '#BeliJe', '#TakMenyesal',
+    91→]
+    92→
+    93→// ─── Helpers ──────────────────────────────────────────────────────────────────
+    94→
+    95→const fadeIn = {
+    96→  initial: { opacity: 0, y: 12 },
+    97→  animate: { opacity: 1, y: 0 },
+    98→  transition: { duration: 0.35 },
+    99→}
+   100→
+   101→const typeBadgeColor = (type: string) => {
+   102→  const map: Record<string, string> = {
+   103→    caption: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400',
+   104→    script: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+   105→    hashtags: 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/30 dark:text-fuchsia-400',
+   106→    live_script: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400',
+   107→    review: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+   108→    comparison: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400',
+   109→  }
+   110→  return map[type] || 'bg-muted text-muted-foreground'
+   111→}
+   112→
+   113→const platformBadgeColor = (platform: string) => {
+   114→  const map: Record<string, string> = 'bg-violet-50 text-violet-600 dark:bg-violet-950/30 dark:text-violet-400'
+   115→  return map
+   116→}
+   117→
+   118→const formatDate = (dateStr: string) => {
+   119→  const d = new Date(dateStr)
+   120→  return d.toLocaleDateString('en-MY', { day: '2-digit', month: 'short', year: 'numeric' })
+   121→}
+   122→
+   123→const typeLabel = (type: string) => {
+   124→  const map: Record<string, string> = {
+   125→    caption: 'Caption',
+   126→    script: 'Video Script',
+   127→    hashtags: 'Hashtags',
+   128→    live_script: 'Live Script',
+   129→    review: 'Review',
+   130→    comparison: 'Comparison',
+   131→  }
+   132→  return map[type] || type
+   133→}
+   134→
+   135→// ─── Main Component ──────────────────────────────────────────────────────────
+   136→
+   137→export function ContentPage() {
+   138→  const [activeTab, setActiveTab] = useState('generator')
+   139→
+   140→  return (
+   141→    <motion.div {...fadeIn} className="space-y-6">
+   142→      {/* Page Header */}
+   143→      <div className="flex items-center gap-3">
+   144→        <div className="p-2 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 text-white">
+   145→          <FileText className="w-5 h-5" />
+   146→        </div>
+   147→        <div>
+   148→          <h1 className="text-2xl font-bold text-foreground">Content Studio</h1>
+   149→          <p className="text-sm text-muted-foreground">AI-powered content creation for Malaysian Shopee affiliates</p>
+   150→        </div>
+   151→      </div>
+   152→
+   153→      {/* Tabs */}
+   154→      <Tabs value={activeTab} onValueChange={setActiveTab}>
+   155→        <TabsList className="w-full sm:w-auto">
+   156→          <TabsTrigger value="generator" className="gap-1.5">
+   157→            <Sparkles className="w-3.5 h-3.5" />
+   158→            <span className="hidden sm:inline">Generator</span>
+   159→          </TabsTrigger>
+   160→          <TabsTrigger value="templates" className="gap-1.5">
+   161→            <BookOpen className="w-3.5 h-3.5" />
+   162→            <span className="hidden sm:inline">Templates</span>
+   163→          </TabsTrigger>
+   164→          <TabsTrigger value="library" className="gap-1.5">
+   165→            <FileText className="w-3.5 h-3.5" />
+   166→            <span className="hidden sm:inline">Library</span>
+   167→          </TabsTrigger>
+   168→          <TabsTrigger value="hashtags" className="gap-1.5">
+   169→            <Hash className="w-3.5 h-3.5" />
+   170→            <span className="hidden sm:inline">Hashtags</span>
+   171→          </TabsTrigger>
+   172→        </TabsList>
+   173→
+   174→        <TabsContent value="generator">
+   175→          <GeneratorTab onSwitchToHashtags={() => setActiveTab('hashtags')} />
+   176→        </TabsContent>
+   177→
+   178→        <TabsContent value="templates">
+   179→          <TemplatesTab onUseTemplate={(tpl) => {
+   180→            setActiveTab('generator')
+   181→          }} />
+   182→        </TabsContent>
+   183→
+   184→        <TabsContent value="library">
+   185→          <LibraryTab />
+   186→        </TabsContent>
+   187→
+   188→        <TabsContent value="hashtags">
+   189→          <HashtagsTab />
+   190→        </TabsContent>
+   191→      </Tabs>
+   192→    </motion.div>
+   193→  )
+   194→}
+   195→
+   196→// ─── Generator Tab ────────────────────────────────────────────────────────────
+   197→
+   198→function GeneratorTab({ onSwitchToHashtags }: { onSwitchToHashtags: () => void }) {
+   199→  const [contentType, setContentType] = useState('caption')
+   200→  const [platform, setPlatform] = useState('tiktok')
+   201→  const [product, setProduct] = useState('')
+   202→  const [niche, setNiche] = useState('')
+   203→  const [language, setLanguage] = useState('manglish')
+   204→  const [tone, setTone] = useState('casual')
+   205→  const [isGenerating, setIsGenerating] = useState(false)
+   206→  const [result, setResult] = useState<GeneratedContent | null>(null)
+   207→  const [isEditing, setIsEditing] = useState(false)
+   208→  const [editedContent, setEditedContent] = useState('')
+   209→  const [isSaving, setIsSaving] = useState(false)
+   210→
+   211→  const handleGenerate = useCallback(async () => {
+   212→    if (!product.trim()) {
+   213→      toast.error('Please enter a product name or niche')
+   214→      return
+   215→    }
+   216→
+   217→    setIsGenerating(true)
+   218→    setResult(null)
+   219→    setIsEditing(false)
+   220→
+   221→    try {
+   222→      const res = await fetch('/api/content/generate', {
+   223→        method: 'POST',
+   224→        headers: { 'Content-Type': 'application/json' },
+   225→        body: JSON.stringify({
+   226→          type: contentType,
+   227→          product: product.trim(),
+   228→          niche: niche.trim() || undefined,
+   229→          platform,
+   230→          language,
+   231→          tone,
+   232→        }),
+   233→      })
+   234→
+   235→      if (!res.ok) {
+   236→        const err = await res.json()
+   237→        throw new Error(err.error || 'Generation failed')
+   238→      }
+   239→
+   240→      const data = await res.json()
+   241→      setResult(data)
+   242→      setEditedContent(data.content)
+   243→      toast.success('Content generated successfully!')
+   244→    } catch (err: unknown) {
+   245→      toast.error(err instanceof Error ? err.message : 'Failed to generate content')
+   246→    } finally {
+   247→      setIsGenerating(false)
+   248→    }
+   249→  }, [contentType, product, niche, platform, language, tone])
+   250→
+   251→  const handleCopy = useCallback((text: string) => {
+   252→    navigator.clipboard.writeText(text)
+   253→    toast.success('Copied to clipboard!')
+   254→  }, [])
+   255→
+   256→  const handleSave = useCallback(async () => {
+   257→    if (!result) return
+   258→    setIsSaving(true)
+   259→    try {
+   260→      const res = await fetch('/api/content/library', {
+   261→        method: 'POST',
+   262→        headers: { 'Content-Type': 'application/json' },
+   263→        body: JSON.stringify({
+   264→          type: result.type,
+   265→          platform: result.platform,
+   266→          niche: result.niche,
+   267→          product: result.product,
+   268→          content: isEditing ? editedContent : result.content,
+   269→          language: result.language,
+   270→          tone: result.tone,
+   271→        }),
+   272→      })
+   273→      if (!res.ok) throw new Error('Failed to save')
+   274→      toast.success('Saved to library!')
+   275→    } catch {
+   276→      toast.error('Failed to save to library')
+   277→    } finally {
+   278→      setIsSaving(false)
+   279→    }
+   280→  }, [result, isEditing, editedContent])
+   281→
+   282→  const handleRegenerate = useCallback(() => {
+   283→    handleGenerate()
+   284→  }, [handleGenerate])
+   285→
+   286→  return (
+   287→    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+   288→      {/* Input Form */}
+   289→      <motion.div {...fadeIn} className="lg:col-span-2">
+   290→        <Card className="border-0 shadow-sm">
+   291→          <CardHeader>
+   292→            <CardTitle className="flex items-center gap-2 text-base">
+   293→              <Sparkles className="w-4 h-4 text-violet-500" />
+   294→              AI Content Generator
+   295→            </CardTitle>
+   296→            <CardDescription>Fill in the details and let AI create content for you</CardDescription>
+   297→          </CardHeader>
+   298→          <CardContent className="space-y-5">
+   299→            {/* Content Type */}
+   300→            <div className="space-y-2">
+   301→              <Label className="text-sm font-medium">Content Type</Label>
+   302→              <div className="grid grid-cols-3 gap-2">
+   303→                {CONTENT_TYPES.map((ct) => {
+   304→                  const Icon = ct.icon
+   305→                  return (
+   306→                    <button
+   307→                      key={ct.value}
+   308→                      onClick={() => setContentType(ct.value)}
+   309→                      className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+   310→                        contentType === ct.value
+   311→                          ? 'bg-violet-100 text-violet-700 border-2 border-violet-300 dark:bg-violet-900/30 dark:text-violet-400 dark:border-violet-700'
+   312→                          : 'bg-muted/50 text-muted-foreground border-2 border-transparent hover:bg-muted'
+   313→                      }`}
+   314→                    >
+   315→                      <Icon className="w-3.5 h-3.5" />
+   316→                      {ct.label}
+   317→                    </button>
+   318→                  )
+   319→                })}
+   320→              </div>
+   321→            </div>
+   322→
+   323→            {/* Platform */}
+   324→            <div className="space-y-2">
+   325→              <Label className="text-sm font-medium">Platform</Label>
+   326→              <div className="flex flex-wrap gap-2">
+   327→                {PLATFORMS.map((p) => (
+   328→                  <button
+   329→                    key={p.value}
+   330→                    onClick={() => setPlatform(p.value)}
+   331→                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+   332→                      platform === p.value
+   333→                        ? 'bg-violet-500 text-white shadow-sm'
+   334→                        : 'bg-muted text-muted-foreground hover:bg-muted/80'
+   335→                    }`}
+   336→                  >
+   337→                    {p.label}
+   338→                  </button>
+   339→                ))}
+   340→              </div>
+   341→            </div>
+   342→
+   343→            {/* Product / Niche */}
+   344→            <div className="space-y-2">
+   345→              <Label htmlFor="product" className="text-sm font-medium">Product / Niche</Label>
+   346→              <Input
+   347→                id="product"
+   348→                placeholder="e.g. Korean Skincare Set, Wireless Earbuds"
+   349→                value={product}
+   350→                onChange={(e) => setProduct(e.target.value)}
+   351→              />
+   352→            </div>
+   353→
+   354→            <div className="space-y-2">
+   355→              <Label htmlFor="niche" className="text-sm font-medium">Category (optional)</Label>
+   356→              <Input
+   357→                id="niche"
+   358→                placeholder="e.g. Beauty, Electronics, Fashion"
+   359→                value={niche}
+   360→                onChange={(e) => setNiche(e.target.value)}
+   361→              />
+   362→            </div>
+   363→
+   364→            {/* Language & Tone */}
+   365→            <div className="grid grid-cols-2 gap-3">
+   366→              <div className="space-y-2">
+   367→                <Label className="text-sm font-medium">Language</Label>
+   368→                <Select value={language} onValueChange={setLanguage}>
+   369→                  <SelectTrigger className="w-full">
+   370→                    <SelectValue />
+   371→                  </SelectTrigger>
+   372→                  <SelectContent>
+   373→                    <SelectItem value="en">English</SelectItem>
+   374→                    <SelectItem value="bm">Bahasa Malaysia</SelectItem>
+   375→                    <SelectItem value="mix">Manglish/Mix</SelectItem>
+   376→                  </SelectContent>
+   377→                </Select>
+   378→              </div>
+   379→              <div className="space-y-2">
+   380→                <Label className="text-sm font-medium">Tone</Label>
+   381→                <Select value={tone} onValueChange={setTone}>
+   382→                  <SelectTrigger className="w-full">
+   383→                    <SelectValue />
+   384→                  </SelectTrigger>
+   385→                  <SelectContent>
+   386→                    <SelectItem value="casual">Casual</SelectItem>
+   387→                    <SelectItem value="professional">Professional</SelectItem>
+   388→                    <SelectItem value="excited">Excited</SelectItem>
+   389→                    <SelectItem value="funny">Funny</SelectItem>
+   390→                  </SelectContent>
+   391→                </Select>
+   392→              </div>
+   393→            </div>
+   394→
+   395→            {/* Generate Button */}
+   396→            <Button
+   397→              onClick={handleGenerate}
+   398→              disabled={isGenerating || !product.trim()}
+   399→              className="w-full bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white gap-2"
+   400→            >
+   401→              {isGenerating ? (
+   402→                <>
+   403→                  <Loader2 className="w-4 h-4 animate-spin" />
+   404→                  Generating...
+   405→                </>
+   406→              ) : (
+   407→                <>
+   408→                  <Sparkles className="w-4 h-4" />
+   409→                  Generate with AI ✨
+   410→                </>
+   411→              )}
+   412→            </Button>
+   413→          </CardContent>
+   414→        </Card>
+   415→      </motion.div>
+   416→
+   417→      {/* Result Area */}
+   418→      <motion.div {...fadeIn} className="lg:col-span-3">
+   419→        <Card className="border-0 shadow-sm min-h-[400px]">
+   420→          <CardHeader>
+   421→            <div className="flex items-center justify-between">
+   422→              <CardTitle className="flex items-center gap-2 text-base">
+   423→                <FileText className="w-4 h-4 text-violet-500" />
+   424→                Generated Content
+   425→              </CardTitle>
+   426→              {result && (
+   427→                <div className="flex items-center gap-2">
+   428→                  <Badge variant="secondary" className={typeBadgeColor(result.type)}>
+   429→                    {typeLabel(result.type)}
+   430→                  </Badge>
+   431→                  <Badge variant="outline" className="text-xs capitalize">
+   432→                    {PLATFORMS.find(p => p.value === result.platform)?.label || result.platform}
+   433→                  </Badge>
+   434→                </div>
+   435→              )}
+   436→            </div>
+   437→          </CardHeader>
+   438→          <CardContent>
+   439→            {isGenerating ? (
+   440→              <div className="flex flex-col items-center justify-center py-16">
+   441→                <div className="relative">
+   442→                  <div className="w-16 h-16 rounded-full border-4 border-violet-200 dark:border-violet-800" />
+   443→                  <div className="absolute inset-0 w-16 h-16 rounded-full border-4 border-violet-500 border-t-transparent animate-spin" />
+   444→                </div>
+   445→                <p className="mt-4 text-sm text-muted-foreground">AI is crafting your content...</p>
+   446→              </div>
+   447→            ) : result ? (
+   448→              <div className="space-y-4">
+   449→                {isEditing ? (
+   450→                  <Textarea
+   451→                    value={editedContent}
+   452→                    onChange={(e) => setEditedContent(e.target.value)}
+   453→                    className="min-h-[300px] font-mono text-sm"
+   454→                  />
+   455→                ) : (
+   456→                  <div className="bg-muted/30 rounded-lg p-4 min-h-[300px]">
+   457→                    <pre className="whitespace-pre-wrap text-sm leading-relaxed font-sans">
+   458→                      {result.content}
+   459→                    </pre>
+   460→                  </div>
+   461→                )}
+   462→
+   463→                {/* Action Buttons */}
+   464→                <div className="flex flex-wrap gap-2">
+   465→                  <Button
+   466→                    variant="outline"
+   467→                    size="sm"
+   468→                    className="gap-1.5"
+   469→                    onClick={() => handleCopy(isEditing ? editedContent : result.content)}
+   470→                  >
+   471→                    <Copy className="w-3.5 h-3.5" />
+   472→                    Copy
+   473→                  </Button>
+   474→                  <Button
+   475→                    variant="outline"
+   476→                    size="sm"
+   477→                    className="gap-1.5"
+   478→                    onClick={() => setIsEditing(!isEditing)}
+   479→                  >
+   480→                    <Pencil className="w-3.5 h-3.5" />
+   481→                    {isEditing ? 'Preview' : 'Edit'}
+   482→                  </Button>
+   483→                  <Button
+   484→                    variant="outline"
+   485→                    size="sm"
+   486→                    className="gap-1.5"
+   487→                    onClick={handleRegenerate}
+   488→                    disabled={isGenerating}
+   489→                  >
+   490→                    <RotateCcw className="w-3.5 h-3.5" />
+   491→                    Regenerate
+   492→                  </Button>
+   493→                  <Button
+   494→                    variant="outline"
+   495→                    size="sm"
+   496→                    className="gap-1.5"
+   497→                    onClick={handleSave}
+   498→                    disabled={isSaving}
+   499→                  >
+   500→                    {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+   501→                    Save
+   502→                  </Button>
+   503→                  {contentType !== 'hashtags' && (
+   504→                    <Button
+   505→                      variant="outline"
+   506→                      size="sm"
+   507→                      className="gap-1.5"
+   508→                      onClick={onSwitchToHashtags}
+   509→                    >
+   510→                      <Hash className="w-3.5 h-3.5" />
+   511→                      Get Hashtags
+   512→                    </Button>
+   513→                  )}
+   514→                </div>
+   515→              </div>
+   516→            ) : (
+   517→              <div className="flex flex-col items-center justify-center py-16 text-center">
+   518→                <div className="p-4 rounded-full bg-violet-100 dark:bg-violet-900/30 mb-4">
+   519→                  <Sparkles className="w-8 h-8 text-violet-400" />
+   520→                </div>
+   521→                <h3 className="text-base font-semibold text-foreground mb-1">No content yet</h3>
+   522→                <p className="text-sm text-muted-foreground max-w-sm">
+   523→                  Fill in the form and click &ldquo;Generate with AI&rdquo; to create your content.
+   524→                </p>
+   525→              </div>
+   526→            )}
+   527→          </CardContent>
+   528→        </Card>
+   529→      </motion.div>
+   530→    </div>
+   531→  )
+   532→}
+   533→
+   534→// ─── Templates Tab ────────────────────────────────────────────────────────────
+   535→
+   536→function TemplatesTab({ onUseTemplate }: { onUseTemplate: (tpl: ContentTemplate) => void }) {
+   537→  const [templates, setTemplates] = useState<ContentTemplate[]>([])
+   538→  const [categories, setCategories] = useState<string[]>([])
+   539→  const [loading, setLoading] = useState(true)
+   540→  const [filterCategory, setFilterCategory] = useState('all')
+   541→
+   542→  useEffect(() => {
+   543→    fetchTemplates()
+   544→  }, [])
+   545→
+   546→  const fetchTemplates = async () => {
+   547→    try {
+   548→      const res = await fetch('/api/content/templates')
+   549→      if (!res.ok) throw new Error('Failed to fetch')
+   550→      const data = await res.json()
+   551→      setTemplates(data.templates || [])
+   552→      setCategories(data.categories || [])
+   553→    } catch {
+   554→      toast.error('Failed to load templates')
+   555→    } finally {
+   556→      setLoading(false)
+   557→    }
+   558→  }
+   559→
+   560→  const filtered = filterCategory === 'all'
+   561→    ? templates
+   562→    : templates.filter((t) => t.category === filterCategory)
+   563→
+   564→  const platformIcon = (platform: string) => {
+   565→    const map: Record<string, string> = {
+   566→      tiktok: '🎵',
+   567→      instagram: '📸',
+   568→      facebook: '👤',
+   569→      youtube: '▶️',
+   570→      shopee_live: '🛍️',
+   571→    }
+   572→    return map[platform] || '📱'
+   573→  }
+   574→
+   575→  if (loading) {
+   576→    return (
+   577→      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+   578→        {Array.from({ length: 6 }).map((_, i) => (
+   579→          <Card key={i} className="border-0 shadow-sm">
+   580→            <CardContent className="p-6">
+   581→              <div className="animate-pulse space-y-3">
+   582→                <div className="h-5 bg-muted rounded w-3/4" />
+   583→                <div className="h-4 bg-muted rounded w-full" />
+   584→                <div className="h-4 bg-muted rounded w-2/3" />
+   585→              </div>
+   586→            </CardContent>
+   587→          </Card>
+   588→        ))}
+   589→      </div>
+   590→    )
+   591→  }
+   592→
+   593→  return (
+   594→    <div className="space-y-4">
+   595→      {/* Category Filter */}
+   596→      <div className="flex flex-wrap gap-2">
+   597→        <button
+   598→          onClick={() => setFilterCategory('all')}
+   599→          className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+   600→            filterCategory === 'all'
+   601→              ? 'bg-violet-500 text-white'
+   602→              : 'bg-muted text-muted-foreground hover:bg-muted/80'
+   603→          }`}
+   604→        >
+   605→          All
+   606→        </button>
+   607→        {categories.map((cat) => (
+   608→          <button
+   609→            key={cat}
+   610→            onClick={() => setFilterCategory(cat)}
+   611→            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+   612→              filterCategory === cat
+   613→                ? 'bg-violet-500 text-white'
+   614→                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+   615→            }`}
+   616→          >
+   617→            {cat}
+   618→          </button>
+   619→        ))}
+   620→      </div>
+   621→
+   622→      {/* Template Grid */}
+   623→      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+   624→        {filtered.map((tpl, i) => (
+   625→          <motion.div
+   626→            key={tpl.id}
+   627→            initial={{ opacity: 0, y: 12 }}
+   628→            animate={{ opacity: 1, y: 0 }}
+   629→            transition={{ duration: 0.3, delay: i * 0.05 }}
+   630→          >
+   631→            <Card className="border-0 shadow-sm hover:shadow-md transition-shadow h-full flex flex-col">
+   632→              <CardHeader className="pb-3">
+   633→                <div className="flex items-start justify-between">
+   634→                  <div className="flex items-center gap-2">
+   635→                    <span className="text-2xl">{tpl.icon}</span>
+   636→                    <div>
+   637→                      <CardTitle className="text-sm">{tpl.name}</CardTitle>
+   638→                      <div className="flex items-center gap-1.5 mt-1">
+   639→                        <span className="text-xs">{platformIcon(tpl.platform)}</span>
+   640→                        <Badge variant="secondary" className={typeBadgeColor(tpl.type) + ' text-[10px] px-1.5 py-0'}>
+   641→                          {typeLabel(tpl.type)}
+   642→                        </Badge>
+   643→                      </div>
+   644→                    </div>
+   645→                  </div>
+   646→                </div>
+   647→              </CardHeader>
+   648→              <CardContent className="flex-1 flex flex-col">
+   649→                <p className="text-xs text-muted-foreground leading-relaxed flex-1">
+   650→                  {tpl.description}
+   651→                </p>
+   652→                <Separator className="my-3" />
+   653→                <Button
+   654→                  size="sm"
+   655→                  variant="outline"
+   656→                  className="w-full gap-1.5 text-violet-600 border-violet-200 hover:bg-violet-50 dark:text-violet-400 dark:border-violet-800 dark:hover:bg-violet-950/30"
+   657→                  onClick={() => onUseTemplate(tpl)}
+   658→                >
+   659→                  <ArrowRight className="w-3.5 h-3.5" />
+   660→                  Use Template
+   661→                </Button>
+   662→              </CardContent>
+   663→            </Card>
+   664→          </motion.div>
+   665→        ))}
+   666→      </div>
+   667→    </div>
+   668→  )
+   669→}
+   670→
+   671→// ─── Library Tab ──────────────────────────────────────────────────────────────
+   672→
+   673→function LibraryTab() {
+   674→  const [items, setItems] = useState<LibraryItem[]>([])
+   675→  const [total, setTotal] = useState(0)
+   676→  const [loading, setLoading] = useState(true)
+   677→  const [search, setSearch] = useState('')
+   678→  const [filterType, setFilterType] = useState('all')
+   679→  const [deletingId, setDeletingId] = useState<string | null>(null)
+   680→
+   681→  const fetchLibrary = useCallback(async () => {
+   682→    try {
+   683→      const params = new URLSearchParams()
+   684→      if (search) params.set('search', search)
+   685→      if (filterType !== 'all') params.set('type', filterType)
+   686→
+   687→      const res = await fetch(`/api/content/library?${params}`)
+   688→      if (!res.ok) throw new Error('Failed to fetch')
+   689→      const data = await res.json()
+   690→      setItems(data.items || [])
+   691→      setTotal(data.total || 0)
+   692→    } catch {
+   693→      toast.error('Failed to load library')
+   694→    } finally {
+   695→      setLoading(false)
+   696→    }
+   697→  }, [search, filterType])
+   698→
+   699→  useEffect(() => {
+   700→    fetchLibrary()
+   701→  }, [fetchLibrary])
+   702→
+   703→  const handleCopy = (text: string) => {
+   704→    navigator.clipboard.writeText(text)
+   705→    toast.success('Copied to clipboard!')
+   706→  }
+   707→
+   708→  const handleDelete = async (id: string) => {
+   709→    setDeletingId(id)
+   710→    try {
+   711→      const res = await fetch(`/api/content/library?id=${id}`, { method: 'DELETE' })
+   712→      if (!res.ok) throw new Error('Failed to delete')
+   713→      toast.success('Deleted from library')
+   714→      setItems((prev) => prev.filter((item) => item.id !== id))
+   715→      setTotal((prev) => prev - 1)
+   716→    } catch {
+   717→      toast.error('Failed to delete')
+   718→    } finally {
+   719→      setDeletingId(null)
+   720→    }
+   721→  }
+   722→
+   723→  const handleToggleFavorite = async (id: string, current: boolean) => {
+   724→    try {
+   725→      const res = await fetch('/api/content/library', {
+   726→        method: 'PATCH',
+   727→        headers: { 'Content-Type': 'application/json' },
+   728→        body: JSON.stringify({ id, isFavorite: !current }),
+   729→      })
+   730→      if (!res.ok) throw new Error('Failed to update')
+   731→      setItems((prev) =>
+   732→        prev.map((item) => (item.id === id ? { ...item, isFavorite: !current } : item))
+   733→      )
+   734→      toast.success(current ? 'Removed from favorites' : 'Added to favorites')
+   735→    } catch {
+   736→      toast.error('Failed to update')
+   737→    }
+   738→  }
+   739→
+   740→  return (
+   741→    <div className="space-y-4">
+   742→      {/* Search & Filter */}
+   743→      <div className="flex flex-col sm:flex-row gap-3">
+   744→        <div className="relative flex-1">
+   745→          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+   746→          <Input
+   747→            placeholder="Search content..."
+   748→            value={search}
+   749→            onChange={(e) => setSearch(e.target.value)}
+   750→            className="pl-9"
+   751→          />
+   752→        </div>
+   753→        <Select value={filterType} onValueChange={setFilterType}>
+   754→          <SelectTrigger className="w-full sm:w-[160px]">
+   755→            <SelectValue placeholder="Filter type" />
+   756→          </SelectTrigger>
+   757→          <SelectContent>
+   758→            <SelectItem value="all">All Types</SelectItem>
+   759→            <SelectItem value="caption">Caption</SelectItem>
+   760→            <SelectItem value="script">Video Script</SelectItem>
+   761→            <SelectItem value="hashtags">Hashtags</SelectItem>
+   762→            <SelectItem value="live_script">Live Script</SelectItem>
+   763→            <SelectItem value="review">Review</SelectItem>
+   764→            <SelectItem value="comparison">Comparison</SelectItem>
+   765→          </SelectContent>
+   766→        </Select>
+   767→      </div>
+   768→
+   769→      {/* Stats */}
+   770→      <div className="flex items-center gap-3 text-sm text-muted-foreground">
+   771→        <span>{total} item{total !== 1 ? 's' : ''} in library</span>
+   772→      </div>
+   773→
+   774→      {/* List */}
+   775→      {loading ? (
+   776→        <div className="space-y-3">
+   777→          {Array.from({ length: 4 }).map((_, i) => (
+   778→            <Card key={i} className="border-0 shadow-sm">
+   779→              <CardContent className="p-4">
+   780→                <div className="animate-pulse space-y-2">
+   781→                  <div className="h-4 bg-muted rounded w-1/4" />
+   782→                  <div className="h-4 bg-muted rounded w-3/4" />
+   783→                </div>
+   784→              </CardContent>
+   785→            </Card>
+   786→          ))}
+   787→        </div>
+   788→      ) : items.length === 0 ? (
+   789→        <Card className="border-0 shadow-sm">
+   790→          <CardContent className="py-12 text-center">
+   791→            <FileText className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+   792→            <h3 className="text-sm font-semibold text-foreground mb-1">No content yet</h3>
+   793→            <p className="text-xs text-muted-foreground">
+   794→              Generate content and save it to build your library.
+   795→            </p>
+   796→          </CardContent>
+   797→        </Card>
+   798→      ) : (
+   799→        <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1 scrollbar-thin">
+   800→          {items.map((item, i) => (
+   801→            <motion.div
+   802→              key={item.id}
+   803→              initial={{ opacity: 0, y: 8 }}
+   804→              animate={{ opacity: 1, y: 0 }}
+   805→              transition={{ duration: 0.25, delay: i * 0.03 }}
+   806→            >
+   807→              <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
+   808→                <CardContent className="p-4">
+   809→                  <div className="flex items-start justify-between gap-3">
+   810→                    <div className="flex-1 min-w-0">
+   811→                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+   812→                        <Badge variant="secondary" className={typeBadgeColor(item.type) + ' text-[10px] px-1.5 py-0'}>
+   813→                          {typeLabel(item.type)}
+   814→                        </Badge>
+   815→                        <Badge variant="outline" className="text-[10px] px-1.5 py-0 capitalize">
+   816→                          {PLATFORMS.find(p => p.value === item.platform)?.label || item.platform}
+   817→                        </Badge>
+   818→                        {item.product && (
+   819→                          <span className="text-xs text-muted-foreground truncate max-w-[150px]">
+   820→                            {item.product}
+   821→                          </span>
+   822→                        )}
+   823→                        <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+   824→                          <Clock className="w-3 h-3" />
+   825→                          {formatDate(item.createdAt)}
+   826→                        </span>
+   827→                        {item.isFavorite && (
+   828→                          <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
+   829→                        )}
+   830→                      </div>
+   831→                      <p className="text-sm text-foreground/80 line-clamp-2 leading-relaxed">
+   832→                        {item.content}
+   833→                      </p>
+   834→                    </div>
+   835→                    <div className="flex items-center gap-1 flex-shrink-0">
+   836→                      <button
+   837→                        onClick={() => handleToggleFavorite(item.id, item.isFavorite)}
+   838→                        className="p-1.5 rounded-md hover:bg-muted transition-colors"
+   839→                        aria-label={item.isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+   840→                      >
+   841→                        <Star className={`w-3.5 h-3.5 ${item.isFavorite ? 'text-amber-500 fill-amber-500' : 'text-muted-foreground'}`} />
+   842→                      </button>
+   843→                      <button
+   844→                        onClick={() => handleCopy(item.content)}
+   845→                        className="p-1.5 rounded-md hover:bg-muted transition-colors"
+   846→                        aria-label="Copy content"
+   847→                      >
+   848→                        <Copy className="w-3.5 h-3.5 text-muted-foreground" />
+   849→                      </button>
+   850→                      <button
+   851→                        onClick={() => handleDelete(item.id)}
+   852→                        disabled={deletingId === item.id}
+   853→                        className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+   854→                        aria-label="Delete content"
+   855→                      >
+   856→                        {deletingId === item.id ? (
+   857→                          <Loader2 className="w-3.5 h-3.5 text-red-500 animate-spin" />
+   858→                        ) : (
+   859→                          <Trash2 className="w-3.5 h-3.5 text-red-400" />
+   860→                        )}
+   861→                      </button>
+   862→                    </div>
+   863→                  </div>
+   864→                </CardContent>
+   865→              </Card>
+   866→            </motion.div>
+   867→          ))}
+   868→        </div>
+   869→      )}
+   870→    </div>
+   871→  )
+   872→}
+   873→
+   874→// ─── Hashtags Tab ─────────────────────────────────────────────────────────────
+   875→
+   876→function HashtagsTab() {
+   877→  const [keyword, setKeyword] = useState('')
+   878→  const [isGenerating, setIsGenerating] = useState(false)
+   879→  const [hashtags, setHashtags] = useState<string[]>([])
+   880→  const [copied, setCopied] = useState(false)
+   881→
+   882→  const handleGenerate = async () => {
+   883→    if (!keyword.trim()) {
+   884→      toast.error('Please enter a keyword or product name')
+   885→      return
+   886→    }
+   887→
+   888→    setIsGenerating(true)
+   889→    setHashtags([])
+   890→
+   891→    try {
+   892→      const res = await fetch('/api/content/generate', {
+   893→        method: 'POST',
+   894→        headers: { 'Content-Type': 'application/json' },
+   895→        body: JSON.stringify({
+   896→          type: 'hashtags',
+   897→          product: keyword.trim(),
+   898→          platform: 'tiktok',
+   899→          language: 'mix',
+   900→          tone: 'casual',
+   901→        }),
+   902→      })
+   903→
+   904→      if (!res.ok) throw new Error('Failed to generate hashtags')
+   905→      const data = await res.json()
+   906→
+   907→      // Parse hashtags from the content
+   908→      const tags = data.content
+   909→        .split('\n')
+   910→        .map((line: string) => line.trim())
+   911→        .filter((line: string) => line.startsWith('#'))
+   912→        .map((tag: string) => tag.replace(/[#\s]/g, '').trim())
+   913→        .filter(Boolean)
+   914→
+   915→      setHashtags(tags.length > 0 ? tags : data.content.split(/[\s,]+/).filter((t: string) => t.startsWith('#')))
+   916→      toast.success(`Generated ${tags.length} hashtags!`)
+   917→    } catch {
+   918→      toast.error('Failed to generate hashtags')
+   919→    } finally {
+   920→      setIsGenerating(false)
+   921→    }
+   922→  }
+   923→
+   924→  const handleCopyAll = () => {
+   925→    const allTags = hashtags.map(t => `#${t}`).join(' ')
+   926→    navigator.clipboard.writeText(allTags)
+   927→    setCopied(true)
+   928→    toast.success('All hashtags copied!')
+   929→    setTimeout(() => setCopied(false), 2000)
+   930→  }
+   931→
+   932→  const handleCopyTrending = () => {
+   933→    navigator.clipboard.writeText(TRENDING_HASHTAGS.join(' '))
+   934→    toast.success('Trending hashtags copied!')
+   935→  }
+   936→
+   937→  const handleCopySingle = (tag: string) => {
+   938→    navigator.clipboard.writeText(`#${tag}`)
+   939→    toast.success(`Copied #${tag}`)
+   940→  }
+   941→
+   942→  return (
+   943→    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+   944→      {/* Generate Hashtags */}
+   945→      <motion.div {...fadeIn}>
+   946→        <Card className="border-0 shadow-sm">
+   947→          <CardHeader>
+   948→            <CardTitle className="flex items-center gap-2 text-base">
+   949→              <Hash className="w-4 h-4 text-violet-500" />
+   950→              Generate Hashtags
+   951→            </CardTitle>
+   952→            <CardDescription>Enter a keyword or product to get AI-generated hashtags</CardDescription>
+   953→          </CardHeader>
+   954→          <CardContent className="space-y-4">
+   955→            <div className="flex gap-2">
+   956→              <div className="relative flex-1">
+   957→                <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+   958→                <Input
+   959→                  placeholder="e.g. skincare, earbuds, baju kurung"
+   960→                  value={keyword}
+   961→                  onChange={(e) => setKeyword(e.target.value)}
+   962→                  className="pl-9"
+   963→                  onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
+   964→                />
+   965→              </div>
+   966→              <Button
+   967→                onClick={handleGenerate}
+   968→                disabled={isGenerating || !keyword.trim()}
+   969→                className="bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white gap-1.5"
+   970→              >
+   971→                {isGenerating ? (
+   972→                  <Loader2 className="w-4 h-4 animate-spin" />
+   973→                ) : (
+   974→                  <Sparkles className="w-4 h-4" />
+   975→                )}
+   976→                Generate
+   977→              </Button>
+   978→            </div>
+   979→
+   980→            {isGenerating && (
+   981→              <div className="flex items-center justify-center py-8">
+   982→                <div className="relative">
+   983→                  <div className="w-12 h-12 rounded-full border-4 border-violet-200 dark:border-violet-800" />
+   984→                  <div className="absolute inset-0 w-12 h-12 rounded-full border-4 border-violet-500 border-t-transparent animate-spin" />
+   985→                </div>
+   986→              </div>
+   987→            )}
+   988→
+   989→            {hashtags.length > 0 && !isGenerating && (
+   990→              <motion.div
+   991→                initial={{ opacity: 0, y: 8 }}
+   992→                animate={{ opacity: 1, y: 0 }}
+   993→                className="space-y-3"
+   994→              >
+   995→                <div className="flex items-center justify-between">
+   996→                  <span className="text-sm font-medium">{hashtags.length} hashtags generated</span>
+   997→                  <Button
+   998→                    variant="outline"
+   999→                    size="sm"
+  1000→                    className="gap-1.5"
+  1001→                    onClick={handleCopyAll}
+  1002→                  >
+  1003→                    {copied ? <CheckCircle2 className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+  1004→                    Copy All
+  1005→                  </Button>
+  1006→                </div>
+  1007→                <div className="flex flex-wrap gap-2">
+  1008→                  {hashtags.map((tag, i) => (
+  1009→                    <motion.button
+  1010→                      key={tag}
+  1011→                      initial={{ opacity: 0, scale: 0.8 }}
+  1012→                      animate={{ opacity: 1, scale: 1 }}
+  1013→                      transition={{ duration: 0.2, delay: i * 0.02 }}
+  1014→                      onClick={() => handleCopySingle(tag)}
+  1015→                      className="px-2.5 py-1 rounded-full text-xs font-medium bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400 hover:bg-violet-200 dark:hover:bg-violet-900/50 transition-colors cursor-pointer"
+  1016→                    >
+  1017→                      #{tag}
+  1018→                    </motion.button>
+  1019→                  ))}
+  1020→                </div>
+  1021→              </motion.div>
+  1022→            )}
+  1023→          </CardContent>
+  1024→        </Card>
+  1025→      </motion.div>
+  1026→
+  1027→      {/* Trending Malaysian Hashtags */}
+  1028→      <motion.div {...fadeIn}>
+  1029→        <Card className="border-0 shadow-sm">
+  1030→          <CardHeader>
+  1031→            <CardTitle className="flex items-center gap-2 text-base">
+  1032→              <Zap className="w-4 h-4 text-amber-500" />
+  1033→              Trending Malaysian Hashtags
+  1034→            </CardTitle>
+  1035→            <CardDescription>Popular hashtags for Malaysian Shopee affiliates</CardDescription>
+  1036→          </CardHeader>
+  1037→          <CardContent className="space-y-4">
+  1038→            <div className="flex flex-wrap gap-2">
+  1039→              {TRENDING_HASHTAGS.map((tag, i) => (
+  1040→                <motion.button
+  1041→                  key={tag}
+  1042→                  initial={{ opacity: 0, scale: 0.8 }}
+  1043→                  animate={{ opacity: 1, scale: 1 }}
+  1044→                  transition={{ duration: 0.2, delay: i * 0.02 }}
+  1045→                  onClick={() => {
+  1046→                    navigator.clipboard.writeText(tag)
+  1047→                    toast.success(`Copied ${tag}`)
+  1048→                  }}
+  1049→                  className="px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors cursor-pointer"
+  1050→                >
+  1051→                  {tag}
+  1052→                </motion.button>
+  1053→              ))}
+  1054→            </div>
+  1055→            <Separator />
+  1056→            <Button
+  1057→              variant="outline"
+  1058→              size="sm"
+  1059→              className="w-full gap-1.5"
+  1060→              onClick={handleCopyTrending}
+  1061→            >
+  1062→              <Copy className="w-3.5 h-3.5" />
+  1063→              Copy All Trending Hashtags
+  1064→            </Button>
+  1065→
+  1066→            {/* Hashtag Tips */}
+  1067→            <div className="bg-violet-50 dark:bg-violet-950/20 rounded-lg p-4 space-y-2">
+  1068→              <h4 className="text-xs font-semibold text-violet-700 dark:text-violet-400">💡 Hashtag Tips</h4>
+  1069→              <ul className="text-xs text-muted-foreground space-y-1">
+  1070→                <li>• Use 15-25 hashtags per post for maximum reach</li>
+  1071→                <li>• Mix trending + niche-specific + product hashtags</li>
+  1072→                <li>• Always include #ad or #promosi for disclosure</li>
+  1073→                <li>• Malaysian audiences engage more with Manglish captions</li>
+  1074→                <li>• Post during peak hours: 12-2pm & 8-11pm MYT</li>
+  1075→              </ul>
+  1076→            </div>
+  1077→          </CardContent>
+  1078→        </Card>
+  1079→      </motion.div>
+  1080→    </div>
+  1081→  )
+  1082→}
+  1083→

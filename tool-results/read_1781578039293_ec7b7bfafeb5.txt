@@ -1,0 +1,1318 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect, useCallback } from 'react'
+     4→import { motion, AnimatePresence } from 'framer-motion'
+     5→import {
+     6→  Megaphone, Calendar, Clock, Send, Plus, Trash2, Edit3,
+     7→  Play, CheckCircle2, XCircle, AlertCircle, Sparkles, Hash,
+     8→  ImagePlus, Link2, ChevronLeft, ChevronRight, Zap,
+     9→  Video, Camera, MessageCircle, Tv, Twitter,
+    10→  TrendingUp, BarChart3, Timer, Globe2,
+    11→} from 'lucide-react'
+    12→import {
+    13→  Card, CardContent, CardHeader, CardTitle, CardDescription,
+    14→} from '@/components/ui/card'
+    15→import { Button } from '@/components/ui/button'
+    16→import { Input } from '@/components/ui/input'
+    17→import { Textarea } from '@/components/ui/textarea'
+    18→import { Label } from '@/components/ui/label'
+    19→import { Badge } from '@/components/ui/badge'
+    20→import { Switch } from '@/components/ui/switch'
+    21→import { Separator } from '@/components/ui/separator'
+    22→import {
+    23→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    24→} from '@/components/ui/select'
+    25→import {
+    26→  Tabs, TabsList, TabsTrigger, TabsContent,
+    27→} from '@/components/ui/tabs'
+    28→import { cn } from '@/lib/utils'
+    29→import { toast } from 'sonner'
+    30→
+    31→// ─── Types ───────────────────────────────────────────────────────────────────
+    32→
+    33→interface ScheduledPost {
+    34→  id: string
+    35→  caption: string
+    36→  platforms: string[]
+    37→  productUrl: string | null
+    38→  affiliateLink: string | null
+    39→  imageUrl: string | null
+    40→  hashtags: string[]
+    41→  status: 'scheduled' | 'publishing' | 'published' | 'failed'
+    42→  scheduledAt: string
+    43→  publishedAt: string | null
+    44→  result: Record<string, unknown> | null
+    45→  createdAt: string
+    46→  updatedAt: string
+    47→}
+    48→
+    49→interface PlatformInfo {
+    50→  name: string
+    51→  color: string
+    52→  icon: string
+    53→  characterLimit: number
+    54→  bestDays: string[]
+    55→  timeSlots: { start: number; end: number; label: string; engagement: number }[]
+    56→}
+    57→
+    58→interface SuggestedTime {
+    59→  date: string
+    60→  time: string
+    61→  datetime: string
+    62→  reason: string
+    63→}
+    64→
+    65→interface PlatformSuggestion {
+    66→  platform: string
+    67→  name: string
+    68→  color: string
+    69→  suggestedTimes: SuggestedTime[]
+    70→}
+    71→
+    72→// ─── Constants ───────────────────────────────────────────────────────────────
+    73→
+    74→const PLATFORMS = [
+    75→  { key: 'tiktok', name: 'TikTok', color: '#FF0050', bgColor: 'bg-pink-500', icon: Video, charLimit: 2200 },
+    76→  { key: 'instagram', name: 'Instagram', color: '#E4405F', bgColor: 'bg-purple-500', icon: Camera, charLimit: 2200 },
+    77→  { key: 'facebook', name: 'Facebook', color: '#1877F2', bgColor: 'bg-blue-500', icon: MessageCircle, charLimit: 63206 },
+    78→  { key: 'youtube', name: 'YouTube', color: '#FF0000', bgColor: 'bg-red-500', icon: Tv, charLimit: 5000 },
+    79→  { key: 'twitter', name: 'Twitter/X', color: '#0EA5E9', bgColor: 'bg-sky-500', icon: Twitter, charLimit: 280 },
+    80→]
+    81→
+    82→const STATUS_CONFIG = {
+    83→  scheduled: { label: 'Scheduled', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400', icon: Clock },
+    84→  publishing: { label: 'Publishing', color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400', icon: Zap },
+    85→  published: { label: 'Published', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400', icon: CheckCircle2 },
+    86→  failed: { label: 'Failed', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400', icon: XCircle },
+    87→}
+    88→
+    89→const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    90→const HOURS = Array.from({ length: 24 }, (_, i) => i)
+    91→
+    92→// ─── Helper Functions ────────────────────────────────────────────────────────
+    93→
+    94→function formatMYT(dateStr: string) {
+    95→  const d = new Date(dateStr)
+    96→  return d.toLocaleString('en-MY', {
+    97→    timeZone: 'Asia/Kuala_Lumpur',
+    98→    day: 'numeric',
+    99→    month: 'short',
+   100→    year: 'numeric',
+   101→    hour: '2-digit',
+   102→    minute: '2-digit',
+   103→    hour12: true,
+   104→  })
+   105→}
+   106→
+   107→function getDayOfWeek(dateStr: string) {
+   108→  return new Date(dateStr).toLocaleDateString('en-US', { timeZone: 'Asia/Kuala_Lumpur', weekday: 'short' })
+   109→}
+   110→
+   111→function getPlatformColor(key: string) {
+   112→  return PLATFORMS.find(p => p.key === key)?.color || '#888'
+   113→}
+   114→
+   115→function getPlatformBgClass(key: string) {
+   116→  return PLATFORMS.find(p => p.key === key)?.bgColor || 'bg-gray-500'
+   117→}
+   118→
+   119→function getPlatformIcon(key: string) {
+   120→  const p = PLATFORMS.find(p => p.key === key)
+   121→  return p ? p.icon : MessageCircle
+   122→}
+   123→
+   124→function getMinCharLimit(platforms: string[]) {
+   125→  if (platforms.length === 0) return 2200
+   126→  return Math.min(...platforms.map(p => PLATFORMS.find(pl => pl.key === p)?.charLimit || 2200))
+   127→}
+   128→
+   129→// ─── Main Component ──────────────────────────────────────────────────────────
+   130→
+   131→export function AutopostPage() {
+   132→  const [posts, setPosts] = useState<ScheduledPost[]>([])
+   133→  const [platformsData, setPlatformsData] = useState<Record<string, PlatformInfo>>({})
+   134→  const [suggestions, setSuggestions] = useState<Record<string, PlatformSuggestion>>({})
+   135→  const [heatmapData, setHeatmapData] = useState<Record<string, { hour: number; engagement: number }[]>>({})
+   136→  const [loading, setLoading] = useState(true)
+   137→  const [activeTab, setActiveTab] = useState('create')
+   138→
+   139→  // Quick Post form state
+   140→  const [caption, setCaption] = useState('')
+   141→  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([])
+   142→  const [productUrl, setProductUrl] = useState('')
+   143→  const [affiliateLink, setAffiliateLink] = useState('')
+   144→  const [imageUrl, setImageUrl] = useState('')
+   145→  const [hashtags, setHashtags] = useState<string[]>([])
+   146→  const [hashtagInput, setHashtagInput] = useState('')
+   147→  const [scheduledAt, setScheduledAt] = useState('')
+   148→  const [isPosting, setIsPosting] = useState(false)
+   149→  const [generatingLink, setGeneratingLink] = useState(false)
+   150→
+   151→  // Calendar state
+   152→  const [calendarWeekOffset, setCalendarWeekOffset] = useState(0)
+   153→
+   154→  // Filter state
+   155→  const [statusFilter, setStatusFilter] = useState<string>('all')
+   156→
+   157→  // Analytics state
+   158→  const [analytics, setAnalytics] = useState({
+   159→    totalPublished: 0,
+   160→    thisWeek: 0,
+   161→    thisMonth: 0,
+   162→    platformBreakdown: {} as Record<string, number>,
+   163→    bestTimeSlot: '',
+   164→  })
+   165→
+   166→  // Fetch data
+   167→  const fetchPosts = useCallback(async () => {
+   168→    try {
+   169→      const params = new URLSearchParams()
+   170→      if (statusFilter && statusFilter !== 'all') params.set('status', statusFilter)
+   171→      params.set('limit', '50')
+   172→      const res = await fetch(`/api/autopost?${params}`)
+   173→      if (res.ok) {
+   174→        const data = await res.json()
+   175→        setPosts(data.posts || [])
+   176→        // Calculate analytics
+   177→        const published = (data.posts || []).filter((p: ScheduledPost) => p.status === 'published')
+   178→        const now = new Date()
+   179→        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+   180→        const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+   181→
+   182→        const thisWeek = published.filter((p: ScheduledPost) => new Date(p.publishedAt || p.scheduledAt) >= weekAgo)
+   183→        const thisMonth = published.filter((p: ScheduledPost) => new Date(p.publishedAt || p.scheduledAt) >= monthAgo)
+   184→
+   185→        const breakdown: Record<string, number> = {}
+   186→        published.forEach((p: ScheduledPost) => {
+   187→          p.platforms.forEach(pl => { breakdown[pl] = (breakdown[pl] || 0) + 1 })
+   188→        })
+   189→
+   190→        // Find best time slot
+   191→        const hourCounts: Record<number, number> = {}
+   192→        published.forEach((p: ScheduledPost) => {
+   193→          const hour = new Date(p.publishedAt || p.scheduledAt).getHours()
+   194→          hourCounts[hour] = (hourCounts[hour] || 0) + 1
+   195→        })
+   196→        const bestHour = Object.entries(hourCounts).sort(([, a], [, b]) => b - a)[0]
+   197→        const bestTimeSlot = bestHour ? `${parseInt(bestHour[0]).toString().padStart(2, '0')}:00 - ${(parseInt(bestHour[0]) + 1).toString().padStart(2, '0')}:00 MYT` : 'No data yet'
+   198→
+   199→        setAnalytics({
+   200→          totalPublished: published.length,
+   201→          thisWeek: thisWeek.length,
+   202→          thisMonth: thisMonth.length,
+   203→          platformBreakdown: breakdown,
+   204→          bestTimeSlot,
+   205→        })
+   206→      }
+   207→    } catch {
+   208→      // silently fail
+   209→    }
+   210→  }, [statusFilter])
+   211→
+   212→  const fetchSuggestTimes = useCallback(async () => {
+   213→    try {
+   214→      const res = await fetch('/api/autopost/suggest-times')
+   215→      if (res.ok) {
+   216→        const data = await res.json()
+   217→        setPlatformsData(data.platforms || {})
+   218→        setSuggestions(data.suggestions || {})
+   219→        setHeatmapData(data.heatmap || {})
+   220→      }
+   221→    } catch {
+   222→      // silently fail
+   223→    }
+   224→  }, [])
+   225→
+   226→  useEffect(() => {
+   227→    const load = async () => {
+   228→      setLoading(true)
+   229→      await Promise.all([fetchPosts(), fetchSuggestTimes()])
+   230→      setLoading(false)
+   231→    }
+   232→    load()
+   233→  }, [fetchPosts, fetchSuggestTimes])
+   234→
+   235→  // ─── Handlers ───────────────────────────────────────────────────────────────
+   236→
+   237→  const togglePlatform = (key: string) => {
+   238→    setSelectedPlatforms(prev =>
+   239→      prev.includes(key) ? prev.filter(p => p !== key) : [...prev, key]
+   240→    )
+   241→  }
+   242→
+   243→  const generateAffiliateLink = async () => {
+   244→    if (!productUrl.trim()) return
+   245→    setGeneratingLink(true)
+   246→    try {
+   247→      const res = await fetch('/api/shopee/generate-link', {
+   248→        method: 'POST',
+   249→        headers: { 'Content-Type': 'application/json' },
+   250→        body: JSON.stringify({ productUrl: productUrl.trim() }),
+   251→      })
+   252→      if (res.ok) {
+   253→        const data = await res.json()
+   254→        if (data.link?.generateUrl) {
+   255→          setAffiliateLink(data.link.generateUrl)
+   256→          toast.success('Affiliate link generated!')
+   257→        } else {
+   258→          toast.info('Demo link generated')
+   259→          setAffiliateLink(`https://shopee.com.my/p/${Date.now()}`)
+   260→        }
+   261→      } else {
+   262→        toast.error('Failed to generate affiliate link')
+   263→      }
+   264→    } catch {
+   265→      toast.error('Failed to generate affiliate link')
+   266→    } finally {
+   267→      setGeneratingLink(false)
+   268→    }
+   269→  }
+   270→
+   271→  const generateHashtags = () => {
+   272→    if (!caption.trim()) {
+   273→      toast.info('Write a caption first to get hashtag suggestions')
+   274→      return
+   275→    }
+   276→    const words = caption.toLowerCase().split(/\s+/).filter(w => w.length > 3)
+   277→    const malaysianTags = ['#shopeemalaysia', '#shopeeaffiliate', '#viralfindsmy', '#bajumurah', '#bestdealmy']
+   278→    const productTags = words.slice(0, 5).map(w => `#${w.replace(/[^a-z0-9]/g, '')}`)
+   279→    const allTags = [...new Set([...malaysianTags, ...productTags, '#fyp', '#trending'])]
+   280→    setHashtags(allTags.slice(0, 10))
+   281→    toast.success('Hashtags generated!')
+   282→  }
+   283→
+   284→  const addHashtag = () => {
+   285→    const tag = hashtagInput.trim().replace(/^#/, '')
+   286→    if (tag && !hashtags.includes(`#${tag}`)) {
+   287→      setHashtags(prev => [...prev, `#${tag}`])
+   288→      setHashtagInput('')
+   289→    }
+   290→  }
+   291→
+   292→  const removeHashtag = (tag: string) => {
+   293→    setHashtags(prev => prev.filter(t => t !== tag))
+   294→  }
+   295→
+   296→  const handlePostNow = async () => {
+   297→    if (!caption.trim() || selectedPlatforms.length === 0) {
+   298→      toast.error('Please add a caption and select at least one platform')
+   299→      return
+   300→    }
+   301→    setIsPosting(true)
+   302→    try {
+   303→      const now = new Date()
+   304→      const res = await fetch('/api/autopost', {
+   305→        method: 'POST',
+   306→        headers: { 'Content-Type': 'application/json' },
+   307→        body: JSON.stringify({
+   308→          caption,
+   309→          platforms: selectedPlatforms,
+   310→          scheduledAt: now.toISOString(),
+   311→          productUrl: productUrl || undefined,
+   312→          affiliateLink: affiliateLink || undefined,
+   313→          imageUrl: imageUrl || undefined,
+   314→          hashtags: hashtags.length > 0 ? hashtags : undefined,
+   315→        }),
+   316→      })
+   317→      if (res.ok) {
+   318→        const post = await res.json()
+   319→        // Mark as published immediately
+   320→        await fetch(`/api/autopost/${post.id}`, {
+   321→          method: 'PATCH',
+   322→          headers: { 'Content-Type': 'application/json' },
+   323→          body: JSON.stringify({ status: 'published' }),
+   324→        })
+   325→        toast.success('Post published!', { description: `Published to ${selectedPlatforms.join(', ')}` })
+   326→        resetForm()
+   327→        fetchPosts()
+   328→      } else {
+   329→        toast.error('Failed to create post')
+   330→      }
+   331→    } catch {
+   332→      toast.error('Failed to publish post')
+   333→    } finally {
+   334→      setIsPosting(false)
+   335→    }
+   336→  }
+   337→
+   338→  const handleSchedule = async () => {
+   339→    if (!caption.trim() || selectedPlatforms.length === 0) {
+   340→      toast.error('Please add a caption and select at least one platform')
+   341→      return
+   342→    }
+   343→    if (!scheduledAt) {
+   344→      toast.error('Please select a date and time to schedule')
+   345→      return
+   346→    }
+   347→    setIsPosting(true)
+   348→    try {
+   349→      const res = await fetch('/api/autopost', {
+   350→        method: 'POST',
+   351→        headers: { 'Content-Type': 'application/json' },
+   352→        body: JSON.stringify({
+   353→          caption,
+   354→          platforms: selectedPlatforms,
+   355→          scheduledAt: new Date(scheduledAt).toISOString(),
+   356→          productUrl: productUrl || undefined,
+   357→          affiliateLink: affiliateLink || undefined,
+   358→          imageUrl: imageUrl || undefined,
+   359→          hashtags: hashtags.length > 0 ? hashtags : undefined,
+   360→        }),
+   361→      })
+   362→      if (res.ok) {
+   363→        toast.success('Post scheduled!', { description: `Scheduled for ${formatMYT(scheduledAt)}` })
+   364→        resetForm()
+   365→        fetchPosts()
+   366→        setActiveTab('queue')
+   367→      } else {
+   368→        toast.error('Failed to schedule post')
+   369→      }
+   370→    } catch {
+   371→      toast.error('Failed to schedule post')
+   372→    } finally {
+   373→      setIsPosting(false)
+   374→    }
+   375→  }
+   376→
+   377→  const handleDeletePost = async (id: string) => {
+   378→    try {
+   379→      const res = await fetch(`/api/autopost/${id}`, { method: 'DELETE' })
+   380→      if (res.ok) {
+   381→        toast.success('Post deleted')
+   382→        fetchPosts()
+   383→      }
+   384→    } catch {
+   385→      toast.error('Failed to delete post')
+   386→    }
+   387→  }
+   388→
+   389→  const handlePostNowFromQueue = async (post: ScheduledPost) => {
+   390→    try {
+   391→      const res = await fetch(`/api/autopost/${post.id}`, {
+   392→        method: 'PATCH',
+   393→        headers: { 'Content-Type': 'application/json' },
+   394→        body: JSON.stringify({ status: 'published', scheduledAt: new Date().toISOString() }),
+   395→      })
+   396→      if (res.ok) {
+   397→        toast.success('Post published!')
+   398→        fetchPosts()
+   399→      }
+   400→    } catch {
+   401→      toast.error('Failed to publish post')
+   402→    }
+   403→  }
+   404→
+   405→  const resetForm = () => {
+   406→    setCaption('')
+   407→    setSelectedPlatforms([])
+   408→    setProductUrl('')
+   409→    setAffiliateLink('')
+   410→    setImageUrl('')
+   411→    setHashtags([])
+   412→    setHashtagInput('')
+   413→    setScheduledAt('')
+   414→  }
+   415→
+   416→  // ─── Calendar helpers ───────────────────────────────────────────────────────
+   417→
+   418→  const getWeekDays = () => {
+   419→    const now = new Date()
+   420→    const dayOfWeek = now.getDay()
+   421→    const monday = new Date(now)
+   422→    monday.setDate(now.getDate() - ((dayOfWeek + 6) % 7) + calendarWeekOffset * 7)
+   423→
+   424→    return Array.from({ length: 7 }, (_, i) => {
+   425→      const d = new Date(monday)
+   426→      d.setDate(monday.getDate() + i)
+   427→      return d
+   428→    })
+   429→  }
+   430→
+   431→  const getPostsForDay = (date: Date) => {
+   432→    return posts.filter(p => {
+   433→      const postDate = new Date(p.scheduledAt)
+   434→      return postDate.getFullYear() === date.getFullYear() &&
+   435→        postDate.getMonth() === date.getMonth() &&
+   436→        postDate.getDate() === date.getDate()
+   437→    })
+   438→  }
+   439→
+   440→  const isToday = (date: Date) => {
+   441→    const today = new Date()
+   442→    return date.getFullYear() === today.getFullYear() &&
+   443→      date.getMonth() === today.getMonth() &&
+   444→      date.getDate() === today.getDate()
+   445→  }
+   446→
+   447→  // ─── Animation variants ─────────────────────────────────────────────────────
+   448→
+   449→  const containerVariants = {
+   450→    hidden: { opacity: 0 },
+   451→    show: { opacity: 1, transition: { staggerChildren: 0.06 } },
+   452→  }
+   453→
+   454→  const itemVariants = {
+   455→    hidden: { opacity: 0, y: 16 },
+   456→    show: { opacity: 1, y: 0, transition: { duration: 0.3 } },
+   457→  }
+   458→
+   459→  // ─── Render ─────────────────────────────────────────────────────────────────
+   460→
+   461→  if (loading) {
+   462→    return (
+   463→      <div className="space-y-6">
+   464→        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   465→          {Array.from({ length: 4 }).map((_, i) => (
+   466→            <div key={i} className="h-28 rounded-xl bg-muted animate-pulse" />
+   467→          ))}
+   468→        </div>
+   469→        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+   470→          <div className="h-96 rounded-xl bg-muted animate-pulse" />
+   471→          <div className="h-96 rounded-xl bg-muted animate-pulse" />
+   472→        </div>
+   473→      </div>
+   474→    )
+   475→  }
+   476→
+   477→  const charLimit = getMinCharLimit(selectedPlatforms)
+   478→  const charCount = caption.length
+   479→  const charExceeded = charCount > charLimit
+   480→
+   481→  const weekDays = getWeekDays()
+   482→
+   483→  const scheduledPosts = posts.filter(p => p.status === 'scheduled')
+   484→  const publishedPosts = posts.filter(p => p.status === 'published')
+   485→  const failedPosts = posts.filter(p => p.status === 'failed')
+   486→
+   487→  return (
+   488→    <motion.div
+   489→      variants={containerVariants}
+   490→      initial="hidden"
+   491→      animate="show"
+   492→      className="space-y-6"
+   493→    >
+   494→      {/* Header */}
+   495→      <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+   496→        <div>
+   497→          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+   498→            <div className="p-2 rounded-lg bg-gradient-to-br from-pink-500 to-purple-600 text-white">
+   499→              <Megaphone className="w-5 h-5" />
+   500→            </div>
+   501→            Auto-Post Scheduler
+   502→          </h1>
+   503→          <p className="text-sm text-muted-foreground mt-1">
+   504→            Schedule and manage social media posts across platforms • MYT (UTC+8)
+   505→          </p>
+   506→        </div>
+   507→        <div className="flex items-center gap-2">
+   508→          <Badge variant="secondary" className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+   509→            <Clock className="w-3 h-3 mr-1" />
+   510→            {scheduledPosts.length} Scheduled
+   511→          </Badge>
+   512→          <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+   513→            <CheckCircle2 className="w-3 h-3 mr-1" />
+   514→            {publishedPosts.length} Published
+   515→          </Badge>
+   516→        </div>
+   517→      </motion.div>
+   518→
+   519→      {/* Stats Cards */}
+   520→      <motion.div variants={itemVariants} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+   521→        {[
+   522→          { label: 'Total Posts', value: posts.length, icon: Megaphone, gradient: 'from-pink-500 to-rose-500' },
+   523→          { label: 'This Week', value: analytics.thisWeek, icon: TrendingUp, gradient: 'from-purple-500 to-indigo-500' },
+   524→          { label: 'This Month', value: analytics.thisMonth, icon: BarChart3, gradient: 'from-amber-500 to-orange-500' },
+   525→          { label: 'Failed', value: failedPosts.length, icon: AlertCircle, gradient: 'from-red-500 to-rose-600' },
+   526→        ].map((stat) => (
+   527→          <Card key={stat.label} className="relative overflow-hidden border-0 shadow-sm">
+   528→            <div className={`absolute inset-0 bg-gradient-to-br ${stat.gradient} opacity-[0.07]`} />
+   529→            <CardContent className="p-4 relative">
+   530→              <div className="flex items-center justify-between">
+   531→                <div>
+   532→                  <p className="text-xs text-muted-foreground font-medium">{stat.label}</p>
+   533→                  <p className="text-2xl font-bold text-foreground">{stat.value}</p>
+   534→                </div>
+   535→                <div className={`p-2 rounded-xl bg-gradient-to-br ${stat.gradient} text-white`}>
+   536→                  <stat.icon className="w-4 h-4" />
+   537→                </div>
+   538→              </div>
+   539→            </CardContent>
+   540→          </Card>
+   541→        ))}
+   542→      </motion.div>
+   543→
+   544→      {/* Main Tabs */}
+   545→      <motion.div variants={itemVariants}>
+   546→        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+   547→          <TabsList className="w-full sm:w-auto flex flex-wrap h-auto gap-1 p-1">
+   548→            <TabsTrigger value="create" className="gap-1.5 text-xs sm:text-sm">
+   549→              <Plus className="w-3.5 h-3.5" /> Quick Post
+   550→            </TabsTrigger>
+   551→            <TabsTrigger value="calendar" className="gap-1.5 text-xs sm:text-sm">
+   552→              <Calendar className="w-3.5 h-3.5" /> Calendar
+   553→            </TabsTrigger>
+   554→            <TabsTrigger value="queue" className="gap-1.5 text-xs sm:text-sm">
+   555→              <Timer className="w-3.5 h-3.5" /> Queue
+   556→              {scheduledPosts.length > 0 && (
+   557→                <Badge className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-[10px] bg-amber-500 text-white">
+   558→                  {scheduledPosts.length}
+   559→                </Badge>
+   560→              )}
+   561→            </TabsTrigger>
+   562→            <TabsTrigger value="best-times" className="gap-1.5 text-xs sm:text-sm">
+   563→              <Zap className="w-3.5 h-3.5" /> Best Times
+   564→            </TabsTrigger>
+   565→            <TabsTrigger value="analytics" className="gap-1.5 text-xs sm:text-sm">
+   566→              <BarChart3 className="w-3.5 h-3.5" /> Analytics
+   567→            </TabsTrigger>
+   568→          </TabsList>
+   569→
+   570→          {/* ─── Tab: Quick Post ──────────────────────────────────────────────── */}
+   571→          <TabsContent value="create">
+   572→            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+   573→              {/* Main Post Form */}
+   574→              <div className="lg:col-span-2 space-y-4">
+   575→                <Card className="border-0 shadow-sm">
+   576→                  <CardHeader className="pb-3">
+   577→                    <CardTitle className="text-lg flex items-center gap-2">
+   578→                      <Sparkles className="w-5 h-5 text-amber-500" />
+   579→                      Create New Post
+   580→                    </CardTitle>
+   581→                    <CardDescription>Compose your post and schedule it across multiple platforms</CardDescription>
+   582→                  </CardHeader>
+   583→                  <CardContent className="space-y-4">
+   584→                    {/* Platform Selector */}
+   585→                    <div>
+   586→                      <Label className="text-sm font-medium mb-2 block">Platforms</Label>
+   587→                      <div className="flex flex-wrap gap-2">
+   588→                        {PLATFORMS.map(p => {
+   589→                          const isSelected = selectedPlatforms.includes(p.key)
+   590→                          const Icon = p.icon
+   591→                          return (
+   592→                            <motion.button
+   593→                              key={p.key}
+   594→                              whileHover={{ scale: 1.05 }}
+   595→                              whileTap={{ scale: 0.95 }}
+   596→                              onClick={() => togglePlatform(p.key)}
+   597→                              className={cn(
+   598→                                'flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all border-2',
+   599→                                isSelected
+   600→                                  ? `${p.bgColor} text-white border-transparent shadow-lg`
+   601→                                  : 'bg-muted/50 text-muted-foreground border-transparent hover:border-muted-foreground/30'
+   602→                              )}
+   603→                            >
+   604→                              <Icon className="w-4 h-4" />
+   605→                              {p.name}
+   606→                              {isSelected && (
+   607→                                <span className="text-[10px] opacity-80">{p.charLimit}</span>
+   608→                              )}
+   609→                            </motion.button>
+   610→                          )
+   611→                        })}
+   612→                      </div>
+   613→                    </div>
+   614→
+   615→                    {/* Caption */}
+   616→                    <div>
+   617→                      <div className="flex items-center justify-between mb-2">
+   618→                        <Label className="text-sm font-medium">Caption</Label>
+   619→                        <span className={cn(
+   620→                          'text-xs font-mono',
+   621→                          charExceeded ? 'text-red-500' : charCount > charLimit * 0.9 ? 'text-amber-500' : 'text-muted-foreground'
+   622→                        )}>
+   623→                          {charCount}/{charLimit}
+   624→                        </span>
+   625→                      </div>
+   626→                      <Textarea
+   627→                        value={caption}
+   628→                        onChange={(e) => setCaption(e.target.value)}
+   629→                        placeholder="Write an engaging caption for your Shopee affiliate product... 🛍️"
+   630→                        className={cn(
+   631→                          'min-h-[120px] resize-none',
+   632→                          charExceeded && 'border-red-500 focus-visible:ring-red-500/30'
+   633→                        )}
+   634→                      />
+   635→                      {selectedPlatforms.length > 0 && (
+   636→                        <div className="flex flex-wrap gap-2 mt-2">
+   637→                          {selectedPlatforms.map(p => {
+   638→                            const info = PLATFORMS.find(pl => pl.key === p)
+   639→                            const limit = info?.charLimit || 2200
+   640→                            const exceeded = caption.length > limit
+   641→                            return (
+   642→                              <span key={p} className={cn(
+   643→                                'text-[10px] font-mono px-2 py-0.5 rounded-full',
+   644→                                exceeded ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' : 'bg-muted text-muted-foreground'
+   645→                              )}>
+   646→                                {info?.name}: {caption.length}/{limit}
+   647→                              </span>
+   648→                            )
+   649→                          })}
+   650→                        </div>
+   651→                      )}
+   652→                    </div>
+   653→
+   654→                    {/* Product URL & Affiliate Link */}
+   655→                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+   656→                      <div>
+   657→                        <Label className="text-sm font-medium mb-2 block">Product URL</Label>
+   658→                        <div className="flex gap-2">
+   659→                          <Input
+   660→                            value={productUrl}
+   661→                            onChange={(e) => setProductUrl(e.target.value)}
+   662→                            placeholder="https://shopee.com.my/..."
+   663→                            className="flex-1"
+   664→                          />
+   665→                          <Button
+   666→                            size="sm"
+   667→                            variant="outline"
+   668→                            onClick={generateAffiliateLink}
+   669→                            disabled={generatingLink || !productUrl.trim()}
+   670→                            className="shrink-0"
+   671→                          >
+   672→                            {generatingLink ? (
+   673→                              <div className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
+   674→                            ) : (
+   675→                              <Link2 className="w-4 h-4" />
+   676→                            )}
+   677→                          </Button>
+   678→                        </div>
+   679→                      </div>
+   680→                      <div>
+   681→                        <Label className="text-sm font-medium mb-2 block">Affiliate Link</Label>
+   682→                        <Input
+   683→                          value={affiliateLink}
+   684→                          onChange={(e) => setAffiliateLink(e.target.value)}
+   685→                          placeholder="Auto-generated or paste manually"
+   686→                          className="text-xs"
+   687→                        />
+   688→                      </div>
+   689→                    </div>
+   690→
+   691→                    {/* Image URL */}
+   692→                    <div>
+   693→                      <Label className="text-sm font-medium mb-2 block">Image URL</Label>
+   694→                      <div className="flex gap-2">
+   695→                        <Input
+   696→                          value={imageUrl}
+   697→                          onChange={(e) => setImageUrl(e.target.value)}
+   698→                          placeholder="Paste image URL or upload (placeholder)"
+   699→                          className="flex-1"
+   700→                        />
+   701→                        <Button size="sm" variant="outline" className="shrink-0" onClick={() => toast.info('Image upload coming soon!')}>
+   702→                          <ImagePlus className="w-4 h-4" />
+   703→                        </Button>
+   704→                      </div>
+   705→                      {imageUrl && (
+   706→                        <div className="mt-2 relative rounded-lg overflow-hidden h-32 bg-muted">
+   707→                          <img src={imageUrl} alt="Image preview" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+   708→                        </div>
+   709→                      )}
+   710→                    </div>
+   711→
+   712→                    {/* Hashtags */}
+   713→                    <div>
+   714→                      <div className="flex items-center justify-between mb-2">
+   715→                        <Label className="text-sm font-medium">Hashtags</Label>
+   716→                        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={generateHashtags}>
+   717→                          <Sparkles className="w-3 h-3 mr-1" /> AI Suggest
+   718→                        </Button>
+   719→                      </div>
+   720→                      <div className="flex flex-wrap gap-1.5 mb-2 min-h-[28px]">
+   721→                        <AnimatePresence>
+   722→                          {hashtags.map(tag => (
+   723→                            <motion.span
+   724→                              key={tag}
+   725→                              initial={{ opacity: 0, scale: 0.8 }}
+   726→                              animate={{ opacity: 1, scale: 1 }}
+   727→                              exit={{ opacity: 0, scale: 0.8 }}
+   728→                              className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs"
+   729→                            >
+   730→                              {tag}
+   731→                              <button onClick={() => removeHashtag(tag)} className="hover:text-destructive">
+   732→                                <XCircle className="w-3 h-3" />
+   733→                              </button>
+   734→                            </motion.span>
+   735→                          ))}
+   736→                        </AnimatePresence>
+   737→                      </div>
+   738→                      <div className="flex gap-2">
+   739→                        <Input
+   740→                          value={hashtagInput}
+   741→                          onChange={(e) => setHashtagInput(e.target.value)}
+   742→                          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addHashtag())}
+   743→                          placeholder="Add hashtag (press Enter)"
+   744→                          className="flex-1 text-sm"
+   745→                        />
+   746→                        <Button size="sm" variant="outline" onClick={addHashtag}>
+   747→                          <Hash className="w-4 h-4" />
+   748→                        </Button>
+   749→                      </div>
+   750→                    </div>
+   751→
+   752→                    <Separator />
+   753→
+   754→                    {/* Schedule & Submit */}
+   755→                    <div className="flex flex-col sm:flex-row gap-3">
+   756→                      <div className="flex-1">
+   757→                        <Label className="text-sm font-medium mb-2 block">Schedule Date & Time (MYT)</Label>
+   758→                        <Input
+   759→                          type="datetime-local"
+   760→                          value={scheduledAt}
+   761→                          onChange={(e) => setScheduledAt(e.target.value)}
+   762→                          className="w-full"
+   763→                        />
+   764→                      </div>
+   765→                      <div className="flex items-end gap-2 pt-1">
+   766→                        <Button
+   767→                          variant="outline"
+   768→                          onClick={handleSchedule}
+   769→                          disabled={isPosting || !caption.trim() || selectedPlatforms.length === 0 || !scheduledAt}
+   770→                          className="gap-1.5"
+   771→                        >
+   772→                          <Calendar className="w-4 h-4" />
+   773→                          Schedule
+   774→                        </Button>
+   775→                        <Button
+   776→                          onClick={handlePostNow}
+   777→                          disabled={isPosting || !caption.trim() || selectedPlatforms.length === 0}
+   778→                          className="gap-1.5 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white"
+   779→                        >
+   780→                          {isPosting ? (
+   781→                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+   782→                          ) : (
+   783→                            <Send className="w-4 h-4" />
+   784→                          )}
+   785→                          Post Now
+   786→                        </Button>
+   787→                      </div>
+   788→                    </div>
+   789→                  </CardContent>
+   790→                </Card>
+   791→              </div>
+   792→
+   793→              {/* Sidebar - Suggested Times */}
+   794→              <div className="space-y-4">
+   795→                <Card className="border-0 shadow-sm">
+   796→                  <CardHeader className="pb-3">
+   797→                    <CardTitle className="text-base flex items-center gap-2">
+   798→                      <Zap className="w-4 h-4 text-amber-500" />
+   799→                      Suggested Times
+   800→                    </CardTitle>
+   801→                    <CardDescription className="text-xs">Optimized for Malaysian audience</CardDescription>
+   802→                  </CardHeader>
+   803→                  <CardContent className="space-y-3 max-h-96 overflow-y-auto">
+   804→                    {Object.values(suggestions).map(sug => (
+   805→                      <div key={sug.platform} className="space-y-1.5">
+   806→                        <div className="flex items-center gap-2">
+   807→                          <div className={cn('w-2 h-2 rounded-full', getPlatformBgClass(sug.platform))} />
+   808→                          <span className="text-xs font-semibold text-foreground">{sug.name}</span>
+   809→                        </div>
+   810→                        {sug.suggestedTimes.slice(0, 2).map((time, idx) => (
+   811→                          <button
+   812→                            key={idx}
+   813→                            onClick={() => setScheduledAt(time.datetime.slice(0, 16))}
+   814→                            className="w-full text-left p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+   815→                          >
+   816→                            <div className="text-xs font-medium text-foreground">{time.time}</div>
+   817→                            <div className="text-[10px] text-muted-foreground">{time.date} • {time.reason}</div>
+   818→                          </button>
+   819→                        ))}
+   820→                      </div>
+   821→                    ))}
+   822→                  </CardContent>
+   823→                </Card>
+   824→
+   825→                {/* Quick Stats */}
+   826→                <Card className="border-0 shadow-sm bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20">
+   827→                  <CardContent className="p-4">
+   828→                    <div className="flex items-center gap-2 mb-3">
+   829→                      <Globe2 className="w-4 h-4 text-amber-600" />
+   830→                      <span className="text-sm font-semibold text-amber-700 dark:text-amber-400">Malaysia Golden Windows</span>
+   831→                    </div>
+   832→                    <div className="space-y-2">
+   833→                      {[
+   834→                        { time: '7PM - 9PM', label: 'Peak engagement', color: 'text-red-600' },
+   835→                        { time: '12PM - 2PM', label: 'Lunch browsing', color: 'text-amber-600' },
+   836→                        { time: '9PM - 12AM', label: 'Impulse buying', color: 'text-purple-600' },
+   837→                      ].map(w => (
+   838→                        <div key={w.time} className="flex items-center justify-between">
+   839→                          <span className={cn('text-xs font-mono font-medium', w.color)}>{w.time}</span>
+   840→                          <span className="text-[10px] text-muted-foreground">{w.label}</span>
+   841→                        </div>
+   842→                      ))}
+   843→                    </div>
+   844→                  </CardContent>
+   845→                </Card>
+   846→              </div>
+   847→            </div>
+   848→          </TabsContent>
+   849→
+   850→          {/* ─── Tab: Calendar ────────────────────────────────────────────────── */}
+   851→          <TabsContent value="calendar">
+   852→            <Card className="border-0 shadow-sm">
+   853→              <CardHeader className="pb-3">
+   854→                <div className="flex items-center justify-between">
+   855→                  <div>
+   856→                    <CardTitle className="text-lg flex items-center gap-2">
+   857→                      <Calendar className="w-5 h-5 text-purple-500" />
+   858→                      Weekly Calendar
+   859→                    </CardTitle>
+   860→                    <CardDescription>View scheduled posts by day</CardDescription>
+   861→                  </div>
+   862→                  <div className="flex items-center gap-2">
+   863→                    <Button size="sm" variant="outline" onClick={() => setCalendarWeekOffset(prev => prev - 1)}>
+   864→                      <ChevronLeft className="w-4 h-4" />
+   865→                    </Button>
+   866→                    <Button size="sm" variant="outline" onClick={() => setCalendarWeekOffset(0)}>
+   867→                      Today
+   868→                    </Button>
+   869→                    <Button size="sm" variant="outline" onClick={() => setCalendarWeekOffset(prev => prev + 1)}>
+   870→                      <ChevronRight className="w-4 h-4" />
+   871→                    </Button>
+   872→                  </div>
+   873→                </div>
+   874→              </CardHeader>
+   875→              <CardContent>
+   876→                <div className="grid grid-cols-7 gap-2">
+   877→                  {weekDays.map((day, idx) => {
+   878→                    const dayPosts = getPostsForDay(day)
+   879→                    return (
+   880→                      <div key={idx} className={cn(
+   881→                        'min-h-[140px] sm:min-h-[180px] rounded-xl p-2 border transition-colors',
+   882→                        isToday(day)
+   883→                          ? 'border-primary/30 bg-primary/5'
+   884→                          : 'border-border bg-muted/30'
+   885→                      )}>
+   886→                        <div className="text-center mb-2">
+   887→                          <div className="text-[10px] text-muted-foreground font-medium">{DAYS[idx]}</div>
+   888→                          <div className={cn(
+   889→                            'text-lg font-bold',
+   890→                            isToday(day) ? 'text-primary' : 'text-foreground'
+   891→                          )}>
+   892→                            {day.getDate()}
+   893→                          </div>
+   894→                        </div>
+   895→                        <div className="space-y-1 max-h-[100px] sm:max-h-[140px] overflow-y-auto">
+   896→                          {dayPosts.map(post => (
+   897→                            <div
+   898→                              key={post.id}
+   899→                              className="p-1.5 rounded-md text-[10px] leading-tight cursor-pointer hover:opacity-80 transition-opacity"
+   900→                              style={{
+   901→                                backgroundColor: `${getPlatformColor(post.platforms[0])}15`,
+   902→                                borderLeft: `2px solid ${getPlatformColor(post.platforms[0])}`,
+   903→                              }}
+   904→                            >
+   905→                              <div className="font-medium text-foreground truncate">{post.caption.slice(0, 20)}</div>
+   906→                              <div className="text-muted-foreground mt-0.5">
+   907→                                {new Date(post.scheduledAt).toLocaleTimeString('en-MY', {
+   908→                                  timeZone: 'Asia/Kuala_Lumpur',
+   909→                                  hour: '2-digit',
+   910→                                  minute: '2-digit',
+   911→                                  hour12: true,
+   912→                                })}
+   913→                              </div>
+   914→                            </div>
+   915→                          ))}
+   916→                          {dayPosts.length > 0 && (
+   917→                            <div className="text-[9px] text-center text-muted-foreground">
+   918→                              {dayPosts.length} post{dayPosts.length > 1 ? 's' : ''}
+   919→                            </div>
+   920→                          )}
+   921→                        </div>
+   922→                      </div>
+   923→                    )
+   924→                  })}
+   925→                </div>
+   926→                {/* Platform Legend */}
+   927→                <div className="flex flex-wrap items-center gap-3 mt-4 pt-3 border-t border-border">
+   928→                  {PLATFORMS.map(p => (
+   929→                    <div key={p.key} className="flex items-center gap-1.5">
+   930→                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: p.color }} />
+   931→                      <span className="text-[10px] text-muted-foreground">{p.name}</span>
+   932→                    </div>
+   933→                  ))}
+   934→                </div>
+   935→              </CardContent>
+   936→            </Card>
+   937→          </TabsContent>
+   938→
+   939→          {/* ─── Tab: Post Queue ──────────────────────────────────────────────── */}
+   940→          <TabsContent value="queue">
+   941→            <Card className="border-0 shadow-sm">
+   942→              <CardHeader className="pb-3">
+   943→                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+   944→                  <div>
+   945→                    <CardTitle className="text-lg flex items-center gap-2">
+   946→                      <Timer className="w-5 h-5 text-amber-500" />
+   947→                      Post Queue
+   948→                    </CardTitle>
+   949→                    <CardDescription>Manage your scheduled posts</CardDescription>
+   950→                  </div>
+   951→                  <div className="flex items-center gap-2">
+   952→                    <Select value={statusFilter} onValueChange={setStatusFilter}>
+   953→                      <SelectTrigger className="w-[130px] h-8 text-xs">
+   954→                        <SelectValue />
+   955→                      </SelectTrigger>
+   956→                      <SelectContent>
+   957→                        <SelectItem value="all">All Status</SelectItem>
+   958→                        <SelectItem value="scheduled">Scheduled</SelectItem>
+   959→                        <SelectItem value="published">Published</SelectItem>
+   960→                        <SelectItem value="failed">Failed</SelectItem>
+   961→                      </SelectContent>
+   962→                    </Select>
+   963→                  </div>
+   964→                </div>
+   965→              </CardHeader>
+   966→              <CardContent>
+   967→                {posts.length === 0 ? (
+   968→                  <div className="text-center py-12">
+   969→                    <Megaphone className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+   970→                    <p className="text-sm text-muted-foreground">No posts found</p>
+   971→                    <Button size="sm" variant="outline" className="mt-3" onClick={() => setActiveTab('create')}>
+   972→                      <Plus className="w-4 h-4 mr-1" /> Create your first post
+   973→                    </Button>
+   974→                  </div>
+   975→                ) : (
+   976→                  <div className="space-y-2 max-h-[500px] overflow-y-auto">
+   977→                    <AnimatePresence>
+   978→                      {posts.map(post => {
+   979→                        const statusCfg = STATUS_CONFIG[post.status as keyof typeof STATUS_CONFIG]
+   980→                        const StatusIcon = statusCfg?.icon || Clock
+   981→                        return (
+   982→                          <motion.div
+   983→                            key={post.id}
+   984→                            initial={{ opacity: 0, x: -20 }}
+   985→                            animate={{ opacity: 1, x: 0 }}
+   986→                            exit={{ opacity: 0, x: 20 }}
+   987→                            className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors group"
+   988→                          >
+   989→                            {/* Platform icons */}
+   990→                            <div className="flex -space-x-1">
+   991→                              {post.platforms.map(p => {
+   992→                                const Icon = getPlatformIcon(p)
+   993→                                return (
+   994→                                  <div
+   995→                                    key={p}
+   996→                                    className={cn('w-7 h-7 rounded-full flex items-center justify-center text-white border-2 border-background', getPlatformBgClass(p))}
+   997→                                  >
+   998→                                    <Icon className="w-3.5 h-3.5" />
+   999→                                  </div>
+  1000→                                )
+  1001→                              })}
+  1002→                            </div>
+  1003→
+  1004→                            {/* Content */}
+  1005→                            <div className="flex-1 min-w-0">
+  1006→                              <p className="text-sm font-medium text-foreground truncate">{post.caption}</p>
+  1007→                              <div className="flex items-center gap-2 mt-0.5">
+  1008→                                <span className="text-[10px] text-muted-foreground">{formatMYT(post.scheduledAt)}</span>
+  1009→                                {post.affiliateLink && (
+  1010→                                  <Badge variant="outline" className="text-[9px] h-4 px-1">🔗 Tracked</Badge>
+  1011→                                )}
+  1012→                              </div>
+  1013→                            </div>
+  1014→
+  1015→                            {/* Status */}
+  1016→                            <Badge className={cn('text-[10px] gap-1', statusCfg?.color)}>
+  1017→                              <StatusIcon className="w-3 h-3" />
+  1018→                              {statusCfg?.label}
+  1019→                            </Badge>
+  1020→
+  1021→                            {/* Actions */}
+  1022→                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+  1023→                              {post.status === 'scheduled' && (
+  1024→                                <Button
+  1025→                                  size="sm"
+  1026→                                  variant="ghost"
+  1027→                                  className="h-7 w-7 p-0 text-emerald-600 hover:text-emerald-700"
+  1028→                                  onClick={() => handlePostNowFromQueue(post)}
+  1029→                                  title="Post Now"
+  1030→                                >
+  1031→                                  <Play className="w-3.5 h-3.5" />
+  1032→                                </Button>
+  1033→                              )}
+  1034→                              <Button
+  1035→                                size="sm"
+  1036→                                variant="ghost"
+  1037→                                className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+  1038→                                onClick={() => handleDeletePost(post.id)}
+  1039→                                title="Delete"
+  1040→                              >
+  1041→                                <Trash2 className="w-3.5 h-3.5" />
+  1042→                              </Button>
+  1043→                            </div>
+  1044→                          </motion.div>
+  1045→                        )
+  1046→                      })}
+  1047→                    </AnimatePresence>
+  1048→                  </div>
+  1049→                )}
+  1050→              </CardContent>
+  1051→            </Card>
+  1052→          </TabsContent>
+  1053→
+  1054→          {/* ─── Tab: Best Times ─────────────────────────────────────────────── */}
+  1055→          <TabsContent value="best-times">
+  1056→            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+  1057→              {/* Heatmap */}
+  1058→              <Card className="border-0 shadow-sm lg:col-span-2">
+  1059→                <CardHeader className="pb-3">
+  1060→                  <CardTitle className="text-lg flex items-center gap-2">
+  1061→                    <Zap className="w-5 h-5 text-amber-500" />
+  1062→                    Engagement Heatmap by Hour (MYT)
+  1063→                  </CardTitle>
+  1064→                  <CardDescription>Visual representation of engagement levels throughout the day for each platform</CardDescription>
+  1065→                </CardHeader>
+  1066→                <CardContent>
+  1067→                  <div className="overflow-x-auto">
+  1068→                    <div className="min-w-[640px]">
+  1069→                      {/* Hour labels */}
+  1070→                      <div className="flex items-center mb-2">
+  1071→                        <div className="w-24 shrink-0" />
+  1072→                        {HOURS.map(h => (
+  1073→                          <div key={h} className="flex-1 text-center text-[9px] text-muted-foreground font-mono">
+  1074→                            {h.toString().padStart(2, '0')}
+  1075→                          </div>
+  1076→                        ))}
+  1077→                      </div>
+  1078→
+  1079→                      {/* Platform rows */}
+  1080→                      {Object.entries(heatmapData).map(([platform, hours]) => {
+  1081→                        const info = PLATFORMS.find(p => p.key === platform)
+  1082→                        return (
+  1083→                          <div key={platform} className="flex items-center mb-1.5">
+  1084→                            <div className="w-24 shrink-0 flex items-center gap-1.5">
+  1085→                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: info?.color }} />
+  1086→                              <span className="text-[10px] font-medium text-foreground truncate">{info?.name}</span>
+  1087→                            </div>
+  1088→                            {hours.map(h => {
+  1089→                              const opacity = h.engagement / 100
+  1090→                              return (
+  1091→                                <div key={h.hour} className="flex-1 px-0.5">
+  1092→                                  <div
+  1093→                                    className="h-6 rounded-sm transition-colors"
+  1094→                                    style={{
+  1095→                                      backgroundColor: info?.color,
+  1096→                                      opacity: Math.max(0.1, opacity),
+  1097→                                    }}
+  1098→                                    title={`${h.hour}:00 MYT — ${h.engagement}% engagement`}
+  1099→                                  />
+  1100→                                </div>
+  1101→                              )
+  1102→                            })}
+  1103→                          </div>
+  1104→                        )
+  1105→                      })}
+  1106→
+  1107→                      {/* Scale */}
+  1108→                      <div className="flex items-center gap-2 mt-3 ml-24">
+  1109→                        <span className="text-[9px] text-muted-foreground">Low</span>
+  1110→                        <div className="flex gap-0.5">
+  1111→                          {[0.1, 0.25, 0.4, 0.55, 0.7, 0.85, 1].map(op => (
+  1112→                            <div
+  1113→                              key={op}
+  1114→                              className="w-6 h-3 rounded-sm"
+  1115→                              style={{ backgroundColor: '#888', opacity: op }}
+  1116→                            />
+  1117→                          ))}
+  1118→                        </div>
+  1119→                        <span className="text-[9px] text-muted-foreground">High</span>
+  1120→                      </div>
+  1121→                    </div>
+  1122→                  </div>
+  1123→                </CardContent>
+  1124→              </Card>
+  1125→
+  1126→              {/* Platform Cards */}
+  1127→              {Object.entries(platformsData).map(([key, platform]) => {
+  1128→                const info = PLATFORMS.find(p => p.key === key)
+  1129→                return (
+  1130→                  <Card key={key} className="border-0 shadow-sm overflow-hidden">
+  1131→                    <div className="h-1" style={{ backgroundColor: info?.color }} />
+  1132→                    <CardHeader className="pb-2">
+  1133→                      <div className="flex items-center justify-between">
+  1134→                        <CardTitle className="text-base flex items-center gap-2">
+  1135→                          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm" style={{ backgroundColor: info?.color }}>
+  1136→                            {platform.icon}
+  1137→                          </div>
+  1138→                          {platform.name}
+  1139→                        </CardTitle>
+  1140→                        <Badge variant="outline" className="text-[10px]">{platform.characterLimit} chars</Badge>
+  1141→                      </div>
+  1142→                    </CardHeader>
+  1143→                    <CardContent className="space-y-3">
+  1144→                      {/* Best Days */}
+  1145→                      <div>
+  1146→                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Best Days</span>
+  1147→                        <div className="flex flex-wrap gap-1 mt-1">
+  1148→                          {DAYS.map(day => {
+  1149→                            const isBest = platform.bestDays.some(d => d.startsWith(day))
+  1150→                            return (
+  1151→                              <span
+  1152→                                key={day}
+  1153→                                className={cn(
+  1154→                                  'text-[10px] px-2 py-0.5 rounded-full font-medium',
+  1155→                                  isBest
+  1156→                                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+  1157→                                    : 'bg-muted text-muted-foreground'
+  1158→                                )}
+  1159→                              >
+  1160→                                {day}
+  1161→                              </span>
+  1162→                            )
+  1163→                          })}
+  1164→                        </div>
+  1165→                      </div>
+  1166→
+  1167→                      {/* Time Slots */}
+  1168→                      <div className="space-y-1.5">
+  1169→                        <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Peak Times</span>
+  1170→                        {platform.timeSlots.map(slot => (
+  1171→                          <div key={slot.label} className="flex items-center gap-2">
+  1172→                            <div className="flex-1">
+  1173→                              <div className="text-xs font-medium text-foreground">{slot.label}</div>
+  1174→                            </div>
+  1175→                            <div className="flex items-center gap-1.5">
+  1176→                              <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden">
+  1177→                                <div
+  1178→                                  className="h-full rounded-full"
+  1179→                                  style={{
+  1180→                                    width: `${slot.engagement}%`,
+  1181→                                    backgroundColor: info?.color,
+  1182→                                  }}
+  1183→                                />
+  1184→                              </div>
+  1185→                              <span className="text-[10px] text-muted-foreground w-7 text-right">{slot.engagement}%</span>
+  1186→                            </div>
+  1187→                          </div>
+  1188→                        ))}
+  1189→                      </div>
+  1190→                    </CardContent>
+  1191→                  </Card>
+  1192→                )
+  1193→              })}
+  1194→            </div>
+  1195→          </TabsContent>
+  1196→
+  1197→          {/* ─── Tab: Analytics ──────────────────────────────────────────────── */}
+  1198→          <TabsContent value="analytics">
+  1199→            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+  1200→              {/* Summary Card */}
+  1201→              <Card className="border-0 shadow-sm lg:col-span-3">
+  1202→                <CardHeader className="pb-3">
+  1203→                  <CardTitle className="text-lg flex items-center gap-2">
+  1204→                    <BarChart3 className="w-5 h-5 text-purple-500" />
+  1205→                    Post Analytics
+  1206→                  </CardTitle>
+  1207→                  <CardDescription>Summary of your social media posting performance</CardDescription>
+  1208→                </CardHeader>
+  1209→                <CardContent>
+  1210→                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+  1211→                    <div className="p-4 rounded-xl bg-gradient-to-br from-pink-50 to-rose-50 dark:from-pink-950/20 dark:to-rose-950/20">
+  1212→                      <p className="text-xs text-muted-foreground">Total Published</p>
+  1213→                      <p className="text-3xl font-bold text-foreground">{analytics.totalPublished}</p>
+  1214→                    </div>
+  1215→                    <div className="p-4 rounded-xl bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-950/20 dark:to-indigo-950/20">
+  1216→                      <p className="text-xs text-muted-foreground">This Week</p>
+  1217→                      <p className="text-3xl font-bold text-foreground">{analytics.thisWeek}</p>
+  1218→                    </div>
+  1219→                    <div className="p-4 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20">
+  1220→                      <p className="text-xs text-muted-foreground">This Month</p>
+  1221→                      <p className="text-3xl font-bold text-foreground">{analytics.thisMonth}</p>
+  1222→                    </div>
+  1223→                    <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20">
+  1224→                      <p className="text-xs text-muted-foreground">Best Time Slot</p>
+  1225→                      <p className="text-lg font-bold text-foreground">{analytics.bestTimeSlot}</p>
+  1226→                    </div>
+  1227→                  </div>
+  1228→                </CardContent>
+  1229→              </Card>
+  1230→
+  1231→              {/* Platform Breakdown */}
+  1232→              <Card className="border-0 shadow-sm lg:col-span-2">
+  1233→                <CardHeader className="pb-3">
+  1234→                  <CardTitle className="text-base">Platform Breakdown</CardTitle>
+  1235→                  <CardDescription>Posts published per platform</CardDescription>
+  1236→                </CardHeader>
+  1237→                <CardContent>
+  1238→                  {Object.keys(analytics.platformBreakdown).length === 0 ? (
+  1239→                    <div className="text-center py-8">
+  1240→                      <BarChart3 className="w-10 h-10 text-muted-foreground/30 mx-auto mb-2" />
+  1241→                      <p className="text-sm text-muted-foreground">No published posts yet</p>
+  1242→                    </div>
+  1243→                  ) : (
+  1244→                    <div className="space-y-3">
+  1245→                      {PLATFORMS.map(p => {
+  1246→                        const count = analytics.platformBreakdown[p.key] || 0
+  1247→                        const total = Object.values(analytics.platformBreakdown).reduce((a, b) => a + b, 0)
+  1248→                        const pct = total > 0 ? (count / total) * 100 : 0
+  1249→                        return (
+  1250→                          <div key={p.key} className="space-y-1">
+  1251→                            <div className="flex items-center justify-between">
+  1252→                              <div className="flex items-center gap-2">
+  1253→                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: p.color }} />
+  1254→                                <span className="text-sm font-medium text-foreground">{p.name}</span>
+  1255→                              </div>
+  1256→                              <span className="text-sm text-muted-foreground">{count} posts</span>
+  1257→                            </div>
+  1258→                            <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+  1259→                              <motion.div
+  1260→                                initial={{ width: 0 }}
+  1261→                                animate={{ width: `${pct}%` }}
+  1262→                                transition={{ duration: 0.8, ease: 'easeOut' }}
+  1263→                                className="h-full rounded-full"
+  1264→                                style={{ backgroundColor: p.color }}
+  1265→                              />
+  1266→                            </div>
+  1267→                          </div>
+  1268→                        )
+  1269→                      })}
+  1270→                    </div>
+  1271→                  )}
+  1272→                </CardContent>
+  1273→              </Card>
+  1274→
+  1275→              {/* Quick Stats */}
+  1276→              <Card className="border-0 shadow-sm">
+  1277→                <CardHeader className="pb-3">
+  1278→                  <CardTitle className="text-base">Quick Stats</CardTitle>
+  1279→                </CardHeader>
+  1280→                <CardContent className="space-y-3">
+  1281→                  <div className="p-3 rounded-lg bg-muted/50">
+  1282→                    <div className="flex items-center justify-between">
+  1283→                      <span className="text-xs text-muted-foreground">Scheduled</span>
+  1284→                      <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{scheduledPosts.length}</Badge>
+  1285→                    </div>
+  1286→                  </div>
+  1287→                  <div className="p-3 rounded-lg bg-muted/50">
+  1288→                    <div className="flex items-center justify-between">
+  1289→                      <span className="text-xs text-muted-foreground">Published</span>
+  1290→                      <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">{publishedPosts.length}</Badge>
+  1291→                    </div>
+  1292→                  </div>
+  1293→                  <div className="p-3 rounded-lg bg-muted/50">
+  1294→                    <div className="flex items-center justify-between">
+  1295→                      <span className="text-xs text-muted-foreground">Failed</span>
+  1296→                      <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">{failedPosts.length}</Badge>
+  1297→                    </div>
+  1298→                  </div>
+  1299→                  <Separator />
+  1300→                  <div className="p-3 rounded-lg bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20">
+  1301→                    <div className="flex items-center gap-2 mb-1">
+  1302→                      <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+  1303→                      <span className="text-xs font-medium text-amber-700 dark:text-amber-400">Pro Tip</span>
+  1304→                    </div>
+  1305→                    <p className="text-[10px] text-muted-foreground leading-relaxed">
+  1306→                      Posts scheduled between 7-9PM MYT get up to 3x more engagement. Try the &quot;Best Times&quot; tab for platform-specific recommendations!
+  1307→                    </p>
+  1308→                  </div>
+  1309→                </CardContent>
+  1310→              </Card>
+  1311→            </div>
+  1312→          </TabsContent>
+  1313→        </Tabs>
+  1314→      </motion.div>
+  1315→    </motion.div>
+  1316→  )
+  1317→}
+  1318→

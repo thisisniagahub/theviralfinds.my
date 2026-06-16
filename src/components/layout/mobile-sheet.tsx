@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils'
 import {
   LayoutDashboard, ShoppingBag, Link2, BarChart3, Calculator,
   Megaphone, Wallet, Settings, Bell, Trophy, Award, Users,
-  Bot, X, Sparkles,
+  Bot, X, Sparkles, CalendarClock, PenTool, Target, TrendingUp, Film,
 } from 'lucide-react'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
@@ -29,6 +29,11 @@ const allNavItems: NavItem[] = [
   { id: 'calculator', label: 'Calculator', icon: Calculator },
   { id: 'campaigns', label: 'Campaigns', icon: Megaphone },
   { id: 'earnings', label: 'Earnings', icon: Wallet },
+  { id: 'autopost', label: 'Auto Post', icon: CalendarClock, badge: 'NEW', color: 'autopost' },
+  { id: 'content', label: 'AI Content', icon: PenTool, badge: 'AI', color: 'content' },
+  { id: 'trends', label: 'Trend Spy', icon: TrendingUp, badge: 'NEW', color: 'trends' },
+  { id: 'profit', label: 'Profit Optimizer', icon: Target, badge: 'AI', color: 'profit' },
+  { id: 'studio', label: 'Content Studio', icon: Film, badge: 'NEW', color: 'studio' },
   { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
   { id: 'achievements', label: 'Achievements', icon: Award },
   { id: 'referrals', label: 'Referrals', icon: Users },

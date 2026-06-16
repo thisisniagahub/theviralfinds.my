@@ -9,12 +9,13 @@ import {
   BarChart3,
   Wallet,
   Bot,
+  PenTool,
 } from 'lucide-react'
 
 const mobileNavItems: { id: PageId; label: string; icon: React.ElementType }[] = [
   { id: 'dashboard', label: 'Home', icon: LayoutDashboard },
   { id: 'products', label: 'Products', icon: ShoppingBag },
-  { id: 'links', label: 'Links', icon: Link2 },
+  { id: 'content', label: 'AI Content', icon: PenTool },
   { id: 'analytics', label: 'Stats', icon: BarChart3 },
   { id: 'earnings', label: 'Wallet', icon: Wallet },
 ]

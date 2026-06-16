@@ -1,0 +1,1271 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect, useCallback, useMemo } from 'react'
+     4→import { motion, AnimatePresence } from 'framer-motion'
+     5→import {
+     6→  DollarSign, TrendingUp, Star, Target, Zap, Award,
+     7→  Copy, ExternalLink, Loader2, ArrowRight, ChevronRight,
+     8→  Flame, ShieldCheck, AlertTriangle, XCircle,
+     9→  ShoppingBag, BarChart3, Calculator, Map,
+    10→  RefreshCw, Sparkles, CheckCircle2, Info,
+    11→} from 'lucide-react'
+    12→import {
+    13→  Card, CardContent, CardHeader, CardTitle, CardDescription,
+    14→} from '@/components/ui/card'
+    15→import { Button } from '@/components/ui/button'
+    16→import { Badge } from '@/components/ui/badge'
+    17→import { Input } from '@/components/ui/input'
+    18→import { Label } from '@/components/ui/label'
+    19→import {
+    20→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    21→} from '@/components/ui/select'
+    22→import {
+    23→  Tabs, TabsContent, TabsList, TabsTrigger,
+    24→} from '@/components/ui/tabs'
+    25→import { Slider } from '@/components/ui/slider'
+    26→import { Switch } from '@/components/ui/switch'
+    27→import { Separator } from '@/components/ui/separator'
+    28→import { toast } from 'sonner'
+    29→
+    30→// ─── Types ────────────────────────────────────────────────────────────────────
+    31→
+    32→interface ScoreResult {
+    33→  score: number
+    34→  level: string
+    35→  emoji: string
+    36→  color: string
+    37→  breakdown: {
+    38→    commission: number
+    39→    conversion: number
+    40→    aov: number
+    41→    competition: number
+    42→    sales: number
+    43→    trend: number
+    44→  }
+    45→  recommendation: string
+    46→  projectedEarnings: {
+    47→    daily: number
+    48→    monthly: number
+    49→    yearly: number
+    50→    perConversion: number
+    51→    assumptions: {
+    52→      dailyViews: number
+    53→      clickRate: string
+    54→      conversionRate: string
+    55→      commissionType: string
+    56→    }
+    57→  }
+    58→  product: {
+    59→    name: string
+    60→    price: number
+    61→    commissionRate: number
+    62→    category: string
+    63→    sales: number
+    64→    rating: number
+    65→  }
+    66→}
+    67→
+    68→interface XtraProduct {
+    69→  name: string
+    70→  baseCommission: number
+    71→  xtraCommission: number
+    72→  totalRate: number
+    73→  category: string
+    74→  source?: string
+    75→}
+    76→
+    77→interface CalculatorResult {
+    78→  product: {
+    79→    name: string
+    80→    price: number
+    81→    commissionRate: number
+    82→    effectiveCommissionRate: number
+    83→    commissionType: string
+    84→  }
+    85→  inputs: {
+    86→    dailyViews: number
+    87→    clickRate: string
+    88→    conversionRate: string
+    89→  }
+    90→  daily: {
+    91→    clicks: number
+    92→    conversions: number
+    93→    earnings: number
+    94→  }
+    95→  monthly: {
+    96→    clicks: number
+    97→    conversions: number
+    98→    earnings: number
+    99→  }
+   100→  yearly: {
+   101→    earnings: number
+   102→  }
+   103→  perConversion: number
+   104→  breakEven: {
+   105→    days: number
+   106→    effortCostPerDay: number
+   107→  } | null
+   108→  goalTracker: Array<{
+   109→    target: number
+   110→    viewsNeeded: number
+   111→    feasible: boolean
+   112→  }>
+   113→}
+   114→
+   115→// ─── Constants ────────────────────────────────────────────────────────────────
+   116→
+   117→const CATEGORIES = [
+   118→  'Electronics', 'Beauty', 'Fashion', 'Health',
+   119→  'Home & Living', 'Toys & Kids', 'Sports', 'Pet',
+   120→  'Automotive', 'Food & Beverage', 'General',
+   121→] as const
+   122→
+   123→const BREAKDOWN_LABELS: Record<string, { label: string; icon: React.ElementType }> = {
+   124→  commission: { label: 'Commission Rate', icon: DollarSign },
+   125→  conversion: { label: 'Conversion Rate', icon: TrendingUp },
+   126→  aov: { label: 'Average Order Value', icon: ShoppingBag },
+   127→  competition: { label: 'Competition', icon: ShieldCheck },
+   128→  sales: { label: 'Sales Volume', icon: BarChart3 },
+   129→  trend: { label: 'Trend Momentum', icon: Zap },
+   130→}
+   131→
+   132→const MILESTONES = [
+   133→  { target: 500, emoji: '🌱', title: 'Side Hustle', description: 'Extra pocket money each month' },
+   134→  { target: 2000, emoji: '🔥', title: 'Part-Time Income', description: 'Meaningful supplementary income' },
+   135→  { target: 5000, emoji: '⚡', title: 'Full-Time Living', description: 'Replace a full-time salary' },
+   136→  { target: 10000, emoji: '🏆', title: 'Super Affiliate', description: 'Top-tier affiliate earnings' },
+   137→] as const
+   138→
+   139→// ─── Helpers ──────────────────────────────────────────────────────────────────
+   140→
+   141→const fadeIn = {
+   142→  initial: { opacity: 0, y: 12 },
+   143→  animate: { opacity: 1, y: 0 },
+   144→  transition: { duration: 0.35 },
+   145→}
+   146→
+   147→const formatRM = (value: number) =>
+   148→  `RM ${value.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+   149→
+   150→const formatRMShort = (value: number) => {
+   151→  if (value >= 10000) return `RM${(value / 1000).toFixed(0)}k`
+   152→  if (value >= 1000) return `RM${(value / 1000).toFixed(1)}k`
+   153→  return `RM${value.toFixed(0)}`
+   154→}
+   155→
+   156→const scoreColor = (score: number) => {
+   157→  if (score >= 80) return '#22c55e'
+   158→  if (score >= 60) return '#eab308'
+   159→  if (score >= 40) return '#f97316'
+   160→  return '#ef4444'
+   161→}
+   162→
+   163→const scoreBgColor = (score: number) => {
+   164→  if (score >= 80) return 'bg-green-100 dark:bg-green-900/20'
+   165→  if (score >= 60) return 'bg-yellow-100 dark:bg-yellow-900/20'
+   166→  if (score >= 40) return 'bg-orange-100 dark:bg-orange-900/20'
+   167→  return 'bg-red-100 dark:bg-red-900/20'
+   168→}
+   169→
+   170→const scoreLevelIcon = (score: number) => {
+   171→  if (score >= 80) return Flame
+   172→  if (score >= 60) return ShieldCheck
+   173→  if (score >= 40) return AlertTriangle
+   174→  return XCircle
+   175→}
+   176→
+   177→// ─── Animated Score Circle ────────────────────────────────────────────────────
+   178→
+   179→function ScoreCircle({ score, size = 140 }: { score: number; size?: number }) {
+   180→  const [animatedScore, setAnimatedScore] = useState(0)
+   181→  const color = scoreColor(score)
+   182→  const radius = (size - 16) / 2
+   183→  const circumference = 2 * Math.PI * radius
+   184→  const strokeDashoffset = circumference - (animatedScore / 100) * circumference
+   185→
+   186→  useEffect(() => {
+   187→    const timer = setTimeout(() => setAnimatedScore(score), 100)
+   188→    return () => clearTimeout(timer)
+   189→  }, [score])
+   190→
+   191→  return (
+   192→    <div className="relative" style={{ width: size, height: size }}>
+   193→      <svg width={size} height={size} className="-rotate-90">
+   194→        <circle
+   195→          cx={size / 2}
+   196→          cy={size / 2}
+   197→          r={radius}
+   198→          fill="none"
+   199→          stroke="currentColor"
+   200→          strokeWidth="8"
+   201→          className="text-muted/30"
+   202→        />
+   203→        <circle
+   204→          cx={size / 2}
+   205→          cy={size / 2}
+   206→          r={radius}
+   207→          fill="none"
+   208→          stroke={color}
+   209→          strokeWidth="8"
+   210→          strokeLinecap="round"
+   211→          strokeDasharray={circumference}
+   212→          strokeDashoffset={strokeDashoffset}
+   213→          style={{ transition: 'stroke-dashoffset 1.5s ease-out, stroke 0.3s' }}
+   214→        />
+   215→      </svg>
+   216→      <div className="absolute inset-0 flex flex-col items-center justify-center">
+   217→        <span className="text-3xl font-bold" style={{ color }}>{animatedScore}</span>
+   218→        <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Score</span>
+   219→      </div>
+   220→    </div>
+   221→  )
+   222→}
+   223→
+   224→// ─── Main Component ──────────────────────────────────────────────────────────
+   225→
+   226→export function ProfitPage() {
+   227→  const [activeTab, setActiveTab] = useState('scorer')
+   228→
+   229→  return (
+   230→    <motion.div {...fadeIn} className="space-y-6">
+   231→      {/* Page Header */}
+   232→      <div className="flex items-center gap-3">
+   233→        <div className="p-2 rounded-lg bg-gradient-to-br from-rose-500 to-pink-600 text-white">
+   234→          <DollarSign className="w-5 h-5" />
+   235→        </div>
+   236→        <div>
+   237→          <h1 className="text-2xl font-bold text-foreground">Profit Center</h1>
+   238→          <p className="text-sm text-muted-foreground">Score products, track commissions, and calculate earnings</p>
+   239→        </div>
+   240→      </div>
+   241→
+   242→      {/* Tabs */}
+   243→      <Tabs value={activeTab} onValueChange={setActiveTab}>
+   244→        <TabsList className="w-full sm:w-auto overflow-x-auto">
+   245→          <TabsTrigger value="scorer" className="gap-1.5">
+   246→            <Target className="w-3.5 h-3.5" />
+   247→            <span className="hidden sm:inline">Scorer</span>
+   248→          </TabsTrigger>
+   249→          <TabsTrigger value="xtra" className="gap-1.5">
+   250→            <Zap className="w-3.5 h-3.5" />
+   251→            <span className="hidden sm:inline">Commission XTRA</span>
+   252→          </TabsTrigger>
+   253→          <TabsTrigger value="calculator" className="gap-1.5">
+   254→            <Calculator className="w-3.5 h-3.5" />
+   255→            <span className="hidden sm:inline">Calculator</span>
+   256→          </TabsTrigger>
+   257→          <TabsTrigger value="roadmap" className="gap-1.5">
+   258→            <Map className="w-3.5 h-3.5" />
+   259→            <span className="hidden sm:inline">Roadmap</span>
+   260→          </TabsTrigger>
+   261→        </TabsList>
+   262→
+   263→        <TabsContent value="scorer">
+   264→          <ScorerTab />
+   265→        </TabsContent>
+   266→
+   267→        <TabsContent value="xtra">
+   268→          <XtraTab />
+   269→        </TabsContent>
+   270→
+   271→        <TabsContent value="calculator">
+   272→          <CalculatorTab />
+   273→        </TabsContent>
+   274→
+   275→        <TabsContent value="roadmap">
+   276→          <RoadmapTab />
+   277→        </TabsContent>
+   278→      </Tabs>
+   279→    </motion.div>
+   280→  )
+   281→}
+   282→
+   283→// ─── Scorer Tab ───────────────────────────────────────────────────────────────
+   284→
+   285→function ScorerTab() {
+   286→  const [name, setName] = useState('')
+   287→  const [price, setPrice] = useState('')
+   288→  const [commissionRate, setCommissionRate] = useState('')
+   289→  const [category, setCategory] = useState('general')
+   290→  const [sales, setSales] = useState('')
+   291→  const [rating, setRating] = useState('4.0')
+   292→  const [isScoring, setIsScoring] = useState(false)
+   293→  const [result, setResult] = useState<ScoreResult | null>(null)
+   294→
+   295→  const handleScore = async () => {
+   296→    if (!name.trim() || !price) {
+   297→      toast.error('Please fill in product name and price')
+   298→      return
+   299→    }
+   300→
+   301→    setIsScoring(true)
+   302→    setResult(null)
+   303→
+   304→    try {
+   305→      const res = await fetch('/api/profit/score', {
+   306→        method: 'POST',
+   307→        headers: { 'Content-Type': 'application/json' },
+   308→        body: JSON.stringify({
+   309→          product: {
+   310→            name: name.trim(),
+   311→            price: parseFloat(price) || 0,
+   312→            commissionRate: parseFloat(commissionRate) || 5,
+   313→            category,
+   314→            sales: parseInt(sales) || 0,
+   315→            rating: parseFloat(rating) || 4.0,
+   316→          },
+   317→        }),
+   318→      })
+   319→
+   320→      if (!res.ok) {
+   321→        const err = await res.json()
+   322→        throw new Error(err.error || 'Scoring failed')
+   323→      }
+   324→
+   325→      const data = await res.json()
+   326→      setResult(data)
+   327→      toast.success(`Product scored: ${data.score}/100 — ${data.level}`)
+   328→    } catch (err: unknown) {
+   329→      toast.error(err instanceof Error ? err.message : 'Failed to score product')
+   330→    } finally {
+   331→      setIsScoring(false)
+   332→    }
+   333→  }
+   334→
+   335→  return (
+   336→    <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+   337→      {/* Input Form */}
+   338→      <motion.div {...fadeIn} className="lg:col-span-2">
+   339→        <Card className="border-0 shadow-sm">
+   340→          <CardHeader>
+   341→            <CardTitle className="flex items-center gap-2 text-base">
+   342→              <Target className="w-4 h-4 text-rose-500" />
+   343→              Product Scorer
+   344→            </CardTitle>
+   345→            <CardDescription>Evaluate a product&apos;s profit potential</CardDescription>
+   346→          </CardHeader>
+   347→          <CardContent className="space-y-4">
+   348→            <div className="space-y-2">
+   349→              <Label className="text-sm font-medium">Product Name</Label>
+   350→              <Input
+   351→                placeholder="e.g. Korean Skincare Set"
+   352→                value={name}
+   353→                onChange={(e) => setName(e.target.value)}
+   354→              />
+   355→            </div>
+   356→
+   357→            <div className="grid grid-cols-2 gap-3">
+   358→              <div className="space-y-2">
+   359→                <Label className="text-sm font-medium">Price (RM)</Label>
+   360→                <Input
+   361→                  type="number"
+   362→                  placeholder="e.g. 99.90"
+   363→                  value={price}
+   364→                  onChange={(e) => setPrice(e.target.value)}
+   365→                />
+   366→              </div>
+   367→              <div className="space-y-2">
+   368→                <Label className="text-sm font-medium">Commission (%)</Label>
+   369→                <Input
+   370→                  type="number"
+   371→                  placeholder="e.g. 8"
+   372→                  value={commissionRate}
+   373→                  onChange={(e) => setCommissionRate(e.target.value)}
+   374→                />
+   375→              </div>
+   376→            </div>
+   377→
+   378→            <div className="space-y-2">
+   379→              <Label className="text-sm font-medium">Category</Label>
+   380→              <Select value={category} onValueChange={setCategory}>
+   381→                <SelectTrigger className="w-full">
+   382→                  <SelectValue />
+   383→                </SelectTrigger>
+   384→                <SelectContent>
+   385→                  {CATEGORIES.map((cat) => (
+   386→                    <SelectItem key={cat} value={cat.toLowerCase().replace(/[\s&]/g, '_')}>
+   387→                      {cat}
+   388→                    </SelectItem>
+   389→                  ))}
+   390→                </SelectContent>
+   391→              </Select>
+   392→            </div>
+   393→
+   394→            <div className="grid grid-cols-2 gap-3">
+   395→              <div className="space-y-2">
+   396→                <Label className="text-sm font-medium">Monthly Sales</Label>
+   397→                <Input
+   398→                  type="number"
+   399→                  placeholder="e.g. 500"
+   400→                  value={sales}
+   401→                  onChange={(e) => setSales(e.target.value)}
+   402→                />
+   403→              </div>
+   404→              <div className="space-y-2">
+   405→                <Label className="text-sm font-medium">Rating (0-5)</Label>
+   406→                <Input
+   407→                  type="number"
+   408→                  step="0.1"
+   409→                  min="0"
+   410→                  max="5"
+   411→                  placeholder="e.g. 4.5"
+   412→                  value={rating}
+   413→                  onChange={(e) => setRating(e.target.value)}
+   414→                />
+   415→              </div>
+   416→            </div>
+   417→
+   418→            <Button
+   419→              onClick={handleScore}
+   420→              disabled={isScoring || !name.trim() || !price}
+   421→              className="w-full bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white gap-2"
+   422→            >
+   423→              {isScoring ? (
+   424→                <>
+   425→                  <Loader2 className="w-4 h-4 animate-spin" />
+   426→                  Scoring...
+   427→                </>
+   428→              ) : (
+   429→                <>
+   430→                  <Target className="w-4 h-4" />
+   431→                  Score This Product
+   432→                </>
+   433→              )}
+   434→            </Button>
+   435→          </CardContent>
+   436→        </Card>
+   437→      </motion.div>
+   438→
+   439→      {/* Results */}
+   440→      <motion.div {...fadeIn} className="lg:col-span-3">
+   441→        <Card className="border-0 shadow-sm min-h-[400px]">
+   442→          <CardHeader>
+   443→            <CardTitle className="flex items-center gap-2 text-base">
+   444→              <BarChart3 className="w-4 h-4 text-rose-500" />
+   445→              Score Results
+   446→            </CardTitle>
+   447→          </CardHeader>
+   448→          <CardContent>
+   449→            {isScoring ? (
+   450→              <div className="flex flex-col items-center justify-center py-16">
+   451→                <div className="relative">
+   452→                  <div className="w-16 h-16 rounded-full border-4 border-rose-200 dark:border-rose-800" />
+   453→                  <div className="absolute inset-0 w-16 h-16 rounded-full border-4 border-rose-500 border-t-transparent animate-spin" />
+   454→                </div>
+   455→                <p className="mt-4 text-sm text-muted-foreground">Analyzing product potential...</p>
+   456→              </div>
+   457→            ) : result ? (
+   458→              <div className="space-y-6">
+   459→                {/* Score Circle + Level */}
+   460→                <div className="flex flex-col sm:flex-row items-center gap-6">
+   461→                  <ScoreCircle score={result.score} />
+   462→                  <div className="text-center sm:text-left flex-1">
+   463→                    <div className="flex items-center gap-2 justify-center sm:justify-start mb-2">
+   464→                      <span className="text-2xl">{result.emoji}</span>
+   465→                      <span className="text-xl font-bold" style={{ color: result.color }}>
+   466→                        {result.level}
+   467→                      </span>
+   468→                    </div>
+   469→                    <p className="text-sm font-medium text-foreground mb-1">{result.product.name}</p>
+   470→                    <p className="text-xs text-muted-foreground">
+   471→                      {formatRM(result.product.price)} • {result.product.commissionRate}% commission • {result.product.category}
+   472→                    </p>
+   473→                    <div className="flex items-center gap-2 mt-3 justify-center sm:justify-start">
+   474→                      <Button
+   475→                        variant="outline"
+   476→                        size="sm"
+   477→                        className="gap-1.5 text-rose-600 border-rose-200 hover:bg-rose-50 dark:text-rose-400 dark:border-rose-800"
+   478→                        onClick={() => toast.info('Generate Link feature coming soon!')}
+   479→                      >
+   480→                        <ExternalLink className="w-3.5 h-3.5" />
+   481→                        Generate Link
+   482→                      </Button>
+   483→                      <Button
+   484→                        variant="outline"
+   485→                        size="sm"
+   486→                        className="gap-1.5"
+   487→                        onClick={() => toast.info('Switching to Content Studio...')}
+   488→                      >
+   489→                        <Sparkles className="w-3.5 h-3.5" />
+   490→                        Create Content
+   491→                      </Button>
+   492→                    </div>
+   493→                  </div>
+   494→                </div>
+   495→
+   496→                <Separator />
+   497→
+   498→                {/* Breakdown */}
+   499→                <div className="space-y-3">
+   500→                  <h4 className="text-sm font-semibold text-foreground">Score Breakdown</h4>
+   501→                  {Object.entries(result.breakdown).map(([key, value]) => {
+   502→                    const info = BREAKDOWN_LABELS[key]
+   503→                    const Icon = info?.icon || BarChart3
+   504→                    const color = scoreColor(value)
+   505→                    return (
+   506→                      <div key={key} className="space-y-1.5">
+   507→                        <div className="flex items-center justify-between text-xs">
+   508→                          <div className="flex items-center gap-1.5">
+   509→                            <Icon className="w-3.5 h-3.5 text-muted-foreground" />
+   510→                            <span className="text-muted-foreground">{info?.label || key}</span>
+   511→                          </div>
+   512→                          <span className="font-medium" style={{ color }}>{value}</span>
+   513→                        </div>
+   514→                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+   515→                          <motion.div
+   516→                            initial={{ width: 0 }}
+   517→                            animate={{ width: `${value}%` }}
+   518→                            transition={{ duration: 1, ease: 'easeOut', delay: 0.2 }}
+   519→                            className="h-full rounded-full"
+   520→                            style={{ backgroundColor: color }}
+   521→                          />
+   522→                        </div>
+   523→                      </div>
+   524→                    )
+   525→                  })}
+   526→                </div>
+   527→
+   528→                <Separator />
+   529→
+   530→                {/* Projected Earnings */}
+   531→                <div>
+   532→                  <h4 className="text-sm font-semibold text-foreground mb-3">Projected Earnings</h4>
+   533→                  <div className="grid grid-cols-3 gap-3">
+   534→                    <div className="rounded-lg border bg-rose-50 dark:bg-rose-950/20 p-3 text-center">
+   535→                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Daily</p>
+   536→                      <p className="text-lg font-bold text-rose-600 dark:text-rose-400">
+   537→                        {formatRM(result.projectedEarnings.daily)}
+   538→                      </p>
+   539→                    </div>
+   540→                    <div className="rounded-lg border bg-rose-50 dark:bg-rose-950/20 p-3 text-center">
+   541→                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Monthly</p>
+   542→                      <p className="text-lg font-bold text-rose-600 dark:text-rose-400">
+   543→                        {formatRM(result.projectedEarnings.monthly)}
+   544→                      </p>
+   545→                    </div>
+   546→                    <div className="rounded-lg border bg-muted/50 p-3 text-center">
+   547→                      <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Yearly</p>
+   548→                      <p className="text-lg font-bold">
+   549→                        {formatRM(result.projectedEarnings.yearly)}
+   550→                      </p>
+   551→                    </div>
+   552→                  </div>
+   553→                </div>
+   554→
+   555→                {/* Recommendation */}
+   556→                <div className={`rounded-lg p-4 ${scoreBgColor(result.score)}`}>
+   557→                  <div className="flex items-start gap-3">
+   558→                    <Info className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: scoreColor(result.score) }} />
+   559→                    <p className="text-xs leading-relaxed text-foreground/80">{result.recommendation}</p>
+   560→                  </div>
+   561→                </div>
+   562→              </div>
+   563→            ) : (
+   564→              <div className="flex flex-col items-center justify-center py-16 text-center">
+   565→                <div className="p-4 rounded-full bg-rose-100 dark:bg-rose-900/30 mb-4">
+   566→                  <Target className="w-8 h-8 text-rose-400" />
+   567→                </div>
+   568→                <h3 className="text-base font-semibold text-foreground mb-1">No score yet</h3>
+   569→                <p className="text-sm text-muted-foreground max-w-sm">
+   570→                  Enter product details and click &ldquo;Score This Product&rdquo; to evaluate its profit potential.
+   571→                </p>
+   572→              </div>
+   573→            )}
+   574→          </CardContent>
+   575→        </Card>
+   576→      </motion.div>
+   577→    </div>
+   578→  )
+   579→}
+   580→
+   581→// ─── Commission XTRA Tab ──────────────────────────────────────────────────────
+   582→
+   583→function XtraTab() {
+   584→  const [products, setProducts] = useState<XtraProduct[]>([])
+   585→  const [categories, setCategories] = useState<string[]>([])
+   586→  const [loading, setLoading] = useState(true)
+   587→  const [filterCategory, setFilterCategory] = useState('all')
+   588→  const [sortBy, setSortBy] = useState<'totalRate' | 'baseRate' | 'category'>('totalRate')
+   589→
+   590→  const fetchXtra = useCallback(async () => {
+   591→    setLoading(true)
+   592→    try {
+   593→      const params = new URLSearchParams()
+   594→      if (filterCategory !== 'all') params.set('category', filterCategory)
+   595→      params.set('sortBy', sortBy)
+   596→
+   597→      const res = await fetch(`/api/profit/xtra?${params}`)
+   598→      if (!res.ok) throw new Error('Failed to fetch')
+   599→      const data = await res.json()
+   600→      setProducts(data.products || [])
+   601→      setCategories(data.categories || [])
+   602→    } catch {
+   603→      toast.error('Failed to load Commission XTRA products')
+   604→    } finally {
+   605→      setLoading(false)
+   606→    }
+   607→  }, [filterCategory, sortBy])
+   608→
+   609→  useEffect(() => {
+   610→    fetchXtra()
+   611→  }, [fetchXtra])
+   612→
+   613→  const categoryBadgeColor = (cat: string) => {
+   614→    const map: Record<string, string> = {
+   615→      Beauty: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400',
+   616→      Electronics: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+   617→      Fashion: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+   618→      Health: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+   619→      'Home & Living': 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+   620→      'Toys & Kids': 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400',
+   621→      Sports: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+   622→      Pet: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+   623→      Automotive: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+   624→      'Food & Beverage': 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+   625→    }
+   626→    return map[cat] || 'bg-muted text-muted-foreground'
+   627→  }
+   628→
+   629→  return (
+   630→    <div className="space-y-4">
+   631→      {/* Filters */}
+   632→      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+   633→        <div className="flex flex-wrap gap-2 flex-1">
+   634→          <button
+   635→            onClick={() => setFilterCategory('all')}
+   636→            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+   637→              filterCategory === 'all'
+   638→                ? 'bg-rose-500 text-white'
+   639→                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+   640→            }`}
+   641→          >
+   642→            All
+   643→          </button>
+   644→          {categories.map((cat) => (
+   645→            <button
+   646→              key={cat}
+   647→              onClick={() => setFilterCategory(cat)}
+   648→              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+   649→                filterCategory === cat
+   650→                  ? 'bg-rose-500 text-white'
+   651→                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+   652→              }`}
+   653→            >
+   654→              {cat}
+   655→            </button>
+   656→          ))}
+   657→        </div>
+   658→        <div className="flex items-center gap-2">
+   659→          <span className="text-xs text-muted-foreground">Sort:</span>
+   660→          <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+   661→            <SelectTrigger size="sm" className="w-[140px]">
+   662→              <SelectValue />
+   663→            </SelectTrigger>
+   664→            <SelectContent>
+   665→              <SelectItem value="totalRate">Total Rate</SelectItem>
+   666→              <SelectItem value="baseRate">Base Rate</SelectItem>
+   667→              <SelectItem value="category">Category</SelectItem>
+   668→            </SelectContent>
+   669→          </Select>
+   670→          <Button
+   671→            variant="ghost"
+   672→            size="sm"
+   673→            onClick={fetchXtra}
+   674→            className="gap-1.5"
+   675→          >
+   676→            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+   677→          </Button>
+   678→        </div>
+   679→      </div>
+   680→
+   681→      {/* Product Grid */}
+   682→      {loading ? (
+   683→        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+   684→          {Array.from({ length: 6 }).map((_, i) => (
+   685→            <Card key={i} className="border-0 shadow-sm">
+   686→              <CardContent className="p-4">
+   687→                <div className="animate-pulse space-y-3">
+   688→                  <div className="h-5 bg-muted rounded w-3/4" />
+   689→                  <div className="h-4 bg-muted rounded w-1/2" />
+   690→                  <div className="h-4 bg-muted rounded w-2/3" />
+   691→                </div>
+   692→              </CardContent>
+   693→            </Card>
+   694→          ))}
+   695→        </div>
+   696→      ) : products.length === 0 ? (
+   697→        <Card className="border-0 shadow-sm">
+   698→          <CardContent className="py-12 text-center">
+   699→            <Zap className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+   700→            <h3 className="text-sm font-semibold text-foreground mb-1">No XTRA products found</h3>
+   701→            <p className="text-xs text-muted-foreground">Try a different category or check back later.</p>
+   702→          </CardContent>
+   703→        </Card>
+   704→      ) : (
+   705→        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+   706→          {products.map((product, i) => (
+   707→            <motion.div
+   708→              key={product.name + i}
+   709→              initial={{ opacity: 0, y: 12 }}
+   710→              animate={{ opacity: 1, y: 0 }}
+   711→              transition={{ duration: 0.3, delay: i * 0.04 }}
+   712→            >
+   713→              <Card className="border-0 shadow-sm hover:shadow-md transition-shadow h-full flex flex-col">
+   714→                <CardContent className="p-4 flex flex-col flex-1">
+   715→                  <div className="flex items-start justify-between mb-3">
+   716→                    <div className="flex-1 min-w-0 mr-2">
+   717→                      <h3 className="text-sm font-semibold text-foreground leading-tight line-clamp-2">
+   718→                        {product.name}
+   719→                      </h3>
+   720→                      <Badge variant="secondary" className={`mt-1.5 text-[10px] px-1.5 py-0 ${categoryBadgeColor(product.category)}`}>
+   721→                        {product.category}
+   722→                      </Badge>
+   723→                    </div>
+   724→                    {product.source === 'live' && (
+   725→                      <Badge variant="outline" className="text-[10px] text-green-600 border-green-200 dark:text-green-400 dark:border-green-800 flex-shrink-0">
+   726→                        ● Live
+   727→                      </Badge>
+   728→                    )}
+   729→                  </div>
+   730→
+   731→                  {/* Commission Breakdown */}
+   732→                  <div className="space-y-2 flex-1">
+   733→                    <div className="flex items-center justify-between text-xs">
+   734→                      <span className="text-muted-foreground">Base Rate</span>
+   735→                      <span className="font-medium">{product.baseCommission}%</span>
+   736→                    </div>
+   737→                    <div className="flex items-center justify-between text-xs">
+   738→                      <span className="text-rose-500 font-medium">+ XTRA</span>
+   739→                      <span className="font-medium text-rose-500">+{product.xtraCommission}%</span>
+   740→                    </div>
+   741→                    <Separator />
+   742→                    <div className="flex items-center justify-between">
+   743→                      <span className="text-xs font-semibold">Total Rate</span>
+   744→                      <span className="text-lg font-bold text-rose-600 dark:text-rose-400">{product.totalRate}%</span>
+   745→                    </div>
+   746→                  </div>
+   747→
+   748→                  {/* Action Buttons */}
+   749→                  <div className="flex gap-2 mt-4">
+   750→                    <Button
+   751→                      variant="outline"
+   752→                      size="sm"
+   753→                      className="flex-1 gap-1 text-xs text-rose-600 border-rose-200 hover:bg-rose-50 dark:text-rose-400 dark:border-rose-800"
+   754→                      onClick={() => toast.info(`Scoring ${product.name}...`)}
+   755→                    >
+   756→                      <Target className="w-3 h-3" />
+   757→                      Score
+   758→                    </Button>
+   759→                    <Button
+   760→                      variant="outline"
+   761→                      size="sm"
+   762→                      className="flex-1 gap-1 text-xs"
+   763→                      onClick={() => toast.info('Generate Link feature coming soon!')}
+   764→                    >
+   765→                      <ExternalLink className="w-3 h-3" />
+   766→                      Generate Link
+   767→                    </Button>
+   768→                  </div>
+   769→                </CardContent>
+   770→              </Card>
+   771→            </motion.div>
+   772→          ))}
+   773→        </div>
+   774→      )}
+   775→    </div>
+   776→  )
+   777→}
+   778→
+   779→// ─── Calculator Tab ───────────────────────────────────────────────────────────
+   780→
+   781→function CalculatorTab() {
+   782→  const [price, setPrice] = useState('100')
+   783→  const [commissionRate, setCommissionRate] = useState(8)
+   784→  const [dailyViews, setDailyViews] = useState('500')
+   785→  const [clickRate, setClickRate] = useState(5)
+   786→  const [conversionRate, setConversionRate] = useState(3)
+   787→  const [diffShop, setDiffShop] = useState(false)
+   788→  const [result, setResult] = useState<CalculatorResult | null>(null)
+   789→  const [isCalculating, setIsCalculating] = useState(false)
+   790→
+   791→  const handleCalculate = async () => {
+   792→    setIsCalculating(true)
+   793→    try {
+   794→      const res = await fetch('/api/profit/calculator', {
+   795→        method: 'POST',
+   796→        headers: { 'Content-Type': 'application/json' },
+   797→        body: JSON.stringify({
+   798→          product: {
+   799→            name: 'Product',
+   800→            price: parseFloat(price) || 0,
+   801→            commissionRate,
+   802→          },
+   803→          dailyViews: parseInt(dailyViews) || 500,
+   804→          clickRate,
+   805→          conversionRate,
+   806→          commissionType: diffShop ? 'different-shop' : 'same-shop',
+   807→        }),
+   808→      })
+   809→
+   810→      if (!res.ok) throw new Error('Calculation failed')
+   811→      const data = await res.json()
+   812→      setResult(data)
+   813→    } catch {
+   814→      toast.error('Failed to calculate projections')
+   815→    } finally {
+   816→      setIsCalculating(false)
+   817→    }
+   818→  }
+   819→
+   820→  // Auto-calculate on input change
+   821→  useEffect(() => {
+   822→    const timer = setTimeout(() => {
+   823→      handleCalculate()
+   824→    }, 300)
+   825→    return () => clearTimeout(timer)
+   826→  }, [price, commissionRate, dailyViews, clickRate, conversionRate, diffShop, handleCalculate])
+   827→
+   828→  const effectiveRate = diffShop ? commissionRate * 0.5 : commissionRate
+   829→
+   830→  return (
+   831→    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+   832→      {/* Input Panel */}
+   833→      <motion.div {...fadeIn} className="space-y-6">
+   834→        <Card className="border-0 shadow-sm">
+   835→          <CardHeader>
+   836→            <CardTitle className="flex items-center gap-2 text-base">
+   837→              <Calculator className="w-4 h-4 text-rose-500" />
+   838→              Earnings Calculator
+   839→            </CardTitle>
+   840→          </CardHeader>
+   841→          <CardContent className="space-y-5">
+   842→            <div className="space-y-2">
+   843→              <Label className="text-sm font-medium">Product Price (RM)</Label>
+   844→              <Input
+   845→                type="number"
+   846→                placeholder="e.g. 99.90"
+   847→                value={price}
+   848→                onChange={(e) => setPrice(e.target.value)}
+   849→              />
+   850→            </div>
+   851→
+   852→            <div className="space-y-2">
+   853→              <div className="flex items-center justify-between">
+   854→                <Label className="text-sm font-medium">Commission Rate</Label>
+   855→                <Badge variant="secondary" className="text-xs font-bold">
+   856→                  {commissionRate}%
+   857→                </Badge>
+   858→              </div>
+   859→              <Slider
+   860→                value={[commissionRate]}
+   861→                onValueChange={(v) => setCommissionRate(v[0])}
+   862→                min={1}
+   863→                max={50}
+   864→                step={0.5}
+   865→              />
+   866→              <div className="flex gap-1.5">
+   867→                {[5, 8, 10, 15, 25, 40].map((rate) => (
+   868→                  <Button
+   869→                    key={rate}
+   870→                    variant={commissionRate === rate ? 'default' : 'outline'}
+   871→                    size="sm"
+   872→                    className="h-6 px-2 text-[10px]"
+   873→                    onClick={() => setCommissionRate(rate)}
+   874→                  >
+   875→                    {rate}%
+   876→                  </Button>
+   877→                ))}
+   878→              </div>
+   879→            </div>
+   880→
+   881→            <div className="space-y-2">
+   882→              <Label className="text-sm font-medium">Estimated Daily Views</Label>
+   883→              <Input
+   884→                type="number"
+   885→                placeholder="e.g. 500"
+   886→                value={dailyViews}
+   887→                onChange={(e) => setDailyViews(e.target.value)}
+   888→              />
+   889→            </div>
+   890→
+   891→            <div className="space-y-2">
+   892→              <div className="flex items-center justify-between">
+   893→                <Label className="text-sm font-medium">Click Rate (CTR)</Label>
+   894→                <Badge variant="secondary" className="text-xs">{clickRate}%</Badge>
+   895→              </div>
+   896→              <Slider
+   897→                value={[clickRate]}
+   898→                onValueChange={(v) => setClickRate(v[0])}
+   899→                min={1}
+   900→                max={20}
+   901→                step={0.5}
+   902→              />
+   903→            </div>
+   904→
+   905→            <div className="space-y-2">
+   906→              <div className="flex items-center justify-between">
+   907→                <Label className="text-sm font-medium">Conversion Rate</Label>
+   908→                <Badge variant="secondary" className="text-xs">{conversionRate}%</Badge>
+   909→              </div>
+   910→              <Slider
+   911→                value={[conversionRate]}
+   912→                onValueChange={(v) => setConversionRate(v[0])}
+   913→                min={0.5}
+   914→                max={15}
+   915→                step={0.5}
+   916→              />
+   917→            </div>
+   918→
+   919→            <Separator />
+   920→
+   921→            {/* Different Shop Toggle */}
+   922→            <div className="flex items-center justify-between">
+   923→              <div>
+   924→                <Label className="text-sm font-medium">Different-Shop Commission</Label>
+   925→                <p className="text-[10px] text-muted-foreground">50% of seller commission rate</p>
+   926→              </div>
+   927→              <Switch
+   928→                checked={diffShop}
+   929→                onCheckedChange={setDiffShop}
+   930→              />
+   931→            </div>
+   932→
+   933→            {diffShop && (
+   934→              <div className="bg-amber-50 dark:bg-amber-950/20 rounded-lg p-3">
+   935→                <p className="text-xs text-amber-700 dark:text-amber-400">
+   936→                  ⚠️ Different-shop commission: Effective rate is <strong>{effectiveRate}%</strong> (50% of {commissionRate}%)
+   937→                </p>
+   938→              </div>
+   939→            )}
+   940→          </CardContent>
+   941→        </Card>
+   942→      </motion.div>
+   943→
+   944→      {/* Results Panel */}
+   945→      <motion.div {...fadeIn} className="lg:col-span-2 space-y-6">
+   946→        {result ? (
+   947→          <>
+   948→            {/* Earnings Summary */}
+   949→            <Card className="border-0 shadow-sm">
+   950→              <CardHeader>
+   951→                <CardTitle className="flex items-center gap-2 text-base">
+   952→                  <DollarSign className="w-4 h-4 text-rose-500" />
+   953→                  Earnings Projection
+   954→                </CardTitle>
+   955→                <CardDescription>
+   956→                  Based on {result.inputs.dailyViews} daily views, {result.inputs.clickRate} CTR, {result.inputs.conversionRate} conversion
+   957→                </CardDescription>
+   958→              </CardHeader>
+   959→              <CardContent>
+   960→                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+   961→                  <div className="rounded-lg border bg-rose-50 dark:bg-rose-950/20 p-4 text-center">
+   962→                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Per Sale</p>
+   963→                    <p className="text-xl font-bold text-rose-600 dark:text-rose-400">
+   964→                      {formatRM(result.perConversion)}
+   965→                    </p>
+   966→                  </div>
+   967→                  <div className="rounded-lg border bg-rose-50 dark:bg-rose-950/20 p-4 text-center">
+   968→                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Daily</p>
+   969→                    <p className="text-xl font-bold text-rose-600 dark:text-rose-400">
+   970→                      {formatRM(result.daily.earnings)}
+   971→                    </p>
+   972→                  </div>
+   973→                  <div className="rounded-lg border bg-rose-50 dark:bg-rose-950/20 p-4 text-center">
+   974→                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Monthly</p>
+   975→                    <p className="text-2xl font-bold text-rose-600 dark:text-rose-400">
+   976→                      {formatRM(result.monthly.earnings)}
+   977→                    </p>
+   978→                  </div>
+   979→                  <div className="rounded-lg border bg-muted/50 p-4 text-center">
+   980→                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Yearly</p>
+   981→                    <p className="text-xl font-bold">
+   982→                      {formatRM(result.yearly.earnings)}
+   983→                    </p>
+   984→                  </div>
+   985→                </div>
+   986→
+   987→                <div className="grid grid-cols-3 gap-3 mt-4">
+   988→                  <div className="text-center">
+   989→                    <p className="text-xs text-muted-foreground">Daily Clicks</p>
+   990→                    <p className="text-sm font-semibold">{result.daily.clicks}</p>
+   991→                  </div>
+   992→                  <div className="text-center">
+   993→                    <p className="text-xs text-muted-foreground">Daily Conversions</p>
+   994→                    <p className="text-sm font-semibold">{result.daily.conversions}</p>
+   995→                  </div>
+   996→                  <div className="text-center">
+   997→                    <p className="text-xs text-muted-foreground">Monthly Conversions</p>
+   998→                    <p className="text-sm font-semibold">{result.monthly.conversions}</p>
+   999→                  </div>
+  1000→                </div>
+  1001→              </CardContent>
+  1002→            </Card>
+  1003→
+  1004→            {/* Break-even */}
+  1005→            {result.breakEven && (
+  1006→              <Card className="border-0 shadow-sm">
+  1007→                <CardContent className="p-4">
+  1008→                  <div className="flex items-center gap-3">
+  1009→                    <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/30">
+  1010→                      <Target className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+  1011→                    </div>
+  1012→                    <div>
+  1013→                      <p className="text-sm font-semibold">Break-Even: {result.breakEven.days} day{result.breakEven.days !== 1 ? 's' : ''}</p>
+  1014→                      <p className="text-xs text-muted-foreground">
+  1015→                        At RM{result.breakEven.effortCostPerDay}/day effort cost (content creation time)
+  1016→                      </p>
+  1017→                    </div>
+  1018→                  </div>
+  1019→                </CardContent>
+  1020→              </Card>
+  1021→            )}
+  1022→
+  1023→            {/* Goal Tracker */}
+  1024→            <Card className="border-0 shadow-sm">
+  1025→              <CardHeader>
+  1026→                <CardTitle className="flex items-center gap-2 text-base">
+  1027→                  <Award className="w-4 h-4 text-rose-500" />
+  1028→                  Goal Tracker
+  1029→                </CardTitle>
+  1030→                <CardDescription>Views needed to reach monthly earning targets</CardDescription>
+  1031→              </CardHeader>
+  1032→              <CardContent>
+  1033→                <div className="space-y-3">
+  1034→                  {result.goalTracker.map((goal) => (
+  1035→                    <div key={goal.target} className="flex items-center gap-3">
+  1036→                      <div className="w-20 text-sm font-semibold text-rose-600 dark:text-rose-400">
+  1037→                        {formatRMShort(goal.target)}
+  1038→                      </div>
+  1039→                      <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
+  1040→                        <motion.div
+  1041→                          initial={{ width: 0 }}
+  1042→                          animate={{
+  1043→                            width: goal.feasible
+  1044→                              ? `${Math.min(100, (parseInt(dailyViews) / Math.max(1, goal.viewsNeeded)) * 100)}%`
+  1045→                              : '0%'
+  1046→                          }}
+  1047→                          transition={{ duration: 0.8, ease: 'easeOut' }}
+  1048→                          className={`h-full rounded-full ${
+  1049→                            goal.feasible ? 'bg-rose-500' : 'bg-muted-foreground/30'
+  1050→                          }`}
+  1051→                        />
+  1052→                      </div>
+  1053→                      <div className="w-24 text-right">
+  1054→                        {goal.feasible ? (
+  1055→                          <span className="text-xs text-muted-foreground">
+  1056→                            {goal.viewsNeeded.toLocaleString()} views/day
+  1057→                          </span>
+  1058→                        ) : (
+  1059→                          <span className="text-xs text-red-500">Not feasible</span>
+  1060→                        )}
+  1061→                      </div>
+  1062→                    </div>
+  1063→                  ))}
+  1064→                </div>
+  1065→              </CardContent>
+  1066→            </Card>
+  1067→          </>
+  1068→        ) : (
+  1069→          <Card className="border-0 shadow-sm">
+  1070→            <CardContent className="py-16 text-center">
+  1071→              {isCalculating ? (
+  1072→                <Loader2 className="w-8 h-8 text-rose-400 animate-spin mx-auto" />
+  1073→              ) : (
+  1074→                <>
+  1075→                  <Calculator className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+  1076→                  <h3 className="text-sm font-semibold text-foreground mb-1">Enter your numbers</h3>
+  1077→                  <p className="text-xs text-muted-foreground">Adjust the inputs to see earnings projections in real-time.</p>
+  1078→                </>
+  1079→              )}
+  1080→            </CardContent>
+  1081→          </Card>
+  1082→        )}
+  1083→      </motion.div>
+  1084→    </div>
+  1085→  )
+  1086→}
+  1087→
+  1088→// ─── Roadmap Tab ──────────────────────────────────────────────────────────────
+  1089→
+  1090→function RoadmapTab() {
+  1091→  const [commissionRate, setCommissionRate] = useState(8)
+  1092→  const [avgPrice, setAvgPrice] = useState('80')
+  1093→  const [conversionRate, setConversionRate] = useState(3)
+  1094→
+  1095→  const calculateMilestone = useCallback((targetMonthly: number) => {
+  1096→    const price = parseFloat(avgPrice) || 80
+  1097→    const cRate = commissionRate / 100
+  1098→    const convRate = conversionRate / 100
+  1099→    const clickRate = 0.05 // 5% CTR
+  1100→
+  1101→    const earningsPerView = (price * cRate * clickRate * convRate)
+  1102→    if (earningsPerView <= 0) return { viewsNeeded: Infinity, postsPerWeek: Infinity }
+  1103→
+  1104→    const dailyTarget = targetMonthly / 30
+  1105→    const viewsNeeded = Math.ceil(dailyTarget / earningsPerView)
+  1106→    // Assume each post gets ~500 views, need X posts to reach views
+  1107→    const postsPerWeek = Math.ceil((viewsNeeded / 500) * 7)
+  1108→
+  1109→    return { viewsNeeded, postsPerWeek }
+  1110→  }, [commissionRate, avgPrice, conversionRate])
+  1111→
+  1112→  const milestones = MILESTONES.map((m) => ({
+  1113→    ...m,
+  1114→    ...calculateMilestone(m.target),
+  1115→  }))
+  1116→
+  1117→  return (
+  1118→    <div className="space-y-6">
+  1119→      {/* Assumptions Input */}
+  1120→      <motion.div {...fadeIn}>
+  1121→        <Card className="border-0 shadow-sm">
+  1122→          <CardHeader>
+  1123→            <CardTitle className="flex items-center gap-2 text-base">
+  1124→              <Map className="w-4 h-4 text-rose-500" />
+  1125→              Affiliate Earnings Roadmap
+  1126→            </CardTitle>
+  1127→            <CardDescription>
+  1128→              Set your assumptions to see the path to each milestone
+  1129→            </CardDescription>
+  1130→          </CardHeader>
+  1131→          <CardContent>
+  1132→            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+  1133→              <div className="space-y-2">
+  1134→                <div className="flex items-center justify-between">
+  1135→                  <Label className="text-sm font-medium">Commission Rate</Label>
+  1136→                  <Badge variant="secondary" className="text-xs">{commissionRate}%</Badge>
+  1137→                </div>
+  1138→                <Slider
+  1139→                  value={[commissionRate]}
+  1140→                  onValueChange={(v) => setCommissionRate(v[0])}
+  1141→                  min={2}
+  1142→                  max={50}
+  1143→                  step={1}
+  1144→                />
+  1145→              </div>
+  1146→              <div className="space-y-2">
+  1147→                <Label className="text-sm font-medium">Avg Product Price (RM)</Label>
+  1148→                <Input
+  1149→                  type="number"
+  1150→                  value={avgPrice}
+  1151→                  onChange={(e) => setAvgPrice(e.target.value)}
+  1152→                  placeholder="e.g. 80"
+  1153→                />
+  1154→              </div>
+  1155→              <div className="space-y-2">
+  1156→                <div className="flex items-center justify-between">
+  1157→                  <Label className="text-sm font-medium">Conversion Rate</Label>
+  1158→                  <Badge variant="secondary" className="text-xs">{conversionRate}%</Badge>
+  1159→                </div>
+  1160→                <Slider
+  1161→                  value={[conversionRate]}
+  1162→                  onValueChange={(v) => setConversionRate(v[0])}
+  1163→                  min={0.5}
+  1164→                  max={15}
+  1165→                  step={0.5}
+  1166→                />
+  1167→              </div>
+  1168→            </div>
+  1169→          </CardContent>
+  1170→        </Card>
+  1171→      </motion.div>
+  1172→
+  1173→      {/* Milestone Cards */}
+  1174→      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+  1175→        {milestones.map((milestone, i) => (
+  1176→          <motion.div
+  1177→            key={milestone.target}
+  1178→            initial={{ opacity: 0, y: 20 }}
+  1179→            animate={{ opacity: 1, y: 0 }}
+  1180→            transition={{ duration: 0.4, delay: i * 0.1 }}
+  1181→          >
+  1182→            <Card className={`border-0 shadow-sm hover:shadow-md transition-shadow h-full ${
+  1183→              i === milestones.length - 1 ? 'ring-2 ring-rose-300 dark:ring-rose-700' : ''
+  1184→            }`}>
+  1185→              <CardContent className="p-6 flex flex-col items-center text-center">
+  1186→                <span className="text-4xl mb-2">{milestone.emoji}</span>
+  1187→                <h3 className="text-lg font-bold text-rose-600 dark:text-rose-400 mb-1">
+  1188→                  {formatRM(milestone.target)}
+  1189→                  <span className="text-xs text-muted-foreground font-normal">/month</span>
+  1190→                </h3>
+  1191→                <p className="text-sm font-semibold text-foreground mb-1">{milestone.title}</p>
+  1192→                <p className="text-xs text-muted-foreground mb-4">{milestone.description}</p>
+  1193→
+  1194→                <Separator className="mb-4 w-full" />
+  1195→
+  1196→                <div className="space-y-2 w-full text-left">
+  1197→                  <div className="flex items-center justify-between">
+  1198→                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+  1199→                      <BarChart3 className="w-3 h-3" />
+  1200→                      Views/day
+  1201→                    </span>
+  1202→                    <span className="text-xs font-semibold">
+  1203→                      {milestone.viewsNeeded === Infinity ? '∞' : milestone.viewsNeeded.toLocaleString()}
+  1204→                    </span>
+  1205→                  </div>
+  1206→                  <div className="flex items-center justify-between">
+  1207→                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+  1208→                      <ShoppingBag className="w-3 h-3" />
+  1209→                      Posts/week
+  1210→                    </span>
+  1211→                    <span className="text-xs font-semibold">
+  1212→                      {milestone.postsPerWeek === Infinity ? '∞' : milestone.postsPerWeek}
+  1213→                    </span>
+  1214→                  </div>
+  1215→                  <div className="flex items-center justify-between">
+  1216→                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+  1217→                      <DollarSign className="w-3 h-3" />
+  1218→                      Per sale
+  1219→                    </span>
+  1220→                    <span className="text-xs font-semibold text-rose-600 dark:text-rose-400">
+  1221→                      {formatRM((parseFloat(avgPrice) || 80) * commissionRate / 100)}
+  1222→                    </span>
+  1223→                  </div>
+  1224→                </div>
+  1225→              </CardContent>
+  1226→            </Card>
+  1227→          </motion.div>
+  1228→        ))}
+  1229→      </div>
+  1230→
+  1231→      {/* Progress Arrow */}
+  1232→      <div className="hidden sm:flex items-center justify-center gap-1 text-muted-foreground/40">
+  1233→        {milestones.map((_, i) => (
+  1234→          <div key={i} className="flex items-center gap-1">
+  1235→            <div className="w-3 h-3 rounded-full bg-rose-300 dark:bg-rose-700" />
+  1236→            {i < milestones.length - 1 && <ChevronRight className="w-4 h-4" />}
+  1237→          </div>
+  1238→        ))}
+  1239→      </div>
+  1240→
+  1241→      {/* Tips */}
+  1242→      <motion.div {...fadeIn}>
+  1243→        <Card className="border-0 shadow-sm bg-rose-50 dark:bg-rose-950/20">
+  1244→          <CardContent className="p-5">
+  1245→            <h4 className="text-sm font-semibold text-rose-700 dark:text-rose-400 mb-3 flex items-center gap-2">
+  1246→              <Flame className="w-4 h-4" />
+  1247→              Pro Tips to Accelerate Your Roadmap
+  1248→            </h4>
+  1249→            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+  1250→              {[
+  1251→                { title: 'Focus on High-Commission Products', desc: 'Commission XTRA products with 20-50% rates can cut your roadmap time by 3-5x.' },
+  1252→                { title: 'Post Consistently', desc: '1-2 quality posts daily beats sporadic posting. Consistency builds audience trust.' },
+  1253→                { title: 'Leverage Sale Events', desc: '11.11, 12.12, and Payday sales can drive 5-10x normal traffic to your links.' },
+  1254→                { title: 'Diversify Platforms', desc: 'Don\'t rely on one platform. TikTok + IG Reels + Shopee Live = maximum reach.' },
+  1255→              ].map((tip) => (
+  1256→                <div key={tip.title} className="flex gap-2">
+  1257→                  <CheckCircle2 className="w-4 h-4 text-rose-500 mt-0.5 flex-shrink-0" />
+  1258→                  <div>
+  1259→                    <p className="text-xs font-medium text-foreground">{tip.title}</p>
+  1260→                    <p className="text-[11px] text-muted-foreground leading-relaxed">{tip.desc}</p>
+  1261→                  </div>
+  1262→                </div>
+  1263→              ))}
+  1264→            </div>
+  1265→          </CardContent>
+  1266→        </Card>
+  1267→      </motion.div>
+  1268→    </div>
+  1269→  )
+  1270→}
+  1271→

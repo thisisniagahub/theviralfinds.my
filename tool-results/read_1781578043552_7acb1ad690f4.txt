@@ -1,0 +1,1468 @@
+     1→'use client'
+     2→
+     3→import { useState, useCallback, useRef, useEffect } from 'react'
+     4→import { motion, AnimatePresence } from 'framer-motion'
+     5→import { cn } from '@/lib/utils'
+     6→
+     7→import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+     8→import { Badge } from '@/components/ui/badge'
+     9→import { Button } from '@/components/ui/button'
+    10→import { Input } from '@/components/ui/input'
+    11→import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+    12→import { Textarea } from '@/components/ui/textarea'
+    13→import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+    14→import { Separator } from '@/components/ui/separator'
+    15→import { ScrollArea } from '@/components/ui/scroll-area'
+    16→import { Skeleton } from '@/components/ui/skeleton'
+    17→import { Label } from '@/components/ui/label'
+    18→import { Slider } from '@/components/ui/slider'
+    19→import { Switch } from '@/components/ui/switch'
+    20→import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+    21→
+    22→import {
+    23→  Film, Mic, Subtitles, LayoutGrid, Calendar, Sparkles, Play, Pause,
+    24→  Copy, Download, Clock, Star, Wand2, Volume2, VolumeX, ChevronRight,
+    25→  Check, Loader2, Zap, Tag, MessageSquare, Eye, ArrowRight, Trash2,
+    26→  Plus, Video, Music, Type, FileText, Camera, Lightbulb, BookOpen,
+    27→  RefreshCw, ExternalLink, Send, GripVertical, CalendarDays,
+    28→  ShoppingBag, Package, Wrench, DollarSign, Trophy, Heart,
+    29→  Flame, Home as HomeIcon, PawPrint, Shirt, Palette,
+    30→} from 'lucide-react'
+    31→import { toast } from 'sonner'
+    32→
+    33→// ─── Types ───────────────────────────────────────────────────────────────────
+    34→
+    35→interface Scene {
+    36→  sceneNumber: number
+    37→  timeRange: string
+    38→  label: string
+    39→  visualNotes: string
+    40→  dialogue: string
+    41→  actionNotes: string
+    42→}
+    43→
+    44→interface GeneratedScript {
+    45→  title: string
+    46→  totalDuration: string
+    47→  scenes: Scene[]
+    48→  hashtags: string[]
+    49→  tips: string[]
+    50→  rawScript?: string
+    51→}
+    52→
+    53→interface Caption {
+    54→  index: number
+    55→  startTime: number
+    56→  endTime: number
+    57→  text: string
+    58→}
+    59→
+    60→interface CalendarEntry {
+    61→  id: string
+    62→  day: string
+    63→  time: string
+    64→  title: string
+    65→  template: string
+    66→  platform: string
+    67→  status: 'planned' | 'recorded' | 'edited' | 'posted'
+    68→}
+    69→
+    70→// ─── Constants ───────────────────────────────────────────────────────────────
+    71→
+    72→const TEMPLATES = [
+    73→  { id: 'before_after', name: 'Before/After Magic', icon: '🎭', bestFor: 'Beauty, Skincare, Home', platform: 'TikTok', duration: '30-60s', color: 'from-pink-500 to-rose-500' },
+    74→  { id: 'unboxing', name: 'Epic Unboxing', icon: '📦', bestFor: 'Gadgets, Fashion', platform: 'Reels', duration: '30-60s', color: 'from-amber-500 to-orange-500' },
+    75→  { id: 'demo', name: 'Product Demo', icon: '🛠️', bestFor: 'Electronics, Tools', platform: 'Shorts', duration: '45-90s', color: 'from-sky-500 to-blue-500' },
+    76→  { id: 'price_reveal', name: 'Price Drop Alert!', icon: '💰', bestFor: 'Deals, Sales', platform: 'TikTok', duration: '15-30s', color: 'from-green-500 to-emerald-500' },
+    77→  { id: 'comparison', name: 'Comparison Battle', icon: '⚔️', bestFor: 'Vs Competitor', platform: 'Reels', duration: '45-60s', color: 'from-violet-500 to-purple-500' },
+    78→  { id: 'problem_solution', name: 'Problem Solved!', icon: '💡', bestFor: 'Home, Health', platform: 'TikTok', duration: '30-60s', color: 'from-cyan-500 to-teal-500' },
+    79→  { id: 'testimonial', name: 'Real Talk Review', icon: '💬', bestFor: 'Beauty, Health', platform: 'Shorts', duration: '30-60s', color: 'from-fuchsia-500 to-pink-500' },
+    80→  { id: 'top5', name: 'Top 5 Picks', icon: '🏆', bestFor: 'Any Category', platform: 'TikTok', duration: '45-90s', color: 'from-yellow-500 to-amber-500' },
+    81→]
+    82→
+    83→const GALLERY_TEMPLATES = [
+    84→  { name: 'Before/After Magic', emoji: '🎭', bestFor: 'Beauty & Skincare', platform: 'TikTok', duration: '30-60s', gradient: 'from-pink-500/20 to-rose-500/20', border: 'border-pink-500/30', template: 'before_after' },
+    85→  { name: 'Epic Unboxing', emoji: '📦', bestFor: 'Gadgets & Tech', platform: 'Reels', duration: '30-60s', gradient: 'from-amber-500/20 to-orange-500/20', border: 'border-amber-500/30', template: 'unboxing' },
+    86→  { name: 'Problem Solved!', emoji: '🛠️', bestFor: 'Home & Living', platform: 'Shorts', duration: '30-60s', gradient: 'from-sky-500/20 to-blue-500/20', border: 'border-sky-500/30', template: 'problem_solution' },
+    87→  { name: 'Price Drop Alert!', emoji: '💰', bestFor: 'Deals & Sales', platform: 'TikTok', duration: '15-30s', gradient: 'from-green-500/20 to-emerald-500/20', border: 'border-green-500/30', template: 'price_reveal' },
+    88→  { name: 'Top 5 Picks', emoji: '🏆', bestFor: 'Any Category', platform: 'TikTok', duration: '45-90s', gradient: 'from-yellow-500/20 to-amber-500/20', border: 'border-yellow-500/30', template: 'top5' },
+    89→  { name: 'Try-On Haul', emoji: '💄', bestFor: 'Fashion & Beauty', platform: 'Reels', duration: '45-90s', gradient: 'from-fuchsia-500/20 to-pink-500/20', border: 'border-fuchsia-500/30', template: 'testimonial' },
+    90→  { name: 'Hot or Not?', emoji: '🔥', bestFor: 'Product Reviews', platform: 'TikTok', duration: '30-60s', gradient: 'from-red-500/20 to-orange-500/20', border: 'border-red-500/30', template: 'comparison' },
+    91→  { name: 'Room Makeover', emoji: '🏠', bestFor: 'Home & Living', platform: 'Shorts', duration: '60-90s', gradient: 'from-teal-500/20 to-cyan-500/20', border: 'border-teal-500/30', template: 'before_after' },
+    92→  { name: 'Pet Approved', emoji: '🐱', bestFor: 'Pet Products', platform: 'TikTok', duration: '15-30s', gradient: 'from-indigo-500/20 to-violet-500/20', border: 'border-indigo-500/30', template: 'demo' },
+    93→]
+    94→
+    95→const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    96→const OPTIMAL_TIMES = ['7:30 AM', '12:00 PM', '5:30 PM', '8:00 PM', '9:30 PM']
+    97→const STATUS_COLORS: Record<string, string> = {
+    98→  planned: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300',
+    99→  recorded: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+   100→  edited: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+   101→  posted: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
+   102→}
+   103→
+   104→const DURATION_OPTIONS = [15, 30, 60, 90]
+   105→const PLATFORM_OPTIONS = [
+   106→  { id: 'tiktok', name: 'TikTok', icon: '🎵' },
+   107→  { id: 'reels', name: 'Reels', icon: '📸' },
+   108→  { id: 'shorts', name: 'Shorts', icon: '▶️' },
+   109→]
+   110→const LANGUAGE_OPTIONS = [
+   111→  { id: 'english', name: 'English', flag: '🇬🇧' },
+   112→  { id: 'bm', name: 'Bahasa Melayu', flag: '🇲🇾' },
+   113→  { id: 'manglish', name: 'Manglish', flag: '🇲🇾' },
+   114→]
+   115→
+   116→// ─── Component ───────────────────────────────────────────────────────────────
+   117→
+   118→export function StudioPage() {
+   119→  const [activeTab, setActiveTab] = useState('script')
+   120→
+   121→  // Script Generator State
+   122→  const [productName, setProductName] = useState('')
+   123→  const [selectedTemplate, setSelectedTemplate] = useState('before_after')
+   124→  const [selectedDuration, setSelectedDuration] = useState(60)
+   125→  const [selectedPlatform, setSelectedPlatform] = useState('tiktok')
+   126→  const [selectedLanguage, setSelectedLanguage] = useState('manglish')
+   127→  const [generatedScript, setGeneratedScript] = useState<GeneratedScript | null>(null)
+   128→  const [isGenerating, setIsGenerating] = useState(false)
+   129→
+   130→  // Voiceover State
+   131→  const [voiceoverText, setVoiceoverText] = useState('')
+   132→  const [selectedVoice, setSelectedVoice] = useState('alloy')
+   133→  const [voiceSpeed, setVoiceSpeed] = useState([1.0])
+   134→  const [isGeneratingVoice, setIsGeneratingVoice] = useState(false)
+   135→  const [audioResult, setAudioResult] = useState<Record<string, unknown> | null>(null)
+   136→  const [isPlaying, setIsPlaying] = useState(false)
+   137→  const audioRef = useRef<HTMLAudioElement | null>(null)
+   138→
+   139→  // Caption State
+   140→  const [captionScript, setCaptionScript] = useState('')
+   141→  const [captionDuration, setCaptionDuration] = useState(60)
+   142→  const [captions, setCaptions] = useState<Caption[]>([])
+   143→  const [isGeneratingCaptions, setIsGeneratingCaptions] = useState(false)
+   144→  const [srtContent, setSrtContent] = useState('')
+   145→
+   146→  // Calendar State
+   147→  const [calendarEntries, setCalendarEntries] = useState<CalendarEntry[]>([
+   148→    { id: '1', day: 'Monday', time: '8:00 PM', title: 'Skincare Before/After', template: 'before_after', platform: 'TikTok', status: 'planned' },
+   149→    { id: '2', day: 'Wednesday', time: '12:00 PM', title: 'Gadget Unboxing', template: 'unboxing', platform: 'Reels', status: 'planned' },
+   150→    { id: '3', day: 'Friday', time: '9:30 PM', title: 'Top 5 Picks', template: 'top5', platform: 'TikTok', status: 'planned' },
+   151→    { id: '4', day: 'Saturday', time: '7:30 AM', title: 'Price Reveal Deal', template: 'price_reveal', platform: 'Shorts', status: 'planned' },
+   152→  ])
+   153→
+   154→  // Fill voiceover text from generated script
+   155→  useEffect(() => {
+   156→    if (generatedScript?.scenes) {
+   157→      const dialogue = generatedScript.scenes
+   158→        .map(s => s.dialogue)
+   159→        .filter(Boolean)
+   160→        .join('\n\n')
+   161→      setVoiceoverText(dialogue)
+   162→      setCaptionScript(dialogue)
+   163→    }
+   164→  }, [generatedScript])
+   165→
+   166→  // ─── Script Generation ─────────────────────────────────────────────────
+   167→
+   168→  const handleGenerateScript = useCallback(async () => {
+   169→    if (!productName.trim()) {
+   170→      toast.error('Please enter a product name')
+   171→      return
+   172→    }
+   173→
+   174→    setIsGenerating(true)
+   175→    setGeneratedScript(null)
+   176→
+   177→    try {
+   178→      const res = await fetch('/api/studio/script', {
+   179→        method: 'POST',
+   180→        headers: { 'Content-Type': 'application/json' },
+   181→        body: JSON.stringify({
+   182→          product: productName,
+   183→          template: selectedTemplate,
+   184→          duration: selectedDuration,
+   185→          platform: selectedPlatform,
+   186→          language: selectedLanguage,
+   187→        }),
+   188→      })
+   189→
+   190→      const data = await res.json()
+   191→
+   192→      if (!res.ok) {
+   193→        throw new Error(data.error || 'Failed to generate script')
+   194→      }
+   195→
+   196→      setGeneratedScript(data.script)
+   197→      toast.success('Script generated successfully! 🎬')
+   198→    } catch (error) {
+   199→      console.error('Script generation error:', error)
+   200→      toast.error('Failed to generate script. Please try again.')
+   201→    } finally {
+   202→      setIsGenerating(false)
+   203→    }
+   204→  }, [productName, selectedTemplate, selectedDuration, selectedPlatform, selectedLanguage])
+   205→
+   206→  // ─── Copy Script ───────────────────────────────────────────────────────
+   207→
+   208→  const handleCopyScript = useCallback(() => {
+   209→    if (!generatedScript) return
+   210→
+   211→    let text = `🎬 ${generatedScript.title}\n`
+   212→    text += `⏱️ Duration: ${generatedScript.totalDuration}\n\n`
+   213→
+   214→    if (generatedScript.scenes) {
+   215→      generatedScript.scenes.forEach(scene => {
+   216→        text += `--- Scene ${scene.sceneNumber}: ${scene.label} [${scene.timeRange}] ---\n`
+   217→        text += `📹 Visual: ${scene.visualNotes}\n`
+   218→        text += `🗣️ Dialogue: ${scene.dialogue}\n`
+   219→        text += `🎬 Action: ${scene.actionNotes}\n\n`
+   220→      })
+   221→    }
+   222→
+   223→    if (generatedScript.hashtags) {
+   224→      text += `🏷️ Hashtags: ${generatedScript.hashtags.join(' ')}\n`
+   225→    }
+   226→
+   227→    if (generatedScript.tips) {
+   228→      text += `\n💡 Tips:\n${generatedScript.tips.map(t => `• ${t}`).join('\n')}\n`
+   229→    }
+   230→
+   231→    navigator.clipboard.writeText(text)
+   232→    toast.success('Script copied to clipboard!')
+   233→  }, [generatedScript])
+   234→
+   235→  // ─── TTS Generation ────────────────────────────────────────────────────
+   236→
+   237→  const handleGenerateVoiceover = useCallback(async () => {
+   238→    if (!voiceoverText.trim()) {
+   239→      toast.error('Please enter text for voiceover')
+   240→      return
+   241→    }
+   242→
+   243→    setIsGeneratingVoice(true)
+   244→    setAudioResult(null)
+   245→
+   246→    try {
+   247→      const res = await fetch('/api/studio/tts', {
+   248→        method: 'POST',
+   249→        headers: { 'Content-Type': 'application/json' },
+   250→        body: JSON.stringify({
+   251→          text: voiceoverText,
+   252→          voice: selectedVoice,
+   253→          speed: voiceSpeed[0],
+   254→        }),
+   255→      })
+   256→
+   257→      const data = await res.json()
+   258→
+   259→      if (!res.ok) {
+   260→        throw new Error(data.error || 'Failed to generate voiceover')
+   261→      }
+   262→
+   263→      setAudioResult(data)
+   264→
+   265→      if (data.mockAudio) {
+   266→        toast.info('TTS is coming soon! This is a preview of the estimated audio.', { duration: 4000 })
+   267→      } else {
+   268→        toast.success('Voiceover generated! 🎙️')
+   269→      }
+   270→    } catch (error) {
+   271→      console.error('TTS error:', error)
+   272→      toast.error('Failed to generate voiceover')
+   273→    } finally {
+   274→      setIsGeneratingVoice(false)
+   275→    }
+   276→  }, [voiceoverText, selectedVoice, voiceSpeed])
+   277→
+   278→  // ─── Caption Generation ────────────────────────────────────────────────
+   279→
+   280→  const handleGenerateCaptions = useCallback(async () => {
+   281→    if (!captionScript.trim()) {
+   282→      toast.error('Please enter script text for captions')
+   283→      return
+   284→    }
+   285→
+   286→    setIsGeneratingCaptions(true)
+   287→    setCaptions([])
+   288→
+   289→    try {
+   290→      const res = await fetch('/api/studio/caption', {
+   291→        method: 'POST',
+   292→        headers: { 'Content-Type': 'application/json' },
+   293→        body: JSON.stringify({
+   294→          script: captionScript,
+   295→          duration: captionDuration,
+   296→        }),
+   297→      })
+   298→
+   299→      const data = await res.json()
+   300→
+   301→      if (!res.ok) {
+   302→        throw new Error(data.error || 'Failed to generate captions')
+   303→      }
+   304→
+   305→      setCaptions(data.captions || [])
+   306→      setSrtContent(data.srt || '')
+   307→      toast.success(`Generated ${data.captions?.length || 0} captions! 📝`)
+   308→    } catch (error) {
+   309→      console.error('Caption error:', error)
+   310→      toast.error('Failed to generate captions')
+   311→    } finally {
+   312→      setIsGeneratingCaptions(false)
+   313→    }
+   314→  }, [captionScript, captionDuration])
+   315→
+   316→  const handleExportSRT = useCallback(() => {
+   317→    if (!srtContent) return
+   318→    const blob = new Blob([srtContent], { type: 'text/srt' })
+   319→    const url = URL.createObjectURL(blob)
+   320→    const a = document.createElement('a')
+   321→    a.href = url
+   322→    a.download = 'captions.srt'
+   323→    a.click()
+   324→    URL.revokeObjectURL(url)
+   325→    toast.success('SRT file downloaded!')
+   326→  }, [srtContent])
+   327→
+   328→  // ─── Template Selection ────────────────────────────────────────────────
+   329→
+   330→  const handleTemplateFromGallery = useCallback((templateId: string) => {
+   331→    setSelectedTemplate(templateId)
+   332→    setActiveTab('script')
+   333→    toast.success('Template selected! Fill in the product name and generate.')
+   334→  }, [])
+   335→
+   336→  // ─── Calendar Management ───────────────────────────────────────────────
+   337→
+   338→  const addCalendarEntry = useCallback(() => {
+   339→    const newEntry: CalendarEntry = {
+   340→      id: Date.now().toString(),
+   341→      day: DAYS[Math.floor(Math.random() * DAYS.length)],
+   342→      time: OPTIMAL_TIMES[Math.floor(Math.random() * OPTIMAL_TIMES.length)],
+   343→      title: 'New Content',
+   344→      template: 'demo',
+   345→      platform: 'TikTok',
+   346→      status: 'planned',
+   347→    }
+   348→    setCalendarEntries(prev => [...prev, newEntry])
+   349→    toast.success('Calendar entry added!')
+   350→  }, [])
+   351→
+   352→  const removeCalendarEntry = useCallback((id: string) => {
+   353→    setCalendarEntries(prev => prev.filter(e => e.id !== id))
+   354→    toast.success('Entry removed')
+   355→  }, [])
+   356→
+   357→  const cycleStatus = useCallback((id: string) => {
+   358→    const statuses: CalendarEntry['status'][] = ['planned', 'recorded', 'edited', 'posted']
+   359→    setCalendarEntries(prev => prev.map(e => {
+   360→      if (e.id === id) {
+   361→        const currentIdx = statuses.indexOf(e.status)
+   362→        const nextStatus = statuses[(currentIdx + 1) % statuses.length]
+   363→        return { ...e, status: nextStatus }
+   364→      }
+   365→      return e
+   366→    }))
+   367→  }, [])
+   368→
+   369→  // ─── Render ────────────────────────────────────────────────────────────
+   370→
+   371→  return (
+   372→    <div className="space-y-6">
+   373→      {/* Page Header */}
+   374→      <motion.div
+   375→        initial={{ opacity: 0, y: -10 }}
+   376→        animate={{ opacity: 1, y: 0 }}
+   377→        transition={{ duration: 0.4 }}
+   378→        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+   379→      >
+   380→        <div>
+   381→          <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-sky-500 to-blue-600 bg-clip-text text-transparent">
+   382→            Content Studio
+   383→          </h1>
+   384→          <p className="text-sm text-muted-foreground mt-1">
+   385→            Create scripts, voiceovers, and captions for your Shopee affiliate content
+   386→          </p>
+   387→        </div>
+   388→        <div className="flex items-center gap-2">
+   389→          <Badge variant="outline" className="bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-800">
+   390→            <Sparkles className="w-3 h-3 mr-1" />
+   391→            AI-Powered
+   392→          </Badge>
+   393→          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800">
+   394→            <Film className="w-3 h-3 mr-1" />
+   395→            Video Ready
+   396→          </Badge>
+   397→        </div>
+   398→      </motion.div>
+   399→
+   400→      {/* Main Tabs */}
+   401→      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+   402→        <TabsList className="grid w-full grid-cols-5 h-auto p-1 bg-gradient-to-r from-sky-50 to-blue-50 dark:from-sky-950/30 dark:to-blue-950/30">
+   403→          <TabsTrigger value="script" className="text-xs sm:text-sm gap-1.5 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-sky-500 data-[state=active]:to-blue-600 data-[state=active]:text-white">
+   404→            <Film className="w-3.5 h-3.5" />
+   405→            <span className="hidden sm:inline">Script</span>
+   406→          </TabsTrigger>
+   407→          <TabsTrigger value="voiceover" className="text-xs sm:text-sm gap-1.5 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-sky-500 data-[state=active]:to-blue-600 data-[state=active]:text-white">
+   408→            <Mic className="w-3.5 h-3.5" />
+   409→            <span className="hidden sm:inline">Voiceover</span>
+   410→          </TabsTrigger>
+   411→          <TabsTrigger value="captions" className="text-xs sm:text-sm gap-1.5 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-sky-500 data-[state=active]:to-blue-600 data-[state=active]:text-white">
+   412→            <Subtitles className="w-3.5 h-3.5" />
+   413→            <span className="hidden sm:inline">Captions</span>
+   414→          </TabsTrigger>
+   415→          <TabsTrigger value="templates" className="text-xs sm:text-sm gap-1.5 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-sky-500 data-[state=active]:to-blue-600 data-[state=active]:text-white">
+   416→            <LayoutGrid className="w-3.5 h-3.5" />
+   417→            <span className="hidden sm:inline">Templates</span>
+   418→          </TabsTrigger>
+   419→          <TabsTrigger value="calendar" className="text-xs sm:text-sm gap-1.5 py-2 data-[state=active]:bg-gradient-to-r data-[state=active]:from-sky-500 data-[state=active]:to-blue-600 data-[state=active]:text-white">
+   420→            <Calendar className="w-3.5 h-3.5" />
+   421→            <span className="hidden sm:inline">Calendar</span>
+   422→          </TabsTrigger>
+   423→        </TabsList>
+   424→
+   425→        {/* ─── Script Generator Tab ─────────────────────────────────────── */}
+   426→        <TabsContent value="script" className="space-y-6">
+   427→          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+   428→            {/* Input Panel */}
+   429→            <motion.div
+   430→              initial={{ opacity: 0, x: -20 }}
+   431→              animate={{ opacity: 1, x: 0 }}
+   432→              transition={{ duration: 0.4, delay: 0.1 }}
+   433→              className="lg:col-span-1 space-y-4"
+   434→            >
+   435→              <Card className="border-sky-200 dark:border-sky-800 bg-gradient-to-b from-sky-50/50 to-transparent dark:from-sky-950/20 dark:to-transparent">
+   436→                <CardHeader className="pb-3">
+   437→                  <CardTitle className="text-lg flex items-center gap-2">
+   438→                    <Wand2 className="w-5 h-5 text-sky-500" />
+   439→                    Script Generator
+   440→                  </CardTitle>
+   441→                  <CardDescription>Configure your video script</CardDescription>
+   442→                </CardHeader>
+   443→                <CardContent className="space-y-4">
+   444→                  {/* Product Name */}
+   445→                  <div className="space-y-2">
+   446→                    <Label className="text-sm font-medium">Product Name</Label>
+   447→                    <Input
+   448→                      placeholder="e.g. Retinol Serum, Wireless Earbuds..."
+   449→                      value={productName}
+   450→                      onChange={(e) => setProductName(e.target.value)}
+   451→                      className="border-sky-200 focus:border-sky-400 dark:border-sky-800"
+   452→                    />
+   453→                  </div>
+   454→
+   455→                  {/* Template Selector */}
+   456→                  <div className="space-y-2">
+   457→                    <Label className="text-sm font-medium">Template Style</Label>
+   458→                    <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1 scrollbar-thin">
+   459→                      {TEMPLATES.map(t => (
+   460→                        <motion.button
+   461→                          key={t.id}
+   462→                          whileHover={{ scale: 1.02 }}
+   463→                          whileTap={{ scale: 0.98 }}
+   464→                          onClick={() => setSelectedTemplate(t.id)}
+   465→                          className={cn(
+   466→                            'p-2.5 rounded-lg border-2 text-left transition-all',
+   467→                            selectedTemplate === t.id
+   468→                              ? 'border-sky-500 bg-sky-50 dark:bg-sky-950/40 shadow-sm'
+   469→                              : 'border-border hover:border-sky-300 dark:hover:border-sky-700'
+   470→                          )}
+   471→                        >
+   472→                          <div className="text-lg mb-0.5">{t.icon}</div>
+   473→                          <div className="text-xs font-medium truncate">{t.name}</div>
+   474→                        </motion.button>
+   475→                      ))}
+   476→                    </div>
+   477→                  </div>
+   478→
+   479→                  {/* Duration */}
+   480→                  <div className="space-y-2">
+   481→                    <Label className="text-sm font-medium">Duration</Label>
+   482→                    <div className="flex gap-2">
+   483→                      {DURATION_OPTIONS.map(d => (
+   484→                        <Button
+   485→                          key={d}
+   486→                          variant={selectedDuration === d ? 'default' : 'outline'}
+   487→                          size="sm"
+   488→                          onClick={() => setSelectedDuration(d)}
+   489→                          className={cn(
+   490→                            'flex-1 text-xs',
+   491→                            selectedDuration === d && 'bg-sky-500 hover:bg-sky-600 text-white'
+   492→                          )}
+   493→                        >
+   494→                          {d}s
+   495→                        </Button>
+   496→                      ))}
+   497→                    </div>
+   498→                  </div>
+   499→
+   500→                  {/* Platform */}
+   501→                  <div className="space-y-2">
+   502→                    <Label className="text-sm font-medium">Platform</Label>
+   503→                    <div className="flex gap-2">
+   504→                      {PLATFORM_OPTIONS.map(p => (
+   505→                        <Button
+   506→                          key={p.id}
+   507→                          variant={selectedPlatform === p.id ? 'default' : 'outline'}
+   508→                          size="sm"
+   509→                          onClick={() => setSelectedPlatform(p.id)}
+   510→                          className={cn(
+   511→                            'flex-1 text-xs gap-1',
+   512→                            selectedPlatform === p.id && 'bg-sky-500 hover:bg-sky-600 text-white'
+   513→                          )}
+   514→                        >
+   515→                          <span>{p.icon}</span>
+   516→                          {p.name}
+   517→                        </Button>
+   518→                      ))}
+   519→                    </div>
+   520→                  </div>
+   521→
+   522→                  {/* Language */}
+   523→                  <div className="space-y-2">
+   524→                    <Label className="text-sm font-medium">Language Style</Label>
+   525→                    <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
+   526→                      <SelectTrigger className="border-sky-200 dark:border-sky-800">
+   527→                        <SelectValue />
+   528→                      </SelectTrigger>
+   529→                      <SelectContent>
+   530→                        {LANGUAGE_OPTIONS.map(l => (
+   531→                          <SelectItem key={l.id} value={l.id}>
+   532→                            <span className="flex items-center gap-2">
+   533→                              <span>{l.flag}</span>
+   534→                              {l.name}
+   535→                            </span>
+   536→                          </SelectItem>
+   537→                        ))}
+   538→                      </SelectContent>
+   539→                    </Select>
+   540→                  </div>
+   541→
+   542→                  {/* Generate Button */}
+   543→                  <Button
+   544→                    onClick={handleGenerateScript}
+   545→                    disabled={isGenerating || !productName.trim()}
+   546→                    className="w-full bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white shadow-lg shadow-sky-500/25"
+   547→                    size="lg"
+   548→                  >
+   549→                    {isGenerating ? (
+   550→                      <>
+   551→                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+   552→                        Generating...
+   553→                      </>
+   554→                    ) : (
+   555→                      <>
+   556→                        <Sparkles className="w-4 h-4 mr-2" />
+   557→                        Generate Script
+   558→                      </>
+   559→                    )}
+   560→                  </Button>
+   561→                </CardContent>
+   562→              </Card>
+   563→            </motion.div>
+   564→
+   565→            {/* Script Output Panel */}
+   566→            <motion.div
+   567→              initial={{ opacity: 0, x: 20 }}
+   568→              animate={{ opacity: 1, x: 0 }}
+   569→              transition={{ duration: 0.4, delay: 0.2 }}
+   570→              className="lg:col-span-2"
+   571→            >
+   572→              <Card className="border-sky-200 dark:border-sky-800 min-h-[500px]">
+   573→                <CardHeader className="pb-3">
+   574→                  <div className="flex items-center justify-between">
+   575→                    <div>
+   576→                      <CardTitle className="text-lg flex items-center gap-2">
+   577→                        <FileText className="w-5 h-5 text-sky-500" />
+   578→                        {generatedScript ? generatedScript.title : 'Generated Script'}
+   579→                      </CardTitle>
+   580→                      {generatedScript && (
+   581→                        <CardDescription className="mt-1">
+   582→                          Duration: {generatedScript.totalDuration} • {generatedScript.scenes?.length || 0} scenes
+   583→                        </CardDescription>
+   584→                      )}
+   585→                    </div>
+   586→                    {generatedScript && (
+   587→                      <div className="flex items-center gap-2">
+   588→                        <Button
+   589→                          variant="outline"
+   590→                          size="sm"
+   591→                          onClick={() => { setActiveTab('voiceover') }}
+   592→                          className="text-sky-600 border-sky-200 dark:text-sky-400 dark:border-sky-800"
+   593→                        >
+   594→                          <Mic className="w-3.5 h-3.5 mr-1.5" />
+   595→                          Voiceover
+   596→                        </Button>
+   597→                        <Button
+   598→                          variant="outline"
+   599→                          size="sm"
+   600→                          onClick={handleCopyScript}
+   601→                          className="text-sky-600 border-sky-200 dark:text-sky-400 dark:border-sky-800"
+   602→                        >
+   603→                          <Copy className="w-3.5 h-3.5 mr-1.5" />
+   604→                          Copy
+   605→                        </Button>
+   606→                      </div>
+   607→                    )}
+   608→                  </div>
+   609→                </CardHeader>
+   610→                <CardContent>
+   611→                  {isGenerating ? (
+   612→                    <div className="space-y-4">
+   613→                      <div className="flex items-center justify-center py-12">
+   614→                        <motion.div
+   615→                          className="flex flex-col items-center gap-4"
+   616→                          initial={{ opacity: 0 }}
+   617→                          animate={{ opacity: 1 }}
+   618→                        >
+   619→                          <motion.div
+   620→                            className="w-16 h-16 rounded-full bg-gradient-to-r from-sky-500 to-blue-600 flex items-center justify-center"
+   621→                            animate={{ scale: [1, 1.2, 1], rotate: [0, 180, 360] }}
+   622→                            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+   623→                          >
+   624→                            <Sparkles className="w-8 h-8 text-white" />
+   625→                          </motion.div>
+   626→                          <p className="text-sm text-muted-foreground animate-pulse">
+   627→                            Crafting your script...
+   628→                          </p>
+   629→                          <div className="flex gap-1">
+   630→                            {[0, 1, 2].map(i => (
+   631→                              <motion.div
+   632→                                key={i}
+   633→                                className="w-2 h-2 rounded-full bg-sky-500"
+   634→                                animate={{ y: [0, -8, 0] }}
+   635→                                transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }}
+   636→                              />
+   637→                            ))}
+   638→                          </div>
+   639→                        </motion.div>
+   640→                      </div>
+   641→                      <Skeleton className="h-24 w-full" />
+   642→                      <Skeleton className="h-24 w-full" />
+   643→                      <Skeleton className="h-16 w-full" />
+   644→                    </div>
+   645→                  ) : generatedScript ? (
+   646→                    <ScrollArea className="max-h-[600px] pr-4">
+   647→                      <div className="space-y-4">
+   648→                        {/* Scene Cards */}
+   649→                        {generatedScript.scenes?.map((scene, idx) => (
+   650→                          <motion.div
+   651→                            key={idx}
+   652→                            initial={{ opacity: 0, y: 10 }}
+   653→                            animate={{ opacity: 1, y: 0 }}
+   654→                            transition={{ duration: 0.3, delay: idx * 0.1 }}
+   655→                          >
+   656→                            <Card className={cn(
+   657→                              'border-l-4',
+   658→                              idx === 0 ? 'border-l-red-500' :
+   659→                              idx === generatedScript.scenes.length - 1 ? 'border-l-green-500' :
+   660→                              'border-l-sky-500'
+   661→                            )}>
+   662→                              <CardContent className="p-4">
+   663→                                <div className="flex items-center gap-2 mb-3">
+   664→                                  <Badge variant="outline" className="bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 font-mono text-xs">
+   665→                                    <Clock className="w-3 h-3 mr-1" />
+   666→                                    {scene.timeRange}
+   667→                                  </Badge>
+   668→                                  <Badge className={cn(
+   669→                                    'text-xs',
+   670→                                    idx === 0 ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' :
+   671→                                    idx === generatedScript.scenes.length - 1 ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' :
+   672→                                    'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300'
+   673→                                  )}>
+   674→                                    {scene.label}
+   675→                                  </Badge>
+   676→                                  <span className="text-xs text-muted-foreground ml-auto">
+   677→                                    Scene {scene.sceneNumber}
+   678→                                  </span>
+   679→                                </div>
+   680→
+   681→                                {/* Dialogue */}
+   682→                                <div className="mb-3">
+   683→                                  <div className="flex items-center gap-1.5 mb-1">
+   684→                                    <MessageSquare className="w-3.5 h-3.5 text-sky-500" />
+   685→                                    <span className="text-xs font-semibold text-sky-600 dark:text-sky-400 uppercase tracking-wider">Dialogue</span>
+   686→                                  </div>
+   687→                                  <p className="text-sm bg-muted/50 p-2.5 rounded-lg italic leading-relaxed">
+   688→                                    &ldquo;{scene.dialogue}&rdquo;
+   689→                                  </p>
+   690→                                </div>
+   691→
+   692→                                {/* Visual & Action Notes */}
+   693→                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+   694→                                  <div>
+   695→                                    <div className="flex items-center gap-1.5 mb-1">
+   696→                                      <Eye className="w-3.5 h-3.5 text-purple-500" />
+   697→                                      <span className="text-xs font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wider">Visual</span>
+   698→                                    </div>
+   699→                                    <p className="text-xs text-muted-foreground leading-relaxed">
+   700→                                      {scene.visualNotes}
+   701→                                    </p>
+   702→                                  </div>
+   703→                                  <div>
+   704→                                    <div className="flex items-center gap-1.5 mb-1">
+   705→                                      <Camera className="w-3.5 h-3.5 text-amber-500" />
+   706→                                      <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Action</span>
+   707→                                    </div>
+   708→                                    <p className="text-xs text-muted-foreground leading-relaxed">
+   709→                                      {scene.actionNotes}
+   710→                                    </p>
+   711→                                  </div>
+   712→                                </div>
+   713→                              </CardContent>
+   714→                            </Card>
+   715→                          </motion.div>
+   716→                        ))}
+   717→
+   718→                        {/* Hashtags */}
+   719→                        {generatedScript.hashtags && generatedScript.hashtags.length > 0 && (
+   720→                          <div className="flex flex-wrap gap-2 pt-2">
+   721→                            <Tag className="w-4 h-4 text-sky-500 mt-0.5" />
+   722→                            {generatedScript.hashtags.map((tag, i) => (
+   723→                              <Badge key={i} variant="secondary" className="text-xs bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300">
+   724→                                {tag}
+   725→                              </Badge>
+   726→                            ))}
+   727→                          </div>
+   728→                        )}
+   729→
+   730→                        {/* Tips */}
+   731→                        {generatedScript.tips && generatedScript.tips.length > 0 && (
+   732→                          <Card className="bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800">
+   733→                            <CardContent className="p-4">
+   734→                              <div className="flex items-center gap-2 mb-2">
+   735→                                <Lightbulb className="w-4 h-4 text-amber-500" />
+   736→                                <span className="text-sm font-semibold text-amber-700 dark:text-amber-400">Pro Tips</span>
+   737→                              </div>
+   738→                              <ul className="space-y-1.5">
+   739→                                {generatedScript.tips.map((tip, i) => (
+   740→                                  <li key={i} className="text-xs text-amber-600 dark:text-amber-300 flex items-start gap-2">
+   741→                                    <span className="text-amber-400 mt-0.5">•</span>
+   742→                                    {tip}
+   743→                                  </li>
+   744→                                ))}
+   745→                              </ul>
+   746→                            </CardContent>
+   747→                          </Card>
+   748→                        )}
+   749→                      </div>
+   750→                    </ScrollArea>
+   751→                  ) : (
+   752→                    <div className="flex flex-col items-center justify-center py-16 text-center">
+   753→                      <motion.div
+   754→                        animate={{ y: [0, -8, 0] }}
+   755→                        transition={{ duration: 2, repeat: Infinity }}
+   756→                      >
+   757→                        <Film className="w-16 h-16 text-sky-300 dark:text-sky-700 mx-auto mb-4" />
+   758→                      </motion.div>
+   759→                      <h3 className="text-lg font-semibold text-muted-foreground mb-2">
+   760→                        Your Script Will Appear Here
+   761→                      </h3>
+   762→                      <p className="text-sm text-muted-foreground max-w-sm">
+   763→                        Enter a product name, choose your template style, and click &ldquo;Generate Script&rdquo; to create your video script
+   764→                      </p>
+   765→                    </div>
+   766→                  )}
+   767→                </CardContent>
+   768→              </Card>
+   769→            </motion.div>
+   770→          </div>
+   771→        </TabsContent>
+   772→
+   773→        {/* ─── Voiceover Tab ─────────────────────────────────────────────── */}
+   774→        <TabsContent value="voiceover" className="space-y-6">
+   775→          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+   776→            {/* Input */}
+   777→            <motion.div
+   778→              initial={{ opacity: 0, x: -20 }}
+   779→              animate={{ opacity: 1, x: 0 }}
+   780→              transition={{ duration: 0.4 }}
+   781→            >
+   782→              <Card className="border-sky-200 dark:border-sky-800 bg-gradient-to-b from-sky-50/50 to-transparent dark:from-sky-950/20 dark:to-transparent">
+   783→                <CardHeader className="pb-3">
+   784→                  <CardTitle className="text-lg flex items-center gap-2">
+   785→                    <Volume2 className="w-5 h-5 text-sky-500" />
+   786→                    Voiceover Studio
+   787→                  </CardTitle>
+   788→                  <CardDescription>Convert your script to speech</CardDescription>
+   789→                </CardHeader>
+   790→                <CardContent className="space-y-4">
+   791→                  {/* Script Text */}
+   792→                  <div className="space-y-2">
+   793→                    <div className="flex items-center justify-between">
+   794→                      <Label className="text-sm font-medium">Script Text</Label>
+   795→                      <Button
+   796→                        variant="ghost"
+   797→                        size="sm"
+   798→                        onClick={() => {
+   799→                          if (generatedScript?.scenes) {
+   800→                            const dialogue = generatedScript.scenes
+   801→                              .map(s => s.dialogue)
+   802→                              .filter(Boolean)
+   803→                              .join('\n\n')
+   804→                            setVoiceoverText(dialogue)
+   805→                          }
+   806→                        }}
+   807→                        className="text-xs text-sky-600 dark:text-sky-400"
+   808→                      >
+   809→                        <RefreshCw className="w-3 h-3 mr-1" />
+   810→                        Auto-fill from script
+   811→                      </Button>
+   812→                    </div>
+   813→                    <Textarea
+   814→                      placeholder="Paste your script here or auto-fill from generated script..."
+   815→                      value={voiceoverText}
+   816→                      onChange={(e) => setVoiceoverText(e.target.value)}
+   817→                      className="min-h-[200px] border-sky-200 focus:border-sky-400 dark:border-sky-800"
+   818→                    />
+   819→                    <p className="text-xs text-muted-foreground">
+   820→                      {voiceoverText.split(/\s+/).filter(Boolean).length} words • ~{Math.round(voiceoverText.split(/\s+/).filter(Boolean).length / 2.2)}s estimated
+   821→                    </p>
+   822→                  </div>
+   823→
+   824→                  {/* Voice Selection */}
+   825→                  <div className="space-y-2">
+   826→                    <Label className="text-sm font-medium">Voice</Label>
+   827→                    <Select value={selectedVoice} onValueChange={setSelectedVoice}>
+   828→                      <SelectTrigger className="border-sky-200 dark:border-sky-800">
+   829→                        <SelectValue />
+   830→                      </SelectTrigger>
+   831→                      <SelectContent>
+   832→                        <SelectItem value="alloy">Alloy (Neutral)</SelectItem>
+   833→                        <SelectItem value="echo">Echo (Male)</SelectItem>
+   834→                        <SelectItem value="fable">Fable (Narrator)</SelectItem>
+   835→                        <SelectItem value="onyx">Onyx (Deep Male)</SelectItem>
+   836→                        <SelectItem value="nova">Nova (Female)</SelectItem>
+   837→                        <SelectItem value="shimmer">Shimmer (Soft Female)</SelectItem>
+   838→                      </SelectContent>
+   839→                    </Select>
+   840→                  </div>
+   841→
+   842→                  {/* Speed Control */}
+   843→                  <div className="space-y-2">
+   844→                    <div className="flex items-center justify-between">
+   845→                      <Label className="text-sm font-medium">Speed</Label>
+   846→                      <span className="text-xs text-muted-foreground font-mono">{voiceSpeed[0].toFixed(1)}x</span>
+   847→                    </div>
+   848→                    <Slider
+   849→                      value={voiceSpeed}
+   850→                      onValueChange={setVoiceSpeed}
+   851→                      min={0.5}
+   852→                      max={2.0}
+   853→                      step={0.1}
+   854→                      className="py-2"
+   855→                    />
+   856→                    <div className="flex justify-between text-xs text-muted-foreground">
+   857→                      <span>0.5x Slow</span>
+   858→                      <span>1.0x Normal</span>
+   859→                      <span>2.0x Fast</span>
+   860→                    </div>
+   861→                  </div>
+   862→
+   863→                  {/* Generate Button */}
+   864→                  <Button
+   865→                    onClick={handleGenerateVoiceover}
+   866→                    disabled={isGeneratingVoice || !voiceoverText.trim()}
+   867→                    className="w-full bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white shadow-lg shadow-sky-500/25"
+   868→                    size="lg"
+   869→                  >
+   870→                    {isGeneratingVoice ? (
+   871→                      <>
+   872→                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+   873→                        Generating Voiceover...
+   874→                      </>
+   875→                    ) : (
+   876→                      <>
+   877→                        <Mic className="w-4 h-4 mr-2" />
+   878→                        Generate Voiceover
+   879→                      </>
+   880→                    )}
+   881→                  </Button>
+   882→                </CardContent>
+   883→              </Card>
+   884→            </motion.div>
+   885→
+   886→            {/* Audio Output */}
+   887→            <motion.div
+   888→              initial={{ opacity: 0, x: 20 }}
+   889→              animate={{ opacity: 1, x: 0 }}
+   890→              transition={{ duration: 0.4, delay: 0.1 }}
+   891→            >
+   892→              <Card className="border-sky-200 dark:border-sky-800 min-h-[400px]">
+   893→                <CardHeader className="pb-3">
+   894→                  <CardTitle className="text-lg flex items-center gap-2">
+   895→                    <Music className="w-5 h-5 text-sky-500" />
+   896→                    Audio Preview
+   897→                  </CardTitle>
+   898→                </CardHeader>
+   899→                <CardContent>
+   900→                  {isGeneratingVoice ? (
+   901→                    <div className="flex flex-col items-center justify-center py-16">
+   902→                      <motion.div
+   903→                        className="w-20 h-20 rounded-full bg-gradient-to-r from-sky-500 to-blue-600 flex items-center justify-center mb-4"
+   904→                        animate={{ scale: [1, 1.1, 1] }}
+   905→                        transition={{ duration: 1, repeat: Infinity }}
+   906→                      >
+   907→                        <Volume2 className="w-10 h-10 text-white" />
+   908→                      </motion.div>
+   909→                      <p className="text-sm text-muted-foreground animate-pulse">
+   910→                        Generating your voiceover...
+   911→                      </p>
+   912→                      {/* Audio waveform animation */}
+   913→                      <div className="flex items-end gap-1 mt-4 h-8">
+   914→                        {Array.from({ length: 12 }).map((_, i) => (
+   915→                          <motion.div
+   916→                            key={i}
+   917→                            className="w-1.5 bg-sky-500 rounded-full"
+   918→                            animate={{ height: [8, Math.random() * 24 + 8, 8] }}
+   919→                            transition={{ duration: 0.5, repeat: Infinity, delay: i * 0.05 }}
+   920→                          />
+   921→                        ))}
+   922→                      </div>
+   923→                    </div>
+   924→                  ) : audioResult ? (
+   925→                    <div className="space-y-6">
+   926→                      {audioResult.mockAudio ? (
+   927→                        /* Mock / Coming Soon State */
+   928→                        <div className="text-center space-y-4">
+   929→                          <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-r from-sky-100 to-blue-100 dark:from-sky-900/40 dark:to-blue-900/40 flex items-center justify-center">
+   930→                            <Volume2 className="w-12 h-12 text-sky-500" />
+   931→                          </div>
+   932→                          <div>
+   933→                            <h3 className="text-lg font-semibold mb-1">Voiceover Coming Soon!</h3>
+   934→                            <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+   935→                              The TTS voiceover feature is currently in development. Your script is ready to be recorded when this feature launches.
+   936→                            </p>
+   937→                          </div>
+   938→
+   939→                          {/* Estimated Duration Display */}
+   940→                          <Card className="bg-sky-50 dark:bg-sky-950/20 border-sky-200 dark:border-sky-800">
+   941→                            <CardContent className="p-4">
+   942→                              <div className="grid grid-cols-2 gap-4 text-center">
+   943→                                <div>
+   944→                                  <p className="text-2xl font-bold text-sky-600 dark:text-sky-400">
+   945→                                    {audioResult.duration ? `${audioResult.duration}s` : '~30s'}
+   946→                                  </p>
+   947→                                  <p className="text-xs text-muted-foreground">Est. Duration</p>
+   948→                                </div>
+   949→                                <div>
+   950→                                  <p className="text-2xl font-bold text-sky-600 dark:text-sky-400">
+   951→                                    {String(audioResult.estimatedFileSize || '~15KB')}
+   952→                                  </p>
+   953→                                  <p className="text-xs text-muted-foreground">Est. File Size</p>
+   954→                                </div>
+   955→                              </div>
+   956→                            </CardContent>
+   957→                          </Card>
+   958→
+   959→                          {/* Voice Settings Summary */}
+   960→                          <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
+   961→                            <span>Voice: {String(audioResult.voice)}</span>
+   962→                            <span>Speed: {String(audioResult.speed)}x</span>
+   963→                          </div>
+   964→
+   965→                          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800">
+   966→                            🚧 Feature in Development
+   967→                          </Badge>
+   968→                        </div>
+   969→                      ) : (
+   970→                        /* Real Audio Result */
+   971→                        <div className="space-y-4">
+   972→                          {/* Audio Player Mockup */}
+   973→                          <div className="bg-gradient-to-r from-sky-500 to-blue-600 rounded-xl p-6 text-white">
+   974→                            <div className="flex items-center gap-4 mb-4">
+   975→                              <Button
+   976→                                variant="ghost"
+   977→                                size="icon"
+   978→                                className="w-12 h-12 rounded-full bg-white/20 hover:bg-white/30 text-white"
+   979→                                onClick={() => setIsPlaying(!isPlaying)}
+   980→                              >
+   981→                                {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6 ml-0.5" />}
+   982→                              </Button>
+   983→                              <div className="flex-1">
+   984→                                <p className="font-medium text-sm">Generated Voiceover</p>
+   985→                                <p className="text-xs text-white/70">
+   986→                                  {String(audioResult.voice)} • {String(audioResult.speed)}x speed
+   987→                                </p>
+   988→                              </div>
+   989→                            </div>
+   990→                            {/* Waveform visualization */}
+   991→                            <div className="flex items-center gap-0.5 h-8">
+   992→                              {Array.from({ length: 40 }).map((_, i) => (
+   993→                                <div
+   994→                                  key={i}
+   995→                                  className="flex-1 bg-white/30 rounded-full"
+   996→                                  style={{ height: `${Math.random() * 100}%` }}
+   997→                                />
+   998→                              ))}
+   999→                            </div>
+  1000→                            <div className="flex justify-between mt-2 text-xs text-white/70">
+  1001→                              <span>0:00</span>
+  1002→                              <span>{String(audioResult.duration || '0:30')}</span>
+  1003→                            </div>
+  1004→                          </div>
+  1005→
+  1006→                          {/* Download Button */}
+  1007→                          <Button className="w-full" variant="outline" onClick={() => toast.info('Download feature coming soon')}>
+  1008→                            <Download className="w-4 h-4 mr-2" />
+  1009→                            Download Audio (MP3)
+  1010→                          </Button>
+  1011→                        </div>
+  1012→                      )}
+  1013→                    </div>
+  1014→                  ) : (
+  1015→                    <div className="flex flex-col items-center justify-center py-16 text-center">
+  1016→                      <motion.div
+  1017→                        animate={{ y: [0, -8, 0] }}
+  1018→                        transition={{ duration: 2, repeat: Infinity }}
+  1019→                      >
+  1020→                        <Mic className="w-16 h-16 text-sky-300 dark:text-sky-700 mx-auto mb-4" />
+  1021→                      </motion.div>
+  1022→                      <h3 className="text-lg font-semibold text-muted-foreground mb-2">
+  1023→                        Voiceover Preview
+  1024→                      </h3>
+  1025→                      <p className="text-sm text-muted-foreground max-w-sm">
+  1026→                        Paste your script text and click &ldquo;Generate Voiceover&rdquo; to hear your script come to life
+  1027→                      </p>
+  1028→                    </div>
+  1029→                  )}
+  1030→                </CardContent>
+  1031→              </Card>
+  1032→            </motion.div>
+  1033→          </div>
+  1034→        </TabsContent>
+  1035→
+  1036→        {/* ─── Captions Tab ──────────────────────────────────────────────── */}
+  1037→        <TabsContent value="captions" className="space-y-6">
+  1038→          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  1039→            {/* Input */}
+  1040→            <motion.div
+  1041→              initial={{ opacity: 0, x: -20 }}
+  1042→              animate={{ opacity: 1, x: 0 }}
+  1043→              transition={{ duration: 0.4 }}
+  1044→            >
+  1045→              <Card className="border-sky-200 dark:border-sky-800 bg-gradient-to-b from-sky-50/50 to-transparent dark:from-sky-950/20 dark:to-transparent">
+  1046→                <CardHeader className="pb-3">
+  1047→                  <CardTitle className="text-lg flex items-center gap-2">
+  1048→                    <Subtitles className="w-5 h-5 text-sky-500" />
+  1049→                    Caption Generator
+  1050→                  </CardTitle>
+  1051→                  <CardDescription>Auto-generate timed captions for your video</CardDescription>
+  1052→                </CardHeader>
+  1053→                <CardContent className="space-y-4">
+  1054→                  <div className="space-y-2">
+  1055→                    <div className="flex items-center justify-between">
+  1056→                      <Label className="text-sm font-medium">Script Text</Label>
+  1057→                      <Button
+  1058→                        variant="ghost"
+  1059→                        size="sm"
+  1060→                        onClick={() => {
+  1061→                          if (generatedScript?.scenes) {
+  1062→                            const dialogue = generatedScript.scenes
+  1063→                              .map(s => s.dialogue)
+  1064→                              .filter(Boolean)
+  1065→                              .join(' ')
+  1066→                            setCaptionScript(dialogue)
+  1067→                          }
+  1068→                        }}
+  1069→                        className="text-xs text-sky-600 dark:text-sky-400"
+  1070→                      >
+  1071→                        <RefreshCw className="w-3 h-3 mr-1" />
+  1072→                        Auto-fill
+  1073→                      </Button>
+  1074→                    </div>
+  1075→                    <Textarea
+  1076→                      placeholder="Enter your script dialogue text..."
+  1077→                      value={captionScript}
+  1078→                      onChange={(e) => setCaptionScript(e.target.value)}
+  1079→                      className="min-h-[160px] border-sky-200 focus:border-sky-400 dark:border-sky-800"
+  1080→                    />
+  1081→                  </div>
+  1082→
+  1083→                  <div className="space-y-2">
+  1084→                    <Label className="text-sm font-medium">Video Duration (seconds)</Label>
+  1085→                    <div className="flex gap-2">
+  1086→                      {DURATION_OPTIONS.map(d => (
+  1087→                        <Button
+  1088→                          key={d}
+  1089→                          variant={captionDuration === d ? 'default' : 'outline'}
+  1090→                          size="sm"
+  1091→                          onClick={() => setCaptionDuration(d)}
+  1092→                          className={cn(
+  1093→                            'flex-1 text-xs',
+  1094→                            captionDuration === d && 'bg-sky-500 hover:bg-sky-600 text-white'
+  1095→                          )}
+  1096→                        >
+  1097→                          {d}s
+  1098→                        </Button>
+  1099→                      ))}
+  1100→                    </div>
+  1101→                  </div>
+  1102→
+  1103→                  <Button
+  1104→                    onClick={handleGenerateCaptions}
+  1105→                    disabled={isGeneratingCaptions || !captionScript.trim()}
+  1106→                    className="w-full bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white shadow-lg shadow-sky-500/25"
+  1107→                    size="lg"
+  1108→                  >
+  1109→                    {isGeneratingCaptions ? (
+  1110→                      <>
+  1111→                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+  1112→                        Generating Captions...
+  1113→                      </>
+  1114→                    ) : (
+  1115→                      <>
+  1116→                        <Subtitles className="w-4 h-4 mr-2" />
+  1117→                        Generate Captions
+  1118→                      </>
+  1119→                    )}
+  1120→                  </Button>
+  1121→
+  1122→                  {srtContent && (
+  1123→                    <Button
+  1124→                      variant="outline"
+  1125→                      onClick={handleExportSRT}
+  1126→                      className="w-full border-sky-200 text-sky-600 dark:border-sky-800 dark:text-sky-400"
+  1127→                    >
+  1128→                      <Download className="w-4 h-4 mr-2" />
+  1129→                      Export as SRT
+  1130→                    </Button>
+  1131→                  )}
+  1132→                </CardContent>
+  1133→              </Card>
+  1134→            </motion.div>
+  1135→
+  1136→            {/* Caption Output */}
+  1137→            <motion.div
+  1138→              initial={{ opacity: 0, x: 20 }}
+  1139→              animate={{ opacity: 1, x: 0 }}
+  1140→              transition={{ duration: 0.4, delay: 0.1 }}
+  1141→            >
+  1142→              <Card className="border-sky-200 dark:border-sky-800 min-h-[400px]">
+  1143→                <CardHeader className="pb-3">
+  1144→                  <div className="flex items-center justify-between">
+  1145→                    <CardTitle className="text-lg flex items-center gap-2">
+  1146→                      <Type className="w-5 h-5 text-sky-500" />
+  1147→                      Timed Captions
+  1148→                    </CardTitle>
+  1149→                    {captions.length > 0 && (
+  1150→                      <Badge variant="outline" className="bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300">
+  1151→                        {captions.length} lines
+  1152→                      </Badge>
+  1153→                    )}
+  1154→                  </div>
+  1155→                </CardHeader>
+  1156→                <CardContent>
+  1157→                  {isGeneratingCaptions ? (
+  1158→                    <div className="flex flex-col items-center justify-center py-16">
+  1159→                      <motion.div
+  1160→                        className="w-16 h-16 rounded-full bg-gradient-to-r from-sky-500 to-blue-600 flex items-center justify-center"
+  1161→                        animate={{ scale: [1, 1.2, 1] }}
+  1162→                        transition={{ duration: 1.5, repeat: Infinity }}
+  1163→                      >
+  1164→                        <Subtitles className="w-8 h-8 text-white" />
+  1165→                      </motion.div>
+  1166→                      <p className="text-sm text-muted-foreground animate-pulse mt-4">
+  1167→                        Generating timed captions...
+  1168→                      </p>
+  1169→                    </div>
+  1170→                  ) : captions.length > 0 ? (
+  1171→                    <ScrollArea className="max-h-[500px] pr-4">
+  1172→                      <div className="space-y-2">
+  1173→                        {captions.map((caption, idx) => (
+  1174→                          <motion.div
+  1175→                            key={idx}
+  1176→                            initial={{ opacity: 0, x: 10 }}
+  1177→                            animate={{ opacity: 1, x: 0 }}
+  1178→                            transition={{ duration: 0.2, delay: idx * 0.03 }}
+  1179→                            className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-sky-50 dark:hover:bg-sky-950/20 transition-colors group"
+  1180→                          >
+  1181→                            <div className="flex-shrink-0 w-24">
+  1182→                              <span className="text-xs font-mono text-sky-600 dark:text-sky-400">
+  1183→                                {formatTime(caption.startTime)} → {formatTime(caption.endTime)}
+  1184→                              </span>
+  1185→                            </div>
+  1186→                            <div className="flex-1">
+  1187→                              <span className="text-sm">{caption.text}</span>
+  1188→                            </div>
+  1189→                            <Badge variant="outline" className="text-[10px] font-mono opacity-0 group-hover:opacity-100 transition-opacity">
+  1190→                              #{caption.index}
+  1191→                            </Badge>
+  1192→                          </motion.div>
+  1193→                        ))}
+  1194→                      </div>
+  1195→                    </ScrollArea>
+  1196→                  ) : (
+  1197→                    <div className="flex flex-col items-center justify-center py-16 text-center">
+  1198→                      <motion.div
+  1199→                        animate={{ y: [0, -8, 0] }}
+  1200→                        transition={{ duration: 2, repeat: Infinity }}
+  1201→                      >
+  1202→                        <Subtitles className="w-16 h-16 text-sky-300 dark:text-sky-700 mx-auto mb-4" />
+  1203→                      </motion.div>
+  1204→                      <h3 className="text-lg font-semibold text-muted-foreground mb-2">
+  1205→                        Timed Captions
+  1206→                      </h3>
+  1207→                      <p className="text-sm text-muted-foreground max-w-sm">
+  1208→                        Enter your script and video duration, then generate timed captions with subtitle-ready timestamps
+  1209→                      </p>
+  1210→                    </div>
+  1211→                  )}
+  1212→                </CardContent>
+  1213→              </Card>
+  1214→
+  1215→              {/* Subtitle Preview Mockup */}
+  1216→              {captions.length > 0 && (
+  1217→                <motion.div
+  1218→                  initial={{ opacity: 0, y: 10 }}
+  1219→                  animate={{ opacity: 1, y: 0 }}
+  1220→                  transition={{ duration: 0.3 }}
+  1221→                  className="mt-4"
+  1222→                >
+  1223→                  <Card className="bg-gradient-to-b from-gray-900 to-gray-800 border-gray-700 text-white overflow-hidden">
+  1224→                    <CardContent className="p-4">
+  1225→                      <div className="text-xs text-gray-400 mb-2 flex items-center gap-2">
+  1226→                        <Video className="w-3 h-3" />
+  1227→                        Subtitle Overlay Preview
+  1228→                      </div>
+  1229→                      <div className="aspect-[9/16] max-h-48 bg-gradient-to-b from-gray-800 to-gray-700 rounded-lg flex items-end justify-center pb-8 relative">
+  1230→                        <div className="absolute inset-0 flex items-center justify-center text-gray-600">
+  1231→                          <Film className="w-12 h-12" />
+  1232→                        </div>
+  1233→                        <div className="bg-black/80 px-4 py-2 rounded-lg text-center max-w-[90%]">
+  1234→                          <p className="text-sm text-white font-medium">
+  1235→                            {captions[Math.floor(captions.length / 2)]?.text || 'Caption preview'}
+  1236→                          </p>
+  1237→                        </div>
+  1238→                      </div>
+  1239→                    </CardContent>
+  1240→                  </Card>
+  1241→                </motion.div>
+  1242→              )}
+  1243→            </motion.div>
+  1244→          </div>
+  1245→        </TabsContent>
+  1246→
+  1247→        {/* ─── Templates Gallery Tab ─────────────────────────────────────── */}
+  1248→        <TabsContent value="templates" className="space-y-6">
+  1249→          <motion.div
+  1250→            initial={{ opacity: 0, y: 10 }}
+  1251→            animate={{ opacity: 1, y: 0 }}
+  1252→            transition={{ duration: 0.4 }}
+  1253→          >
+  1254→            <Card className="border-sky-200 dark:border-sky-800 bg-gradient-to-b from-sky-50/30 to-transparent dark:from-sky-950/10 dark:to-transparent">
+  1255→              <CardHeader>
+  1256→                <CardTitle className="text-xl flex items-center gap-2">
+  1257→                  <LayoutGrid className="w-5 h-5 text-sky-500" />
+  1258→                  Content Templates Gallery
+  1259→                </CardTitle>
+  1260→                <CardDescription>
+  1261→                  Choose a template to auto-fill the script generator and start creating content
+  1262→                </CardDescription>
+  1263→              </CardHeader>
+  1264→              <CardContent>
+  1265→                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+  1266→                  {GALLERY_TEMPLATES.map((template, idx) => (
+  1267→                    <motion.div
+  1268→                      key={template.name}
+  1269→                      initial={{ opacity: 0, y: 15 }}
+  1270→                      animate={{ opacity: 1, y: 0 }}
+  1271→                      transition={{ duration: 0.3, delay: idx * 0.05 }}
+  1272→                      whileHover={{ y: -4, transition: { duration: 0.2 } }}
+  1273→                      onClick={() => handleTemplateFromGallery(template.template)}
+  1274→                      className="cursor-pointer"
+  1275→                    >
+  1276→                      <Card className={cn(
+  1277→                        'h-full border-2 hover:shadow-lg transition-all bg-gradient-to-br',
+  1278→                        template.gradient,
+  1279→                        template.border
+  1280→                      )}>
+  1281→                        <CardContent className="p-5">
+  1282→                          <div className="text-4xl mb-3">{template.emoji}</div>
+  1283→                          <h3 className="font-bold text-base mb-2">{template.name}</h3>
+  1284→                          <div className="space-y-1.5">
+  1285→                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+  1286→                              <ShoppingBag className="w-3 h-3" />
+  1287→                              <span>Best for: {template.bestFor}</span>
+  1288→                            </div>
+  1289→                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+  1290→                              <Video className="w-3 h-3" />
+  1291→                              <span>{template.platform}</span>
+  1292→                            </div>
+  1293→                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+  1294→                              <Clock className="w-3 h-3" />
+  1295→                              <span>{template.duration}</span>
+  1296→                            </div>
+  1297→                          </div>
+  1298→                          <Button
+  1299→                            variant="ghost"
+  1300→                            size="sm"
+  1301→                            className="w-full mt-4 text-sky-600 hover:text-sky-700 dark:text-sky-400"
+  1302→                          >
+  1303→                            Use Template
+  1304→                            <ArrowRight className="w-3.5 h-3.5 ml-1" />
+  1305→                          </Button>
+  1306→                        </CardContent>
+  1307→                      </Card>
+  1308→                    </motion.div>
+  1309→                  ))}
+  1310→                </div>
+  1311→              </CardContent>
+  1312→            </Card>
+  1313→          </motion.div>
+  1314→        </TabsContent>
+  1315→
+  1316→        {/* ─── Content Calendar Tab ──────────────────────────────────────── */}
+  1317→        <TabsContent value="calendar" className="space-y-6">
+  1318→          <motion.div
+  1319→            initial={{ opacity: 0, y: 10 }}
+  1320→            animate={{ opacity: 1, y: 0 }}
+  1321→            transition={{ duration: 0.4 }}
+  1322→          >
+  1323→            <Card className="border-sky-200 dark:border-sky-800">
+  1324→              <CardHeader>
+  1325→                <div className="flex items-center justify-between">
+  1326→                  <div>
+  1327→                    <CardTitle className="text-xl flex items-center gap-2">
+  1328→                      <CalendarDays className="w-5 h-5 text-sky-500" />
+  1329→                      Content Calendar
+  1330→                    </CardTitle>
+  1331→                    <CardDescription>Plan your weekly content schedule</CardDescription>
+  1332→                  </div>
+  1333→                  <div className="flex items-center gap-2">
+  1334→                    <Button
+  1335→                      variant="outline"
+  1336→                      size="sm"
+  1337→                      className="text-sky-600 border-sky-200 dark:text-sky-400 dark:border-sky-800"
+  1338→                      onClick={addCalendarEntry}
+  1339→                    >
+  1340→                      <Plus className="w-3.5 h-3.5 mr-1" />
+  1341→                      Add Entry
+  1342→                    </Button>
+  1343→                  </div>
+  1344→                </div>
+  1345→              </CardHeader>
+  1346→              <CardContent>
+  1347→                {/* Status Legend */}
+  1348→                <div className="flex flex-wrap gap-3 mb-4">
+  1349→                  {Object.entries(STATUS_COLORS).map(([status, colorClass]) => (
+  1350→                    <div key={status} className="flex items-center gap-1.5">
+  1351→                      <div className={cn('w-2.5 h-2.5 rounded-full', colorClass.split(' ')[0])} />
+  1352→                      <span className="text-xs capitalize text-muted-foreground">{status}</span>
+  1353→                    </div>
+  1354→                  ))}
+  1355→                </div>
+  1356→
+  1357→                {/* Weekly Grid */}
+  1358→                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3">
+  1359→                  {DAYS.map(day => {
+  1360→                    const dayEntries = calendarEntries.filter(e => e.day === day)
+  1361→                    const isWeekend = day === 'Saturday' || day === 'Sunday'
+  1362→
+  1363→                    return (
+  1364→                      <div key={day} className={cn(
+  1365→                        'min-h-[120px] rounded-lg border-2 p-3',
+  1366→                        isWeekend
+  1367→                          ? 'border-sky-300 bg-sky-50/50 dark:border-sky-700 dark:bg-sky-950/20'
+  1368→                          : 'border-border bg-card'
+  1369→                      )}>
+  1370→                        <div className="flex items-center justify-between mb-2">
+  1371→                          <span className={cn(
+  1372→                            'text-xs font-bold uppercase tracking-wider',
+  1373→                            isWeekend ? 'text-sky-600 dark:text-sky-400' : 'text-muted-foreground'
+  1374→                          )}>
+  1375→                            {day.slice(0, 3)}
+  1376→                          </span>
+  1377→                          {isWeekend && (
+  1378→                            <Badge variant="outline" className="text-[9px] px-1 py-0 bg-sky-100 text-sky-600 dark:bg-sky-900/40 dark:text-sky-400 border-sky-200 dark:border-sky-700">
+  1379→                              Peak
+  1380→                            </Badge>
+  1381→                          )}
+  1382→                        </div>
+  1383→                        <div className="space-y-2">
+  1384→                          {dayEntries.length === 0 ? (
+  1385→                            <p className="text-[10px] text-muted-foreground italic">No content</p>
+  1386→                          ) : (
+  1387→                            dayEntries.map(entry => (
+  1388→                              <motion.div
+  1389→                                key={entry.id}
+  1390→                                layout
+  1391→                                initial={{ opacity: 0, scale: 0.9 }}
+  1392→                                animate={{ opacity: 1, scale: 1 }}
+  1393→                                className={cn(
+  1394→                                  'p-2 rounded-md cursor-pointer border transition-all hover:shadow-sm',
+  1395→                                  STATUS_COLORS[entry.status]
+  1396→                                )}
+  1397→                                onClick={() => cycleStatus(entry.id)}
+  1398→                              >
+  1399→                                <div className="flex items-center justify-between">
+  1400→                                  <span className="text-[10px] font-medium truncate flex-1">
+  1401→                                    {entry.title}
+  1402→                                  </span>
+  1403→                                  <button
+  1404→                                    onClick={(e) => {
+  1405→                                      e.stopPropagation()
+  1406→                                      removeCalendarEntry(entry.id)
+  1407→                                    }}
+  1408→                                    className="opacity-0 hover:opacity-100 transition-opacity ml-1"
+  1409→                                  >
+  1410→                                    <Trash2 className="w-2.5 h-2.5 text-red-400" />
+  1411→                                  </button>
+  1412→                                </div>
+  1413→                                <div className="flex items-center gap-1 mt-1">
+  1414→                                  <span className="text-[9px] opacity-70">{entry.time}</span>
+  1415→                                  <span className="text-[9px] opacity-50">•</span>
+  1416→                                  <span className="text-[9px] opacity-70 capitalize">{entry.status}</span>
+  1417→                                </div>
+  1418→                              </motion.div>
+  1419→                            ))
+  1420→                          )}
+  1421→                        </div>
+  1422→                      </div>
+  1423→                    )
+  1424→                  })}
+  1425→                </div>
+  1426→
+  1427→                {/* Optimal Posting Times */}
+  1428→                <Card className="mt-6 bg-gradient-to-r from-sky-50 to-blue-50 dark:from-sky-950/20 dark:to-blue-950/20 border-sky-200 dark:border-sky-800">
+  1429→                  <CardContent className="p-4">
+  1430→                    <div className="flex items-center gap-2 mb-3">
+  1431→                      <Zap className="w-4 h-4 text-sky-500" />
+  1432→                      <span className="text-sm font-semibold text-sky-700 dark:text-sky-400">Optimal Posting Times (Malaysia)</span>
+  1433→                    </div>
+  1434→                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+  1435→                      {OPTIMAL_TIMES.map((time, i) => (
+  1436→                        <div key={i} className="text-center p-2 rounded-lg bg-white/50 dark:bg-white/5">
+  1437→                          <Clock className="w-3.5 h-3.5 mx-auto mb-1 text-sky-500" />
+  1438→                          <p className="text-xs font-medium">{time}</p>
+  1439→                          <p className="text-[9px] text-muted-foreground">
+  1440→                            {i === 0 ? 'Morning rush' :
+  1441→                             i === 1 ? 'Lunch break' :
+  1442→                             i === 2 ? 'After work' :
+  1443→                             i === 3 ? 'Prime time' :
+  1444→                             'Late night'}
+  1445→                          </p>
+  1446→                        </div>
+  1447→                      ))}
+  1448→                    </div>
+  1449→                  </CardContent>
+  1450→                </Card>
+  1451→              </CardContent>
+  1452→            </Card>
+  1453→          </motion.div>
+  1454→        </TabsContent>
+  1455→      </Tabs>
+  1456→    </div>
+  1457→  )
+  1458→}
+  1459→
+  1460→// ─── Helpers ─────────────────────────────────────────────────────────────────
+  1461→
+  1462→function formatTime(seconds: number): string {
+  1463→  const mins = Math.floor(seconds / 60)
+  1464→  const secs = Math.floor(seconds % 60)
+  1465→  const ms = Math.round((seconds % 1) * 10)
+  1466→  return `${mins}:${String(secs).padStart(2, '0')}.${ms}`
+  1467→}
+  1468→
