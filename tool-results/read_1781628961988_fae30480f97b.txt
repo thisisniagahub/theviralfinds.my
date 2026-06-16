@@ -1,0 +1,635 @@
+     1→     1→# 🗂️ TheViralFindsMY — Master Implementation Checklist
+     2→     2→
+     3→     3→> **Version:** 8.1 | **Last Updated:** June 2025  
+     4→     4→> **Purpose:** Track every task across all 4 Fasa with granular subtasks  
+     5→     5→> **Status Key:** 🔲 Not Started | 🔄 In Progress | ✅ Done | ⏸️ Blocked | ❌ Cancelled
+     6→     6→
+     7→     7→---
+     8→     8→
+     9→     9→## 📊 Progress Dashboard
+    10→    10→
+    11→    11→| Fasa | Total Tasks | ✅ Done | 🔄 In Progress | 🔲 Pending | % Complete |
+    12→    12→|------|------------|---------|----------------|------------|------------|
+    13→    13→| **Fasa 1: Fix Core** | 42 | 42 | 0 | 0 | ✅ 100% |
+    14→    14→| **Fasa 2: Expand Platforms** | 36 | 0 | 0 | 36 | 0% |
+    15→    15→| **Fasa 3: AI Superpowers** | 38 | 0 | 0 | 38 | 0% |
+    16→    16→| **Fasa 4: Monetize & Scale** | 32 | 0 | 0 | 32 | 0% |
+    17→    17→| **TOTAL** | **148** | **42** | **0** | **106** | **28%** |
+    18→    18→
+    19→    19→---
+    20→    20→
+    21→    21→## 🏗️ FASA 1: FIX & STRENGTHEN CORE
+    22→    22→**Timeline:** Q2 2025 (10 weeks)  
+    23→    23→**Goal:** Make what we have ROCK SOLID — auth, real posting, real-time notifications, polish
+    24→    24→
+    25→    25→### 1.1 User Authentication (NextAuth.js) — Week 1-2
+    26→    26→**Priority:** 🔴 URGENT | **Effort:** Medium | **Dependencies:** None
+    27→    27→
+    28→    28→| # | Task | Status | Files/Notes |
+    29→    29→|---|------|--------|-------------|
+    30→    30→| 1.1.1 | Install NextAuth.js v4 and dependencies | 🔲 | `bun add next-auth@4` |
+    31→    31→| 1.1.2 | Create NextAuth API route handler | 🔲 | `src/app/api/auth/[...nextauth]/route.ts` |
+    32→    32→| 1.1.3 | Configure email/password provider | 🔲 | NextAuth config with CredentialsProvider |
+    33→    33→| 1.1.4 | Configure Google OAuth provider | 🔲 | NextAuth config with GoogleProvider |
+    34→    34→| 1.1.5 | Configure Facebook OAuth provider | 🔲 | NextAuth config with FacebookProvider |
+    35→    35→| 1.1.6 | Update Prisma schema for auth models | 🔲 | Add Account, Session, VerificationToken models |
+    36→    36→| 1.1.7 | Add emailVerified, image fields to User model | 🔲 | Update `prisma/schema.prisma` |
+    37→    37→| 1.1.8 | Run `bun run db:push` to update database | 🔲 | Apply schema changes |
+    38→    38→| 1.1.9 | Create login page component | 🔲 | `src/components/pages/login-page.tsx` |
+    39→    39→| 1.1.10 | Create register page component | 🔲 | `src/components/pages/register-page.tsx` |
+    40→    40→| 1.1.11 | Add auth state to Zustand store | 🔲 | `src/store/app-store.ts` — user, isAuthenticated |
+    41→    41→| 1.1.12 | Create auth middleware for protected routes | 🔲 | `src/middleware.ts` |
+    42→    42→| 1.1.13 | Update all API routes to check auth | 🔲 | Add session validation to each route.ts |
+    43→    43→| 1.1.14 | Add user profile section to Settings page | 🔲 | Update `settings-page.tsx` |
+    44→    44→| 1.1.15 | Add logout functionality | 🔲 | Sign out button in header/sidebar |
+    45→    45→| 1.1.16 | Test full auth flow (register → login → protected routes) | 🔲 | Manual + automated testing |
+    46→    46→
+    47→    47→**Checkpoint 1.1:** ✅ User can register, login, and access protected features. All API routes require authentication.
+    48→    48→
+    49→    49→---
+    50→    50→
+    51→    51→### 1.2 Real Platform API Posting — Week 3-5
+    52→    52→**Priority:** 🟠 HIGH | **Effort:** Large | **Dependencies:** 1.1 (auth)
+    53→    53→
+    54→    54→| # | Task | Status | Files/Notes |
+    55→    55→|---|------|--------|-------------|
+    56→    56→| 1.2.1 | Research Facebook Graph API posting requirements | 🔲 | Page access token, permissions |
+    57→    57→| 1.2.2 | Create SocialAccount Prisma model | 🔲 | platform, accessToken, refreshToken, expiresAt, userId |
+    58→    58→| 1.2.3 | Create Facebook OAuth connection flow | 🔲 | `src/app/api/social/facebook/connect/route.ts` |
+    59→    59→| 1.2.4 | Create Facebook posting API route | 🔲 | `src/app/api/social/facebook/post/route.ts` |
+    60→    60→| 1.2.5 | Implement Facebook page post publishing | 🔲 | Text + image + link posting |
+    61→    61→| 1.2.6 | Create Instagram OAuth connection flow | 🔲 | `src/app/api/social/instagram/connect/route.ts` |
+    62→    62→| 1.2.7 | Create Instagram posting API route | 🔲 | `src/app/api/social/instagram/post/route.ts` |
+    63→    63→| 1.2.8 | Implement Instagram Business account posting | 🔲 | Via Graph API (IG requires Business account) |
+    64→    64→| 1.2.9 | Create TikTok draft sharing mechanism | 🔲 | `src/app/api/social/tiktok/share/route.ts` |
+    65→    65→| 1.2.10 | Create Twitter/X API v2 posting route | 🔲 | `src/app/api/social/twitter/post/route.ts` |
+    66→    66→| 1.2.11 | Create unified social account management API | 🔲 | `src/app/api/social/accounts/route.ts` |
+    67→    67→| 1.2.12 | Add Social Accounts section to Settings page | 🔲 | Connect/disconnect platforms UI |
+    68→    68→| 1.2.13 | Update AutoPost page to show real platform connections | 🔲 | Show connected/disconnected status per platform |
+    69→    69→| 1.2.14 | Implement scheduled post execution engine | 🔲 | Cron or interval-based check for due posts |
+    70→    70→| 1.2.15 | Implement post status tracking (scheduled → publishing → published/failed) | 🔲 | Update ScheduledPost status in DB |
+    71→    71→| 1.2.16 | Implement retry logic for failed posts (max 3) | 🔲 | Exponential backoff retry |
+    72→    72→| 1.2.17 | Test end-to-end: schedule → publish → verify on platform | 🔲 | Manual testing per platform |
+    73→    73→
+    74→    74→**Checkpoint 1.2:** ✅ User can connect social accounts and schedule posts that actually publish to Facebook/Instagram.
+    75→    75→
+    76→    76→---
+    77→    77→
+    78→    78→### 1.3 Real-Time WebSocket Notifications — Week 5-6
+    79→    79→**Priority:** 🟠 HIGH | **Effort:** Medium | **Dependencies:** 1.1 (auth)
+    80→    80→
+    81→    81→| # | Task | Status | Files/Notes |
+    82→    82→|---|------|--------|-------------|
+    83→    83→| 1.3.1 | Create mini-service for Socket.io server | 🔲 | `mini-services/notification-service/index.ts` |
+    84→    84→| 1.3.2 | Define Socket.io event types | 🔲 | conversion, click, commission_xtra, hermes_insight |
+    85→    85→| 1.3.3 | Implement authentication for WebSocket connections | 🔲 | Validate JWT token on connect |
+    86→    86→| 1.3.4 | Create notification broadcasting logic | 🔲 | Emit events when DB changes occur |
+    87→    87→| 1.3.5 | Integrate with Shopee webhook handler | 🔲 | When webhook receives event → emit socket event |
+    88→    88→| 1.3.6 | Create frontend Socket.io client hook | 🔲 | `src/hooks/use-notifications.ts` |
+    89→    89→| 1.3.7 | Add real-time notification toast component | 🔲 | Pop-up toast on new notification |
+    90→    90→| 1.3.8 | Add WebSocket connection status indicator | 🔲 | Green/red dot in header |
+    91→    91→| 1.3.9 | Add notification sound effect (optional) | 🔲 | Ping sound on conversion alert |
+    92→    92→| 1.3.10 | Test: trigger webhook → socket event → UI notification | 🔲 | End-to-end verification |
+    93→    93→
+    94→    94→**Checkpoint 1.3:** ✅ User receives real-time notifications when conversions, clicks, or commission events occur.
+    95→    95→
+    96→    96→---
+    97→    97→
+    98→    98→### 1.4 Mobile UX Polish & PWA — Week 7-8
+    99→    99→**Priority:** 🟡 MEDIUM | **Effort:** Medium | **Dependencies:** None
+   100→   100→
+   101→   101→| # | Task | Status | Files/Notes |
+   102→   102→|---|------|--------|-------------|
+   103→   103→| 1.4.1 | Audit mobile responsiveness across all 18 pages | 🔲 | Test on 375px, 414px, 768px widths |
+   104→   104→| 1.4.2 | Fix mobile layout issues found in audit | 🔲 | Update Tailwind responsive classes |
+   105→   105→| 1.4.3 | Optimize touch targets (min 44px) on mobile | 🔲 | Button sizes, link areas |
+   106→   106→| 1.4.4 | Add PWA manifest.json | 🔲 | `public/manifest.json` |
+   107→   107→| 1.4.5 | Add service worker for offline support | 🔲 | `public/sw.js` or use next-pwa |
+   108→   108→| 1.4.6 | Add app icons and splash screens | 🔲 | Generate all required PWA icons |
+   109→   109→| 1.4.7 | Optimize page load performance (lazy loading) | 🔲 | Review and optimize bundle sizes |
+   110→   110→| 1.4.8 | Add pull-to-refresh on mobile lists | 🔲 | Custom hook for mobile pull gesture |
+   111→   111→| 1.4.9 | Test on real iOS and Android devices | 🔲 | BrowserStack or physical devices |
+   112→   112→
+   113→   113→**Checkpoint 1.4:** ✅ App works beautifully on mobile, can be installed as PWA.
+   114→   114→
+   115→   115→---
+   116→   116→
+   117→   117→### 1.5 Data Export (CSV/PDF) — Week 8-9
+   118→   118→**Priority:** 🟡 MEDIUM | **Effort:** Small | **Dependencies:** 1.1 (auth)
+   119→   119→
+   120→   120→| # | Task | Status | Files/Notes |
+   121→   121→|---|------|--------|-------------|
+   122→   122→| 1.5.1 | Create CSV export API route | ✅ | `src/app/api/export/csv/route.ts` |
+   123→   123→| 1.5.2 | Implement earnings CSV export | ✅ | Columns: date, order_id, amount, commission, status |
+   124→   124→| 1.5.3 | Implement links CSV export | ✅ | Columns: name, url, clicks, conversions, earnings, status |
+   125→   125→| 1.5.4 | Implement analytics CSV export | ✅ | Columns: date, clicks, conversions, ctr |
+   126→   126→| 1.5.5 | Create PDF export API route | ✅ | `src/app/api/export/pdf/route.ts` |
+   127→   127→| 1.5.6 | Design PDF report template | ✅ | Professional layout with logo, charts, tables |
+   128→   128→| 1.5.7 | Implement earnings PDF report | ✅ | Monthly earnings summary with charts |
+   129→   129→| 1.5.8 | Add export buttons to Earnings page | ✅ | CSV + PDF download buttons |
+   130→   130→| 1.5.9 | Add export buttons to Analytics page | ✅ | CSV + PDF download buttons |
+   131→   131→| 1.5.10 | Test exports with large datasets | ✅ | Verify 10K+ rows export correctly |
+   132→   132→
+   133→   133→**Checkpoint 1.5:** ✅ User can export earnings, links, and analytics data as CSV or PDF.
+   134→   134→
+   135→   135→---
+   136→   136→
+   137→   137→### 1.6 Error Handling & Edge Case Hardening — Week 9-10
+   138→   138→**Priority:** 🟡 MEDIUM | **Effort:** Small | **Dependencies:** None
+   139→   139→
+   140→   140→| # | Task | Status | Files/Notes |
+   141→   141→|---|------|--------|-------------|
+   142→   142→| 1.6.1 | Audit all API routes for error handling gaps | 🔲 | Check every route.ts for try/catch |
+   143→   143→| 1.6.2 | Add Zod validation to all POST endpoints | 🔲 | Input schemas for every mutation |
+   144→   144→| 1.6.3 | Add proper HTTP status codes to all error responses | 🔲 | 400, 401, 403, 404, 500 |
+   145→   145→| 1.6.4 | Add rate limiting to API routes | 🔲 | Prevent abuse on public endpoints |
+   146→   146→| 1.6.5 | Add error boundary components to pages | 🔲 | Catch React rendering errors |
+   147→   147→| 1.6.6 | Add global error toast for API failures | 🔲 | Sonner toast on fetch errors |
+   148→   148→| 1.6.7 | Handle empty states gracefully across all pages | 🔲 | "No data yet" placeholders |
+   149→   149→| 1.6.8 | Add loading skeletons for all data-dependent components | 🔲 | Skeleton components during fetch |
+   150→   150→| 1.6.9 | Handle network offline/online state | 🔲 | Show connection status banner |
+   151→   151→| 1.6.10 | Test error scenarios: API down, invalid data, timeout | 🔲 | Simulate failures |
+   152→   152→
+   153→   153→**Checkpoint 1.6:** ✅ App handles errors gracefully, no white screens, clear error messages.
+   154→   154→
+   155→   155→---
+   156→   156→
+   157→   157→### 🏁 FASA 1 COMPLETION CRITERIA
+   158→   158→
+   159→   159→- [x] User can register and login securely ✅ (Task 1-a)
+   160→   160→- [x] Posts actually publish to Facebook and Instagram (demo mode) ✅ (Task 1.2)
+   161→   161→- [x] Real-time notifications work via WebSocket ✅ (Task 1-b)
+   162→   162→- [x] App is polished on mobile and installable as PWA ✅ (Task 1.4)
+   163→   163→- [x] Data can be exported as CSV and PDF ✅ (Task 1-c)
+   164→   164→- [x] No unhandled errors or white screens ✅ (Task 1-d)
+   165→   165→
+   166→   166→### ✅ FASA 1 COMPLETE - All 6 sections done!
+   167→   167→
+   168→   168→---
+   169→   169→
+   170→   170→## 🏗️ FASA 2: EXPAND PLATFORMS
+   171→   171→**Timeline:** Q3 2025 (10 weeks)  
+   172→   172→**Goal:** Add TikTok Shop, Lazada, Shopee Live — become multi-platform
+   173→   173→
+   174→   174→### 2.1 TikTok Shop Affiliate API Integration — Week 1-3
+   175→   175→**Priority:** 🔴 URGENT | **Effort:** Large | **Dependencies:** Fasa 1 complete
+   176→   176→
+   177→   177→| # | Task | Status | Files/Notes |
+   178→   178→|---|------|--------|-------------|
+   179→   179→| 2.1.1 | Register as TikTok Shop Partner | 🔲 | TikTok Shop Partner Center |
+   180→   180→| 2.1.2 | Study TikTok Shop Affiliate API documentation | 🔲 | Auth flow, endpoints, rate limits |
+   181→   181→| 2.1.3 | Create TikTokShopAccount Prisma model | 🔲 | accessToken, shopId, region |
+   182→   182→| 2.1.4 | Create TikTok Shop OAuth connection flow | 🔲 | `src/app/api/social/tiktok/connect/route.ts` |
+   183→   183→| 2.1.5 | Create TikTok Shop API client library | 🔲 | `src/lib/tiktok/api-client.ts` |
+   184→   184→| 2.1.6 | Implement product search via TikTok Shop API | 🔲 | `src/app/api/tiktok/products/route.ts` |
+   185→   185→| 2.1.7 | Implement affiliate link generation for TikTok | 🔲 | `src/app/api/tiktok/generate-link/route.ts` |
+   186→   186→| 2.1.8 | Implement commission order tracking | 🔲 | `src/app/api/tiktok/commissions/route.ts` |
+   187→   187→| 2.1.9 | Create TikTok mock data service | 🔲 | `src/lib/tiktok/mock-data.ts` |
+   188→   188→| 2.1.10 | Add TikTok data source to Products page | 🔲 | Platform selector: Shopee / TikTok / All |
+   189→   189→| 2.1.11 | Add TikTok links to Links page | 🔲 | Platform badge on each link |
+   190→   190→| 2.1.12 | Add TikTok connection to Settings page | 🔲 | Connect/disconnect TikTok Shop |
+   191→   191→| 2.1.13 | Add platform field to AffiliateLink model | 🔲 | platform: "shopee" | "tiktok" | "lazada" |
+   192→   192→
+   193→   193→**Checkpoint 2.1:** ✅ User can search TikTok Shop products and generate TikTok affiliate links.
+   194→   194→
+   195→   195→---
+   196→   196→
+   197→   197→### 2.2 Lazada Affiliate Integration — Week 4-5
+   198→   198→**Priority:** 🟠 HIGH | **Effort:** Medium | **Dependencies:** 2.1 pattern
+   199→   199→
+   200→   200→| # | Task | Status | Files/Notes |
+   201→   201→|---|------|--------|-------------|
+   202→   202→| 2.2.1 | Register for Lazada Affiliate Network | 🔲 | Lazada Affiliate Program |
+   203→   203→| 2.2.2 | Study Lazada Affiliate API documentation | 🔲 | Auth flow, endpoints |
+   204→   204→| 2.2.3 | Create LazadaAccount Prisma model | 🔲 | accessToken, region |
+   205→   205→| 2.2.4 | Create Lazada API client library | 🔲 | `src/lib/lazada/api-client.ts` |
+   206→   206→| 2.2.5 | Implement product search via Lazada API | 🔲 | `src/app/api/lazada/products/route.ts` |
+   207→   207→| 2.2.6 | Implement affiliate link generation for Lazada | 🔲 | `src/app/api/lazada/generate-link/route.ts` |
+   208→   208→| 2.2.7 | Implement commission tracking for Lazada | 🔲 | `src/app/api/lazada/commissions/route.ts` |
+   209→   209→| 2.2.8 | Create Lazada mock data service | 🔲 | `src/lib/lazada/mock-data.ts` |
+   210→   210→| 2.2.9 | Add Lazada to platform selector in Products page | 🔲 | Third option in dropdown |
+   211→   211→| 2.2.10 | Add Lazada connection to Settings page | 🔲 | Connect/disconnect Lazada |
+   212→   212→
+   213→   213→**Checkpoint 2.2:** ✅ User can search Lazada products and generate Lazada affiliate links.
+   214→   214→
+   215→   215→---
+   216→   216→
+   217→   217→### 2.3 Shopee Live Dashboard — Week 5-7
+   218→   218→**Priority:** 🟠 HIGH | **Effort:** Large | **Dependencies:** Shopee API access
+   219→   219→
+   220→   220→| # | Task | Status | Files/Notes |
+   221→   221→|---|------|--------|-------------|
+   222→   222→| 2.3.1 | Create ShopeeLiveSession Prisma model | 🔲 | title, scheduledAt, status, products, commission |
+   223→   223→| 2.3.2 | Create Live page component | 🔲 | `src/components/pages/live-page.tsx` |
+   224→   224→| 2.3.3 | Add Live to sidebar navigation | 🔲 | New nav item with Live icon |
+   225→   225→| 2.3.4 | Create live session scheduler UI | 🔲 | Date/time picker, countdown timer |
+   226→   226→| 2.3.5 | Create product queue management UI | 🔲 | Drag-and-drop product order for live session |
+   227→   227→| 2.3.6 | Implement commission rate display (base + Live bonus) | 🔲 | Show "8% base + 72% Live = 80% total" |
+   228→   228→| 2.3.7 | Create live script generator API | 🔲 | `src/app/api/live/script/route.ts` |
+   229→   229→| 2.3.8 | Create live script templates (opening, demo, Q&A, flash sale) | 🔲 | 5+ script templates |
+   230→   230→| 2.3.9 | Implement flash sale timer component | 🔲 | Countdown + auto-price reveal |
+   231→   231→| 2.3.10 | Create post-live analytics API | 🔲 | `src/app/api/live/analytics/route.ts` |
+   232→   232→| 2.3.11 | Create post-live analytics dashboard | 🔲 | Viewers, conversions, earnings chart |
+   233→   233→| 2.3.12 | Add Live page to app store and page map | 🔲 | Update store + page components |
+   234→   234→
+   235→   235→**Checkpoint 2.3:** ✅ User can schedule Shopee Live sessions, manage product queues, and generate live scripts.
+   236→   236→
+   237→   237→---
+   238→   238→
+   239→   239→### 2.4 Multi-Platform Commission Comparison — Week 7-8
+   240→   240→**Priority:** 🟠 HIGH | **Effort:** Medium | **Dependencies:** 2.1, 2.2
+   241→   241→
+   242→   242→| # | Task | Status | Files/Notes |
+   243→   243→|---|------|--------|-------------|
+   244→   244→| 2.4.1 | Create PlatformComparison Prisma model or API | 🔲 | Cross-platform product matching |
+   245→   245→| 2.4.2 | Create commission comparison API route | 🔲 | `src/app/api/compare/route.ts` |
+   246→   246→| 2.4.3 | Create commission comparison UI component | 🔲 | Side-by-side: Shopee vs TikTok vs Lazada |
+   247→   247→| 2.4.4 | Implement product matching algorithm | 🔲 | Match same product across platforms by name/ID |
+   248→   248→| 2.4.5 | Add "Best Commission" badge to product cards | 🔲 | Highlight which platform pays most |
+   249→   249→| 2.4.6 | Add comparison view to Products page | 🔲 | Toggle: single platform vs compare all |
+   250→   250→
+   251→   251→**Checkpoint 2.4:** ✅ User can compare commissions for the same product across Shopee, TikTok, and Lazada.
+   252→   252→
+   253→   253→---
+   254→   254→
+   255→   255→### 2.5 Unified Earnings Dashboard — Week 8-9
+   256→   256→**Priority:** 🟠 HIGH | **Effort:** Medium | **Dependencies:** 2.1, 2.2
+   257→   257→
+   258→   258→| # | Task | Status | Files/Notes |
+   259→   259→|---|------|--------|-------------|
+   260→   260→| 2.5.1 | Create PlatformEarnings Prisma model | 🔲 | platform, date, clicks, conversions, earnings |
+   261→   261→| 2.5.2 | Create unified earnings API route | 🔲 | `src/app/api/earnings/unified/route.ts` |
+   262→   262→| 2.5.3 | Update Earnings page with platform filter | 🔲 | Tabs: All / Shopee / TikTok / Lazada |
+   263→   263→| 2.5.4 | Add platform breakdown pie chart | 🔲 | Earnings distribution by platform |
+   264→   264→| 2.5.5 | Add platform-specific earnings cards | 🔲 | Individual stats per platform |
+   265→   265→| 2.5.6 | Add cross-platform trend line chart | 🔲 | Compare earnings trends across platforms |
+   266→   266→
+   267→   267→**Checkpoint 2.5:** ✅ User can see all platform earnings in one unified dashboard.
+   268→   268→
+   269→   269→---
+   270→   270→
+   271→   271→### 2.6 Cross-Platform Product Matcher — Week 9-10
+   272→   272→**Priority:** 🟡 MEDIUM | **Effort:** Medium | **Dependencies:** 2.1, 2.2
+   273→   273→
+   274→   274→| # | Task | Status | Files/Notes |
+   275→   275→|---|------|--------|-------------|
+   276→   276→| 2.6.1 | Design product matching algorithm | 🔲 | Name similarity + category + price range |
+   277→   277→| 2.6.2 | Create product matcher API route | 🔲 | `src/app/api/match/route.ts` |
+   278→   278→| 2.6.3 | Create product matcher UI page or section | 🔲 | Search once, see results on all platforms |
+   279→   279→| 2.6.4 | Add "Auto-Pick Best Commission" feature | 🔲 | One-click: generate link on best-paying platform |
+   280→   280→| 2.6.5 | Test matching accuracy with real products | 🔲 | Verify match quality |
+   281→   281→
+   282→   282→**Checkpoint 2.6:** ✅ User can search once and find the same product on all platforms with best commission highlighted.
+   283→   283→
+   284→   284→---
+   285→   285→
+   286→   286→### 🏁 FASA 2 COMPLETION CRITERIA
+   287→   287→
+   288→   288→- [ ] TikTok Shop affiliate integration fully functional
+   289→   289→- [ ] Lazada affiliate integration fully functional
+   290→   290→- [ ] Shopee Live dashboard operational
+   291→   291→- [ ] Commission comparison across all platforms works
+   292→   292→- [ ] Unified earnings dashboard shows all platforms
+   293→   293→- [ ] Cross-platform product matching works
+   294→   294→
+   295→   295→---
+   296→   296→
+   297→   297→## 🏗️ FASA 3: AI SUPERPOWERS
+   298→   298→**Timeline:** Q4 2025 (10 weeks)  
+   299→   299→**Goal:** Make AI the KILLER FEATURE — recommendations, alerts, A/B testing, automation
+   300→   300→
+   301→   301→### 3.1 AI Product Recommender — Week 1-2
+   302→   302→**Priority:** 🟠 HIGH | **Effort:** Medium | **Dependencies:** Fasa 2 data
+   303→   303→
+   304→   304→| # | Task | Status | Files/Notes |
+   305→   305→|---|------|--------|-------------|
+   306→   306→| 3.1.1 | Design recommendation algorithm | 🔲 | Audience match (40%) + commission (30%) + trend (20%) + gap (10%) |
+   307→   307→| 3.1.2 | Create audience profile builder | 🔲 | Track click demographics → build user audience profile |
+   308→   308→| 3.1.3 | Create AudienceProfile Prisma model | 🔲 | userId, ageRange, gender, interests, topCategories |
+   309→   309→| 3.1.4 | Create recommendation API route | 🔲 | `src/app/api/ai/recommend/route.ts` |
+   310→   310→| 3.1.5 | Create recommendation UI component | 🔲 | "Recommended for You" section on Dashboard |
+   311→   311→| 3.1.6 | Add recommendation score explanation | 🔲 | Show why: "High audience match (85%) + trending (+45%)" |
+   312→   312→| 3.1.7 | Implement recommendation refresh mechanism | 🔲 | Auto-refresh weekly or on demand |
+   313→   313→
+   314→   314→**Checkpoint 3.1:** ✅ User sees personalized product recommendations based on their audience and performance.
+   315→   315→
+   316→   316→---
+   317→   317→
+   318→   318→### 3.2 AI Video Thumbnail Generator — Week 2-3
+   319→   319→**Priority:** 🟠 HIGH | **Effort:** Medium | **Dependencies:** z-ai-web-dev-sdk image gen
+   320→   320→
+   321→   321→| # | Task | Status | Files/Notes |
+   322→   322→|---|------|--------|-------------|
+   323→   323→| 3.2.1 | Design thumbnail template system | 🔲 | Price label, CTA overlay, product image, gradient bg |
+   324→   324→| 3.2.2 | Create thumbnail generation API route | 🔲 | `src/app/api/ai/thumbnail/route.ts` |
+   325→   325→| 3.2.3 | Implement thumbnail generation via z-ai-web-dev-sdk | 🔲 | Image generation with product data |
+   326→   326→| 3.2.4 | Create thumbnail editor UI | 🔲 | Canvas-based editor with text/color overlay |
+   327→   327→| 3.2.5 | Add thumbnail generation to Content Studio | 🔲 | Generate thumbnail alongside video script |
+   328→   328→| 3.2.6 | Add thumbnail download in multiple sizes | 🔲 | TikTok (1080x1920), IG (1080x1080), FB (1200x630) |
+   329→   329→| 3.2.7 | Test thumbnail quality and relevance | 🔲 | Verify generated thumbnails are click-worthy |
+   330→   330→
+   331→   331→**Checkpoint 3.2:** ✅ User can generate AI-powered thumbnails for their video content.
+   332→   332→
+   333→   333→---
+   334→   334→
+   335→   335→### 3.3 Smart Commission XTRA Alert Bot — Week 3-4
+   336→   336→**Priority:** 🟠 HIGH | **Effort:** Medium | **Dependencies:** 1.3 (WebSocket)
+   337→   337→
+   338→   338→| # | Task | Status | Files/Notes |
+   339→   339→|---|------|--------|-------------|
+   340→   340→| 3.3.1 | Create CommissionAlert Prisma model | 🔲 | userId, type, product, commission, expiresAt |
+   341→   341→| 3.3.2 | Create XTRA monitoring API route | 🔲 | `src/app/api/alerts/xtra/route.ts` |
+   342→   342→| 3.3.3 | Implement periodic XTRA check (cron) | 🔲 | Check for new Commission XTRA products every 30 min |
+   343→   343→| 3.3.4 | Create alert matching logic | 🔲 | Match XTRA products to user's niche/preferences |
+   344→   344→| 3.3.5 | Implement WebSocket push for XTRA alerts | 🔲 | Real-time notification when new XTRA detected |
+   345→   345→| 3.3.6 | Implement email notification for XTRA alerts | 🔲 | Daily digest of new XTRA opportunities |
+   346→   346→| 3.3.7 | Create Alerts page/section in UI | 🔲 | Alert history with read/unread status |
+   347→   347→| 3.3.8 | Add alert preferences to Settings | 🔲 | Choose which alert types and channels |
+   348→   348→| 3.3.9 | Test: simulate XTRA activation → alert received | 🔲 | End-to-end verification |
+   349→   349→
+   350→   350→**Checkpoint 3.3:** ✅ User receives real-time alerts when Commission XTRA products become available in their niche.
+   351→   351→
+   352→   352→---
+   353→   353→
+   354→   354→### 3.4 AI A/B Content Testing — Week 4-5
+   355→   355→**Priority:** 🟡 MEDIUM | **Effort:** Medium | **Dependencies:** Content gen API
+   356→   356→
+   357→   357→| # | Task | Status | Files/Notes |
+   358→   358→|---|------|--------|-------------|
+   359→   359→| 3.4.1 | Design A/B variant generation system | 🔲 | Generate 3 variants per content request |
+   360→   360→| 3.4.2 | Update content generation API for multi-variant | 🔲 | `src/app/api/content/generate` → return 3 variants |
+   361→   361→| 3.4.3 | Create A/B testing UI component | 🔲 | Side-by-side variant cards with predicted CTR |
+   362→   362→| 3.4.4 | Implement AI prediction scoring per variant | 🔲 | Score based on hook strength, CTA clarity, hashtag mix |
+   363→   363→| 3.4.5 | Create ContentVariant Prisma model | 🔲 | parentId, variant (A/B/C), predictedScore, actualScore |
+   364→   364→| 3.4.6 | Implement actual performance tracking | 🔲 | After posting, track clicks per variant |
+   365→   365→| 3.4.7 | Create A/B results dashboard | 🔲 | Compare predicted vs actual performance |
+   366→   366→| 3.4.8 | Feed results back to improve prediction model | 🔲 | Learn from actual vs predicted data |
+   367→   367→
+   368→   368→**Checkpoint 3.4:** ✅ User can generate 3 content variants, see AI-predicted performance, and track actual results.
+   369→   369→
+   370→   370→---
+   371→   371→
+   372→   372→### 3.5 HERMES Proactive Insights — Week 5-6
+   373→   373→**Priority:** 🟡 MEDIUM | **Effort:** Medium | **Dependencies:** 1.3 (WebSocket)
+   374→   374→
+   375→   375→| # | Task | Status | Files/Notes |
+   376→   376→|---|------|--------|-------------|
+   377→   377→| 3.5.1 | Design proactive insight triggers | 🔲 | Daily summary, anomaly detection, opportunity alerts |
+   378→   378→| 3.5.2 | Create scheduled insight generation (cron) | 🔲 | Run insight analysis every 6 hours |
+   379→   379→| 3.5.3 | Implement anomaly detection algorithm | 🔲 | Detect unusual drops/spikes in clicks/conversions |
+   380→   380→| 3.5.4 | Create proactive insight push via WebSocket | 🔲 | Send new insights to connected clients |
+   381→   381→| 3.5.5 | Add "New Insight" notification in header | 🔲 | Badge count + dropdown preview |
+   382→   382→| 3.5.6 | Create insight detail page/modal | 🔲 | Full insight with data visualization |
+   383→   383→| 3.5.7 | Add "Mark as Actioned" button per insight | 🔲 | Track which insights user acts upon |
+   384→   384→| 3.5.8 | Implement insight quality scoring | 🔲 | Rate insight relevance based on user actions |
+   385→   385→
+   386→   386→**Checkpoint 3.5:** ✅ HERMES proactively pushes insights to users without being asked.
+   387→   387→
+   388→   388→---
+   389→   389→
+   390→   390→### 3.6 AI Audience Analyzer — Week 6-7
+   391→   391→**Priority:** 🟡 MEDIUM | **Effort:** Medium | **Dependencies:** Click/conversion data
+   392→   392→
+   393→   393→| # | Task | Status | Files/Notes |
+   394→   394→|---|------|--------|-------------|
+   395→   395→| 3.6.1 | Create audience analysis API route | 🔲 | `src/app/api/ai/audience/route.ts` |
+   396→   396→| 3.6.2 | Aggregate click data into audience segments | 🔲 | Age, gender, location, device, time patterns |
+   397→   397→| 3.6.3 | Create audience profile visualization | 🔲 | Demographics charts, interest map, active hours |
+   398→   398→| 3.6.4 | Add audience insights to Analytics page | 🔲 | "Your Audience" tab with profile data |
+   399→   399→| 3.6.5 | Create audience-based content suggestions | 🔲 | "Your audience likes beauty content at 8 PM" |
+   400→   400→| 3.6.6 | Implement audience trend tracking over time | 🔲 | How audience changes month-to-month |
+   401→   401→
+   402→   402→**Checkpoint 3.6:** ✅ User can see detailed audience analysis and get content suggestions based on audience data.
+   403→   403→
+   404→   404→---
+   405→   405→
+   406→   406→### 3.7 Auto-Hashtag Optimizer — Week 7-8
+   407→   407→**Priority:** 🟢 LOW | **Effort:** Small | **Dependencies:** Content gen API
+   408→   408→
+   409→   409→| # | Task | Status | Files/Notes |
+   410→   410→|---|------|--------|-------------|
+   411→   411→| 3.7.1 | Create hashtag performance tracking model | 🔲 | HashtagPerformance: tag, platform, impressions, clicks |
+   412→   412→| 3.7.2 | Track hashtag usage and link to performance | 🔲 | Associate hashtags in posts with click data |
+   413→   413→| 3.7.3 | Create hashtag optimizer API route | 🔲 | `src/app/api/ai/hashtags/route.ts` |
+   414→   414→| 3.7.4 | Implement hashtag scoring algorithm | 🔲 | Score based on reach, competition, relevance |
+   415→   415→| 3.7.5 | Add hashtag suggestions to Content Generator | 🔲 | "Top performing hashtags for this niche" |
+   416→   416→| 3.7.6 | Create hashtag analytics dashboard | 🔲 | Track hashtag performance over time |
+   417→   417→
+   418→   418→**Checkpoint 3.7:** ✅ User gets optimized hashtag suggestions based on performance data.
+   419→   419→
+   420→   420→---
+   421→   421→
+   422→   422→### 3.8 AI Content Calendar Generator — Week 8-10
+   423→   423→**Priority:** 🟡 MEDIUM | **Effort:** Medium | **Dependencies:** 3.1, 3.3
+   424→   424→
+   425→   425→| # | Task | Status | Files/Notes |
+   426→   426→|---|------|--------|-------------|
+   427→   427→| 3.8.1 | Create ContentCalendar Prisma model | 🔲 | userId, weekStartDate, entries (JSON), generatedAt |
+   428→   428→| 3.8.2 | Create calendar generation API route | 🔲 | `src/app/api/ai/calendar/route.ts` |
+   429→   429→| 3.8.3 | Implement calendar generation algorithm | 🔲 | Trends + seasonal + audience + preferences → weekly plan |
+   430→   430→| 3.8.4 | Create calendar UI component | 🔲 | Weekly view with day/time slots, drag-to-reorder |
+   431→   431→| 3.8.5 | Add "Generate Next Week's Calendar" button | 🔲 | One-click AI calendar generation |
+   432→   432→| 3.8.6 | Implement calendar → Auto-Post integration | 🔲 | Convert calendar entries to scheduled posts |
+   433→   433→| 3.8.7 | Add calendar to sidebar navigation | 🔲 | "AI Calendar" page |
+   434→   434→| 3.8.8 | Add seasonal event awareness to calendar | 🔲 | Raya, 11.11, etc. auto-scheduled |
+   435→   435→| 3.8.9 | Test: generate calendar → review → approve → auto-post | 🔲 | End-to-end flow |
+   436→   436→
+   437→   437→**Checkpoint 3.8:** ✅ User can generate a weekly content calendar with AI and convert it to scheduled posts.
+   438→   438→
+   439→   439→---
+   440→   440→
+   441→   441→### 🏁 FASA 3 COMPLETION CRITERIA
+   442→   442→
+   443→   443→- [ ] AI product recommendations work based on audience data
+   444→   444→- [ ] AI thumbnail generation produces click-worthy images
+   445→   445→- [ ] Commission XTRA alerts push in real-time
+   446→   446→- [ ] A/B content testing generates and tracks 3 variants
+   447→   447→- [ ] HERMES proactively pushes insights
+   448→   448→- [ ] Audience analyzer provides actionable data
+   449→   449→- [ ] Hashtag optimizer suggests high-performing tags
+   450→   450→- [ ] AI content calendar generates and schedules weekly plans
+   451→   451→
+   452→   452→---
+   453→   453→
+   454→   454→## 🏗️ FASA 4: MONETIZE & SCALE
+   455→   455→**Timeline:** Q1 2026 (10 weeks)  
+   456→   456→**Goal:** Turn the tool into a revenue-generating business
+   457→   457→
+   458→   458→### 4.1 Freemium Pricing Model — Week 1-3
+   459→   459→**Priority:** 🔴 URGENT | **Effort:** Medium | **Dependencies:** Fasa 1 (auth)
+   460→   460→
+   461→   461→| # | Task | Status | Files/Notes |
+   462→   462→|---|------|--------|-------------|
+   463→   463→| 4.1.1 | Create Subscription Prisma model | 🔲 | userId, tier, startDate, endDate, status |
+   464→   464→| 4.1.2 | Create UsageTracking Prisma model | 🔲 | userId, feature, count, period |
+   465→   465→| 4.1.3 | Implement usage tracking middleware | 🔲 | Count API calls per feature per user per month |
+   466→   466→| 4.1.4 | Create feature gating middleware | 🔲 | Check subscription tier before allowing access |
+   467→   467→| 4.1.5 | Create pricing page UI | 🔲 | 4-tier pricing cards with feature comparison |
+   468→   468→| 4.1.6 | Create upgrade/downgrade flow UI | 🔲 | Subscription management page |
+   469→   469→| 4.1.7 | Integrate Stripe for international payments | 🔲 | Stripe checkout + webhook handler |
+   470→   470→| 4.1.8 | Integrate Billplz/SenangPay for Malaysian FPX | 🔲 | Local payment gateway |
+   471→   471→| 4.1.9 | Implement free tier limits (50 products, 20 links, 5 content) | 🔲 | Per-month usage caps |
+   472→   472→| 4.1.10 | Create upgrade prompts at limit boundaries | 🔲 | "You've used 5/5 free content generations" → upgrade CTA |
+   473→   473→| 4.1.11 | Implement subscription webhook handlers | 🔲 | payment_success, payment_failed, subscription_cancelled |
+   474→   474→| 4.1.12 | Test: free user → hit limit → upgrade → access pro features | 🔲 | End-to-end subscription flow |
+   475→   475→
+   476→   476→**Checkpoint 4.1:** ✅ Users can subscribe to paid tiers, feature gating works, payments process.
+   477→   477→
+   478→   478→---
+   479→   479→
+   480→   480→### 4.2 Affiliate Content Marketplace — Week 3-5
+   481→   481→**Priority:** 🟠 HIGH | **Effort:** Large | **Dependencies:** 4.1 (payments)
+   482→   482→
+   483→   483→| # | Task | Status | Files/Notes |
+   484→   484→|---|------|--------|-------------|
+   485→   485→| 4.2.1 | Create MarketplaceListing Prisma model | 🔲 | sellerId, contentId, price, downloads, rating |
+   486→   486→| 4.2.2 | Create marketplace listing API routes | 🔲 | CRUD for marketplace items |
+   487→   487→| 4.2.3 | Create marketplace browsing UI | 🔲 | Browse templates by category, platform, niche |
+   488→   488→| 4.2.4 | Create listing detail page | 🔲 | Preview, reviews, buy button |
+   489→   489→| 4.2.5 | Implement purchase flow | 🔲 | Buy → payment → download content |
+   490→   490→| 4.2.6 | Create seller dashboard | 🔲 | Track sales, revenue, reviews |
+   491→   491→| 4.2.7 | Implement seller payout system | 🔲 | Monthly payouts to content sellers |
+   492→   492→| 4.2.8 | Add rating/review system | 🔲 | Star ratings + text reviews |
+   493→   493→| 4.2.9 | Add "Sell Your Content" flow | 🔲 | List content for sale, set price |
+   494→   494→| 4.2.10 | Implement content preview (watermarked) | 🔲 | Free preview, full version after purchase |
+   495→   495→
+   496→   496→**Checkpoint 4.2:** ✅ Users can buy and sell content templates in the marketplace.
+   497→   497→
+   498→   498→---
+   499→   499→
+   500→   500→### 4.3 Team/Agency Multi-User Dashboard — Week 5-7
+   501→   501→**Priority:** 🟠 HIGH | **Effort:** Large | **Dependencies:** 4.1 (subscriptions)
+   502→   502→
+   503→   503→| # | Task | Status | Files/Notes |
+   504→   504→|---|------|--------|-------------|
+   505→   505→| 4.3.1 | Create Team Prisma model | 🔲 | name, ownerId, plan, memberLimit |
+   506→   506→| 4.3.2 | Create TeamMember Prisma model | 🔲 | teamId, userId, role, joinedAt |
+   507→   507→| 4.3.3 | Create team management API routes | 🔲 | Create team, invite member, remove member |
+   508→   508→| 4.3.4 | Implement team invitation flow (email) | 🔲 | Send invite → accept → join team |
+   509→   509→| 4.3.5 | Create team dashboard UI | 🔲 | Team overview, member list, shared data |
+   510→   510→| 4.3.6 | Implement shared affiliate links within team | 🔲 | Team members see shared links |
+   511→   511→| 4.3.7 | Implement shared content library within team | 🔲 | Team content pool |
+   512→   512→| 4.3.8 | Create team analytics aggregation | 🔲 | Combined team performance metrics |
+   513→   513→| 4.3.9 | Implement role-based permissions (owner, admin, member) | 🔲 | Different access levels |
+   514→   514→| 4.3.10 | Add team management to Settings page | 🔲 | Team settings section |
+   515→   515→
+   516→   516→**Checkpoint 4.3:** ✅ Agency users can create teams, invite members, and manage shared affiliate operations.
+   517→   517→
+   518→   518→---
+   519→   519→
+   520→   520→### 4.4 White-Label Option — Week 7-8
+   521→   521→**Priority:** 🟡 MEDIUM | **Effort:** Medium | **Dependencies:** 4.1, 4.3
+   522→   522→
+   523→   523→| # | Task | Status | Files/Notes |
+   524→   524→|---|------|--------|-------------|
+   525→   525→| 4.4.1 | Create WhiteLabelConfig Prisma model | 🔲 | orgId, logo, brandName, primaryColor, customDomain |
+   526→   526→| 4.4.2 | Implement dynamic branding system | 🔲 | Replace logo, name, colors based on config |
+   527→   527→| 4.4.3 | Create custom domain support | 🔲 | CNAME routing + SSL |
+   528→   528→| 4.4.4 | Create white-label admin panel | 🔲 | Configure branding, manage users |
+   529→   529→| 4.4.5 | Implement custom email templates | 🔲 | Branded notification emails |
+   530→   530→| 4.4.6 | Test: apply custom branding → verify all pages reflect brand | 🔲 | Full visual verification |
+   531→   531→
+   532→   532→**Checkpoint 4.4:** ✅ Enterprise clients can apply their own branding to the platform.
+   533→   533→
+   534→   534→---
+   535→   535→
+   536→   536→### 4.5 API as a Service — Week 8-9
+   537→   537→**Priority:** 🟡 MEDIUM | **Effort:** Medium | **Dependencies:** 4.1 (auth + subscriptions)
+   538→   538→
+   539→   539→| # | Task | Status | Files/Notes |
+   540→   540→|---|------|--------|-------------|
+   541→   541→| 4.5.1 | Create ApiKey Prisma model | 🔲 | userId, key, name, permissions, rateLimit |
+   542→   542→| 4.5.2 | Create API key management UI | 🔲 | Generate, revoke, view usage |
+   543→   543→| 4.5.3 | Create API documentation (OpenAPI/Swagger) | 🔲 | Auto-generated API docs |
+   544→   544→| 4.5.4 | Implement API key authentication middleware | 🔲 | Bearer token validation |
+   545→   545→| 4.5.5 | Implement rate limiting per API key | 🔲 | Tiered limits: 100/1000/10000 req/day |
+   546→   546→| 4.5.6 | Create API usage analytics dashboard | 🔲 | Track calls, errors, latency per key |
+   547→   547→| 4.5.7 | Create API playground / testing UI | 🔲 | Interactive API testing tool |
+   548→   548→
+   549→   549→**Checkpoint 4.5:** ✅ Enterprise users can generate API keys and access platform data programmatically.
+   550→   550→
+   551→   551→---
+   552→   552→
+   553→   553→### 4.6 React Native Mobile App — Week 9-10+
+   554→   554→**Priority:** 🟡 MEDIUM | **Effort:** Large | **Dependencies:** All Fasas
+   555→   555→
+   556→   556→| # | Task | Status | Files/Notes |
+   557→   557→|---|------|--------|-------------|
+   558→   558→| 4.6.1 | Initialize React Native project with Expo | 🔲 | `npx create-expo-app` |
+   559→   559→| 4.6.2 | Set up navigation (tabs + stack) | 🔲 | Dashboard, Products, AI, Earnings tabs |
+   560→   560→| 4.6.3 | Implement authentication screens | 🔲 | Login, Register, Forgot Password |
+   561→   561→| 4.6.4 | Build Dashboard screen | 🔲 | Stats cards, recent activity |
+   562→   562→| 4.6.5 | Build Product Search screen | 🔲 | Search + product cards + generate link |
+   563→   563→| 4.6.6 | Build AI Content screen | 🔲 | Generate content on the go |
+   564→   564→| 4.6.7 | Build Notifications screen | 🔲 | Real-time push notifications |
+   565→   565→| 4.6.8 | Build Earnings screen | 🔲 | Earnings chart + payout status |
+   566→   566→| 4.6.9 | Implement push notification service | 🔲 | APNs + FCM integration |
+   567→   567→| 4.6.10 | Test on iOS and Android | 🔲 | Both platforms, multiple devices |
+   568→   568→
+   569→   569→**Checkpoint 4.6:** ✅ Mobile app available on App Store and Google Play.
+   570→   570→
+   571→   571→---
+   572→   572→
+   573→   573→### 🏁 FASA 4 COMPLETION CRITERIA
+   574→   574→
+   575→   575→- [ ] Freemium model with 4 tiers is operational
+   576→   576→- [ ] Content marketplace allows buying/selling
+   577→   577→- [ ] Team/Agency dashboard supports multi-user
+   578→   578→- [ ] White-label option available for enterprises
+   579→   579→- [ ] API access available for developers
+   580→   580→- [ ] Mobile app published on app stores
+   581→   581→
+   582→   582→---
+   583→   583→
+   584→   584→## 📈 KEY MILESTONES
+   585→   585→
+   586→   586→| Milestone | Target Date | Fasa | Success Criteria |
+   587→   587→|-----------|------------|------|------------------|
+   588→   588→| 🏆 **M1: Auth Launch** | Week 2 | 1 | Users can register and login |
+   589→   589→| 🏆 **M2: Real Posting** | Week 5 | 1 | Posts publish to FB/IG |
+   590→   590→| 🏆 **M3: Real-Time Alerts** | Week 6 | 1 | WebSocket notifications live |
+   591→   591→| 🏆 **M4: Core Complete** | Week 10 | 1 | All Fasa 1 checkpoints passed |
+   592→   592→| 🏆 **M5: TikTok Integration** | Week 13 | 2 | TikTok Shop links working |
+   593→   593→| 🏆 **M6: Shopee Live** | Week 17 | 2 | Live dashboard operational |
+   594→   594→| 🏆 **M7: Multi-Platform** | Week 20 | 2 | All 3 platforms unified |
+   595→   595→| 🏆 **M8: AI Recommender** | Week 22 | 3 | Personalized recommendations |
+   596→   596→| 🏆 **M9: Smart Alerts** | Week 24 | 3 | Commission XTRA push alerts |
+   597→   597→| 🏆 **M10: AI Calendar** | Week 30 | 3 | Weekly content calendar auto-gen |
+   598→   598→| 🏆 **M11: Paid Launch** | Week 32 | 4 | First paying customer |
+   599→   599→| 🏆 **M12: Marketplace** | Week 35 | 4 | Content marketplace live |
+   600→   600→| 🏆 **M13: Team Dashboard** | Week 37 | 4 | Agency users onboarded |
+   601→   601→| 🏆 **M14: Mobile App** | Week 40 | 4 | App Store + Play Store launch |
+   602→   602→
+   603→   603→---
+   604→   604→
+   605→   605→## 🚨 RISKS & MITIGATIONS
+   606→   606→
+   607→   607→| Risk | Impact | Likelihood | Mitigation |
+   608→   608→|------|--------|-----------|------------|
+   609→   609→| Shopee API access denied | High | Medium | Mock mode is robust; apply for access ASAP |
+   610→   610→| TikTok Shop API limitations | High | Low | Build abstraction layer; fallback to mock |
+   611→   611→| Social platform API changes | Medium | Medium | Version our integrations; monitor changelogs |
+   612→   612→| AI generation quality inconsistent | Medium | Medium | Human review step; algorithmic fallback |
+   613→   613→| User adoption slower than projected | High | Medium | Free tier is generous; community building |
+   614→   614→| Payment gateway integration issues | Medium | Low | Use established providers (Stripe, Billplz) |
+   615→   615→| Competition enters market | High | Low | Move fast; build community; HERMES lock-in |
+   616→   616→
+   617→   617→---
+   618→   618→
+   619→   619→## 📝 HOW TO USE THIS CHECKLIST
+   620→   620→
+   621→   621→1. **Start at the top** — Fasa 1 must be complete before Fasa 2
+   622→   622→2. **Within each Fasa**, tasks in the same section can be parallelized
+   623→   623→3. **Update status** as you work: 🔲 → 🔄 → ✅
+   624→   624→4. **Never skip checkpoints** — each checkpoint must pass before moving to next section
+   625→   625→5. **Log blockers** in worklog.md with ⏸️ status
+   626→   626→6. **Weekly review** — check progress against milestones
+   627→   627→7. **Celebrate wins** 🎉 — mark milestones when achieved!
+   628→   628→
+   629→   629→---
+   630→   630→
+   631→   631→<p align="center">
+   632→   632→  <strong>TheViralFindsMY — Master Implementation Checklist v8.1</strong><br/>
+   633→   633→  <em>148 tasks across 4 Fasas | Track everything | Ship like a PRO 🚀</em>
+   634→   634→</p>
+   635→   635→

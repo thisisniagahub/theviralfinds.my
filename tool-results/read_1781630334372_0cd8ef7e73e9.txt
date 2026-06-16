@@ -1,0 +1,1042 @@
+     1→/**
+     2→ * Lazada Affiliate API - Mock Data Service
+     3→ *
+     4→ * Simulates realistic Lazada Malaysia (MY) market data.
+     5→ * Uses Malaysian Ringgit (RM) pricing, Malay/English/Manglish mixed product names,
+     6→ * and authentic Malaysian seller names.
+     7→ *
+     8→ * This service mirrors the same method signatures as the real API client,
+     9→ * so they can be used interchangeably by LazadaAffiliateService.
+    10→ *
+    11→ * Official API Docs: https://open.lazada.com/
+    12→ * Affiliate Portal: https://lazada-affiliate.com/
+    13→ */
+    14→
+    15→// ─── Types (mirrored from affiliate-service.ts) ─────────────────
+    16→
+    17→export interface LazadaProduct {
+    18→  id: string
+    19→  itemId: number
+    20→  title: string
+    21→  price: number // RM
+    22→  originalPrice?: number
+    23→  commissionRate: number // percentage 0-100
+    24→  commissionAmount: number // RM, computed = price * rate / 100
+    25→  imageUrl: string
+    26→  shopName: string
+    27→  category: string
+    28→  categoryId: number
+    29→  sales: number
+    30→  rating: number // 0-5
+    31→  reviewCount: number
+    32→  location: string
+    33→  platform: 'lazada'
+    34→  productLink: string
+    35→  deepLink?: string
+    36→  isLazMall?: boolean
+    37→  isFreeShipping?: boolean
+    38→}
+    39→
+    40→export interface LazadaAffiliateLink {
+    41→  shortUrl: string
+    42→  longUrl: string
+    43→  deepLink: string
+    44→  trackingUrl: string
+    45→  subId?: string
+    46→}
+    47→
+    48→export interface LazadaCommissionOrder {
+    49→  orderSn: string
+    50→  orderCreateTime: number // unix seconds
+    51→  itemId: number
+    52→  itemName: string
+    53→  itemPrice: number
+    54→  commissionRate: number
+    55→  commissionAmount: number
+    56→  commissionStatus: 'pending' | 'confirmed' | 'rejected' | 'paid'
+    57→  orderStatus: string
+    58→  settleTime?: number
+    59→  clickTime: number
+    60→  subId?: string
+    61→  platform: 'lazada'
+    62→}
+    63→
+    64→export interface LazadaCommissionSummary {
+    65→  totalCommission: number
+    66→  pendingCommission: number
+    67→  confirmedCommission: number
+    68→  rejectedCommission: number
+    69→  paidCommission: number
+    70→  totalOrders: number
+    71→  conversionRate: number
+    72→}
+    73→
+    74→export interface LazadaCategory {
+    75→  categoryId: number
+    76→  name: string
+    77→  productCount: number
+    78→  avgCommissionRate: number
+    79→}
+    80→
+    81→export interface LazadaAffiliateProfile {
+    82→  affiliateId: string
+    83→  name: string
+    84→  email: string
+    85→  status: string
+    86→  commissionRate: number
+    87→  totalEarnings: number
+    88→  joinDate: string
+    89→  region: string
+    90→}
+    91→
+    92→// ─── Categories ─────────────────────────────────────────────────
+    93→
+    94→export const CATEGORIES: LazadaCategory[] = [
+    95→  { categoryId: 1, name: 'Beauty', productCount: 8, avgCommissionRate: 9 },
+    96→  { categoryId: 2, name: 'Fashion', productCount: 8, avgCommissionRate: 7 },
+    97→  { categoryId: 3, name: 'Electronics', productCount: 7, avgCommissionRate: 5 },
+    98→  { categoryId: 4, name: 'Home & Living', productCount: 7, avgCommissionRate: 6 },
+    99→  { categoryId: 5, name: 'Groceries', productCount: 6, avgCommissionRate: 10 },
+   100→  { categoryId: 6, name: 'Baby & Kids', productCount: 6, avgCommissionRate: 8 },
+   101→]
+   102→
+   103→// ─── Shop Names (authentic Malaysian Lazada sellers) ───────────
+   104→
+   105→const SHOP_NAMES: string[] = [
+   106→  'Safi Official Store',
+   107→  'Padini Official Store',
+   108→  'Anker Malaysia Official',
+   109→  'Dyson Malaysia Official',
+   110→  'Fortune Trading Official',
+   111→  'MamyPoko Official Store',
+   112→  'Watsons Malaysia',
+   113→  'Guardian Health & Beauty',
+   114→  'Sephora Malaysia',
+   115→  'Nike Official Store',
+   116→  'Adidas Malaysia Official',
+   117→  'Puma Southeast Asia',
+   118→  'Xiaomi Malaysia Official',
+   119→  'Samsung Experience Store',
+   120→  'Apple Premium Reseller MY',
+   121→  'Sony Malaysia Official',
+   122→  'Philips Official Store',
+   123→  'Sharp Malaysia Official',
+   124→  'Electrical World Sdn Bhd',
+   125→  'Kaison Malaysia Official',
+   126→  'MR DIY Official Store',
+   127→  'Jaya Grocer Online',
+   128→  'Tesco/Lotus Official',
+   129→  'AEON Malaysia Official',
+   130→  'Nestle Malaysia Official',
+   131→  'F&N Malaysia Official',
+   132→  'Mamee Official Store',
+   133→  'Munchy Food Industries',
+   134→  'Hup Seng Perusahaan',
+   135→  'Unicharm Malaysia',
+   136→]
+   137→
+   138→const LOCATIONS: string[] = [
+   139→  'Kuala Lumpur',
+   140→  'Selangor',
+   141→  'Penang',
+   142→  'Johor',
+   143→  'Perak',
+   144→  'Sabah',
+   145→  'Sarawak',
+   146→  'Negeri Sembilan',
+   147→  'Pahang',
+   148→  'Melaka',
+   149→]
+   150→
+   151→// ─── Product Catalog (42 realistic Malaysian Lazada products) ──
+   152→
+   153→interface ProductSeed {
+   154→  title: string
+   155→  category: string
+   156→  categoryId: number
+   157→  price: number
+   158→  originalPrice?: number
+   159→  commissionRate: number
+   160→  sales: number
+   161→  rating: number
+   162→  reviewCount: number
+   163→  isLazMall?: boolean
+   164→  isFreeShipping?: boolean
+   165→}
+   166→
+   167→const PRODUCT_SEEDS: ProductSeed[] = [
+   168→  // === Beauty (8 products) ===
+   169→  {
+   170→    title: 'Safi Balqis OxyWhite Glowing Serum 30ml',
+   171→    category: 'Beauty',
+   172→    categoryId: 1,
+   173→    price: 29.90,
+   174→    originalPrice: 39.90,
+   175→    commissionRate: 10,
+   176→    sales: 15420,
+   177→    rating: 4.8,
+   178→    reviewCount: 8930,
+   179→    isLazMall: true,
+   180→    isFreeShipping: true,
+   181→  },
+   182→  {
+   183→    title: 'Wardah Perfect Bright Moisturizer 50ml Halal',
+   184→    category: 'Beauty',
+   185→    categoryId: 1,
+   186→    price: 45.90,
+   187→    originalPrice: 55.00,
+   188→    commissionRate: 9,
+   189→    sales: 8920,
+   190→    rating: 4.7,
+   191→    reviewCount: 5210,
+   192→    isLazMall: true,
+   193→  },
+   194→  {
+   195→    title: 'Sephora Collection Colorful Eyeshadow Palette',
+   196→    category: 'Beauty',
+   197→    categoryId: 1,
+   198→    price: 79.00,
+   199→    originalPrice: 99.00,
+   200→    commissionRate: 8,
+   201→    sales: 3210,
+   202→    rating: 4.6,
+   203→    reviewCount: 1820,
+   204→    isLazMall: true,
+   205→  },
+   206→  {
+   207→    title: 'Bioaqua Pink Foam Face Wash Cleanser 100g',
+   208→    category: 'Beauty',
+   209→    categoryId: 1,
+   210→    price: 12.90,
+   211→    originalPrice: 19.90,
+   212→    commissionRate: 12,
+   213→    sales: 24180,
+   214→    rating: 4.5,
+   215→    reviewCount: 15230,
+   216→    isFreeShipping: true,
+   217→  },
+   218→  {
+   219→    title: 'Nivea Sun Protect & White SPF50+ Sunscreen 50ml',
+   220→    category: 'Beauty',
+   221→    categoryId: 1,
+   222→    price: 24.90,
+   223→    originalPrice: 32.90,
+   224→    commissionRate: 9,
+   225→    sales: 11200,
+   226→    rating: 4.7,
+   227→    reviewCount: 6840,
+   228→    isLazMall: true,
+   229→  },
+   230→  {
+   231→    title: 'Cetaphil Gentle Skin Cleanser 250ml Sensitive Skin',
+   232→    category: 'Beauty',
+   233→    categoryId: 1,
+   234→    price: 49.90,
+   235→    originalPrice: 59.90,
+   236→    commissionRate: 7,
+   237→    sales: 7890,
+   238→    rating: 4.8,
+   239→    reviewCount: 4320,
+   240→    isLazMall: true,
+   241→    isFreeShipping: true,
+   242→  },
+   243→  {
+   244→    title: 'Maybelline Fit Me Matte+Poreless Foundation 30ml',
+   245→    category: 'Beauty',
+   246→    categoryId: 1,
+   247→    price: 32.90,
+   248→    originalPrice: 42.90,
+   249→    commissionRate: 8,
+   250→    sales: 13420,
+   251→    rating: 4.6,
+   252→    reviewCount: 7810,
+   253→    isLazMall: true,
+   254→  },
+   255→  {
+   256→    title: 'Mask Malaya Herbal Volcanic Mud Mask 100g',
+   257→    category: 'Beauty',
+   258→    categoryId: 1,
+   259→    price: 19.90,
+   260→    originalPrice: 29.90,
+   261→    commissionRate: 11,
+   262→    sales: 9870,
+   263→    rating: 4.4,
+   264→    reviewCount: 5230,
+   265→    isFreeShipping: true,
+   266→  },
+   267→
+   268→  // === Fashion (8 products) ===
+   269→  {
+   270→    title: 'Padini Cargo Pants Mens Casual Slim Fit',
+   271→    category: 'Fashion',
+   272→    categoryId: 2,
+   273→    price: 89.90,
+   274→    originalPrice: 129.00,
+   275→    commissionRate: 7,
+   276→    sales: 5420,
+   277→    rating: 4.6,
+   278→    reviewCount: 2980,
+   279→    isLazMall: true,
+   280→    isFreeShipping: true,
+   281→  },
+   282→  {
+   283→    title: 'Nike Sportswear Club Fleece Hoodie Mens Original',
+   284→    category: 'Fashion',
+   285→    categoryId: 2,
+   286→    price: 159.00,
+   287→    originalPrice: 199.00,
+   288→    commissionRate: 6,
+   289→    sales: 3210,
+   290→    rating: 4.8,
+   291→    reviewCount: 1840,
+   292→    isLazMall: true,
+   293→  },
+   294→  {
+   295→    title: 'Uniqlo Airism UV Protection T-Shirt Short Sleeve',
+   296→    category: 'Fashion',
+   297→    categoryId: 2,
+   298→    price: 49.90,
+   299→    originalPrice: 59.90,
+   300→    commissionRate: 8,
+   301→    sales: 12450,
+   302→    rating: 4.7,
+   303→    reviewCount: 7210,
+   304→    isFreeShipping: true,
+   305→  },
+   306→  {
+   307→    title: 'Adidas Ultraboost 22 Running Shoes Mens Original',
+   308→    category: 'Fashion',
+   309→    categoryId: 2,
+   310→    price: 599.00,
+   311→    originalPrice: 799.00,
+   312→    commissionRate: 5,
+   313→    sales: 980,
+   314→    rating: 4.9,
+   315→    reviewCount: 540,
+   316→    isLazMall: true,
+   317→  },
+   318→  {
+   319→    title: 'Levis 501 Original Fit Jeans Mens Authentic',
+   320→    category: 'Fashion',
+   321→    categoryId: 2,
+   322→    price: 249.00,
+   323→    originalPrice: 329.00,
+   324→    commissionRate: 6,
+   325→    sales: 1870,
+   326→    rating: 4.7,
+   327→    reviewCount: 980,
+   328→    isLazMall: true,
+   329→  },
+   330→  {
+   331→    title: 'Baju Kurung Moden Wanita Muslimah Raya 2024',
+   332→    category: 'Fashion',
+   333→    categoryId: 2,
+   334→    price: 129.00,
+   335→    originalPrice: 189.00,
+   336→    commissionRate: 10,
+   337→    sales: 6720,
+   338→    rating: 4.6,
+   339→    reviewCount: 3940,
+   340→    isFreeShipping: true,
+   341→  },
+   342→  {
+   343→    title: 'Tudung Bawal Premium Lawa Voile Murah Soft',
+   344→    category: 'Fashion',
+   345→    categoryId: 2,
+   346→    price: 25.90,
+   347→    originalPrice: 39.90,
+   348→    commissionRate: 13,
+   349→    sales: 21340,
+   350→    rating: 4.7,
+   351→    reviewCount: 12450,
+   352→    isFreeShipping: true,
+   353→  },
+   354→  {
+   355→    title: 'Puma T-Shirt Mens Cotton Classic Logo Tee',
+   356→    category: 'Fashion',
+   357→    categoryId: 2,
+   358→    price: 79.00,
+   359→    originalPrice: 99.00,
+   360→    commissionRate: 7,
+   361→    sales: 4320,
+   362→    rating: 4.5,
+   363→    reviewCount: 2210,
+   364→    isLazMall: true,
+   365→  },
+   366→
+   367→  // === Electronics (7 products) ===
+   368→  {
+   369→    title: 'Anker PowerCore 10000mAh Power Bank Slim Fast Charge',
+   370→    category: 'Electronics',
+   371→    categoryId: 3,
+   372→    price: 119.00,
+   373→    originalPrice: 149.00,
+   374→    commissionRate: 6,
+   375→    sales: 18420,
+   376→    rating: 4.8,
+   377→    reviewCount: 11230,
+   378→    isLazMall: true,
+   379→    isFreeShipping: true,
+   380→  },
+   381→  {
+   382→    title: 'Xiaomi Redmi Note 13 Pro 5G 256GB Smartphone Original',
+   383→    category: 'Electronics',
+   384→    categoryId: 3,
+   385→    price: 1299.00,
+   386→    originalPrice: 1499.00,
+   387→    commissionRate: 4,
+   388→    sales: 2340,
+   389→    rating: 4.7,
+   390→    reviewCount: 1340,
+   391→    isLazMall: true,
+   392→  },
+   393→  {
+   394→    title: 'Apple AirPods Pro 2nd Gen USB-C Original Malaysia',
+   395→    category: 'Electronics',
+   396→    categoryId: 3,
+   397→    price: 949.00,
+   398→    originalPrice: 1099.00,
+   399→    commissionRate: 3,
+   400→    sales: 1890,
+   401→    rating: 4.9,
+   402→    reviewCount: 1120,
+   403→    isLazMall: true,
+   404→  },
+   405→  {
+   406→    title: 'Samsung Galaxy Tab A9+ 11" 64GB WiFi Tablet Original',
+   407→    category: 'Electronics',
+   408→    categoryId: 3,
+   409→    price: 799.00,
+   410→    originalPrice: 999.00,
+   411→    commissionRate: 4,
+   412→    sales: 1230,
+   413→    rating: 4.6,
+   414→    reviewCount: 680,
+   415→    isLazMall: true,
+   416→  },
+   417→  {
+   418→    title: 'Sony WH-1000XM5 Wireless Noise Cancelling Headphones',
+   419→    category: 'Electronics',
+   420→    categoryId: 3,
+   421→    price: 1799.00,
+   422→    originalPrice: 1999.00,
+   423→    commissionRate: 3,
+   424→    sales: 540,
+   425→    rating: 4.9,
+   426→    reviewCount: 320,
+   427→    isLazMall: true,
+   428→  },
+   429→  {
+   430→    title: 'JBL Flip 6 Portable Bluetooth Speaker Waterproof',
+   431→    category: 'Electronics',
+   432→    categoryId: 3,
+   433→    price: 549.00,
+   434→    originalPrice: 699.00,
+   435→    commissionRate: 5,
+   436→    sales: 2980,
+   437→    rating: 4.7,
+   438→    reviewCount: 1640,
+   439→    isLazMall: true,
+   440→    isFreeShipping: true,
+   441→  },
+   442→  {
+   443→    title: 'Logitech MX Master 3S Wireless Mouse Silent Premium',
+   444→    category: 'Electronics',
+   445→    categoryId: 3,
+   446→    price: 429.00,
+   447→    originalPrice: 499.00,
+   448→    commissionRate: 5,
+   449→    sales: 1670,
+   450→    rating: 4.8,
+   451→    reviewCount: 920,
+   452→    isLazMall: true,
+   453→  },
+   454→
+   455→  // === Home & Living (7 products) ===
+   456→  {
+   457→    title: 'Dyson V8 Absolute Cordless Vacuum Cleaner Original',
+   458→    category: 'Home & Living',
+   459→    categoryId: 4,
+   460→    price: 1899.00,
+   461→    originalPrice: 2299.00,
+   462→    commissionRate: 3,
+   463→    sales: 890,
+   464→    rating: 4.8,
+   465→    reviewCount: 540,
+   466→    isLazMall: true,
+   467→  },
+   468→  {
+   469→    title: 'Philips Air Fryer HD9200 4.1L Digital Healthy Cooking',
+   470→    category: 'Home & Living',
+   471→    categoryId: 4,
+   472→    price: 349.00,
+   473→    originalPrice: 449.00,
+   474→    commissionRate: 6,
+   475→    sales: 8420,
+   476→    rating: 4.7,
+   477→    reviewCount: 5120,
+   478→    isLazMall: true,
+   479→    isFreeShipping: true,
+   480→  },
+   481→  {
+   482→    title: 'Sharp Air Purifier FP-J30M-B Plasmacluster Malaysia',
+   483→    category: 'Home & Living',
+   484→    categoryId: 4,
+   485→    price: 599.00,
+   486→    originalPrice: 799.00,
+   487→    commissionRate: 5,
+   488→    sales: 2340,
+   489→    rating: 4.6,
+   490→    reviewCount: 1320,
+   491→    isLazMall: true,
+   492→  },
+   493→  {
+   494→    title: 'Kaison Insulated Water Bottle 500ml Stainless Steel',
+   495→    category: 'Home & Living',
+   496→    categoryId: 4,
+   497→    price: 22.90,
+   498→    originalPrice: 35.90,
+   499→    commissionRate: 12,
+   500→    sales: 14230,
+   501→    rating: 4.5,
+   502→    reviewCount: 8210,
+   503→    isFreeShipping: true,
+   504→  },
+   505→  {
+   506→    title: 'MR DIY Multi-Purpose Storage Box Foldable Organizer',
+   507→    category: 'Home & Living',
+   508→    categoryId: 4,
+   509→    price: 18.90,
+   510→    originalPrice: 29.90,
+   511→    commissionRate: 14,
+   512→    sales: 28940,
+   513→    rating: 4.4,
+   514→    reviewCount: 16540,
+   515→    isFreeShipping: true,
+   516→  },
+   517→  {
+   518→    title: 'Panasonic 4-Slice Toaster Sandwich Maker Breakfast',
+   519→    category: 'Home & Living',
+   520→    categoryId: 4,
+   521→    price: 159.00,
+   522→    originalPrice: 219.00,
+   523→    commissionRate: 7,
+   524→    sales: 3420,
+   525→    rating: 4.6,
+   526→    reviewCount: 1820,
+   527→    isLazMall: true,
+   528→  },
+   529→  {
+   530→    title: 'Pendekar Mosquito Racket Rechargeable Electric Killer',
+   531→    category: 'Home & Living',
+   532→    categoryId: 4,
+   533→    price: 19.90,
+   534→    originalPrice: 39.90,
+   535→    commissionRate: 13,
+   536→    sales: 32150,
+   537→    rating: 4.3,
+   538→    reviewCount: 19870,
+   539→    isFreeShipping: true,
+   540→  },
+   541→
+   542→  // === Groceries (6 products) ===
+   543→  {
+   544→    title: 'Fortune Cooking Oil 5kg Halal Malaysia Murah',
+   545→    category: 'Groceries',
+   546→    categoryId: 5,
+   547→    price: 32.50,
+   548→    originalPrice: 39.90,
+   549→    commissionRate: 12,
+   550→    sales: 18520,
+   551→    rating: 4.7,
+   552→    reviewCount: 9230,
+   553→    isLazMall: true,
+   554→    isFreeShipping: true,
+   555→  },
+   556→  {
+   557→    title: 'Nestle MILO 3in1 Active 30 sachets Original Malaysia',
+   558→    category: 'Groceries',
+   559→    categoryId: 5,
+   560→    price: 26.90,
+   561→    originalPrice: 32.90,
+   562→    commissionRate: 11,
+   563→    sales: 22340,
+   564→    rating: 4.8,
+   565→    reviewCount: 13420,
+   566→    isLazMall: true,
+   567→  },
+   568→  {
+   569→    title: 'Mamee Chef Curry Mie Instant Noodle Pack 8s Pedas',
+   570→    category: 'Groceries',
+   571→    categoryId: 5,
+   572→    price: 14.90,
+   573→    originalPrice: 19.90,
+   574→    commissionRate: 13,
+   575→    sales: 16720,
+   576→    rating: 4.6,
+   577→    reviewCount: 8940,
+   578→    isFreeShipping: true,
+   579→  },
+   580→  {
+   581→    title: 'Madu Asli Tualang Pure Honey 500g Original Kelulut',
+   582→    category: 'Groceries',
+   583→    categoryId: 5,
+   584→    price: 49.90,
+   585→    originalPrice: 79.90,
+   586→    commissionRate: 10,
+   587→    sales: 6840,
+   588→    rating: 4.5,
+   589→    reviewCount: 3210,
+   590→    isFreeShipping: true,
+   591→  },
+   592→  {
+   593→    title: 'F&N NutriSoya Fresh Milk Soy Bean 1L Halal',
+   594→    category: 'Groceries',
+   595→    categoryId: 5,
+   596→    price: 7.90,
+   597→    originalPrice: 9.90,
+   598→    commissionRate: 14,
+   599→    sales: 12450,
+   600→    rating: 4.6,
+   601→    reviewCount: 5640,
+   602→    isLazMall: true,
+   603→  },
+   604→  {
+   605→    title: 'Hup Seng Cream Crackers Biscuit 800g Original Pack',
+   606→    category: 'Groceries',
+   607→    categoryId: 5,
+   608→    price: 11.90,
+   609→    originalPrice: 15.90,
+   610→    commissionRate: 13,
+   611→    sales: 9320,
+   612→    rating: 4.7,
+   613→    reviewCount: 4180,
+   614→    isFreeShipping: true,
+   615→  },
+   616→
+   617→  // === Baby & Kids (6 products) ===
+   618→  {
+   619→    title: 'MamyPoko Pants Standard M56 Baby Diaper Original',
+   620→    category: 'Baby & Kids',
+   621→    categoryId: 6,
+   622→    price: 49.90,
+   623→    originalPrice: 59.90,
+   624→    commissionRate: 8,
+   625→    sales: 14230,
+   626→    rating: 4.8,
+   627→    reviewCount: 8420,
+   628→    isLazMall: true,
+   629→    isFreeShipping: true,
+   630→  },
+   631→  {
+   632→    title: 'Pampers Premium Care Pants L52 Diaper Original Halal',
+   633→    category: 'Baby & Kids',
+   634→    categoryId: 6,
+   635→    price: 59.90,
+   636→    originalPrice: 72.90,
+   637→    commissionRate: 7,
+   638→    sales: 11240,
+   639→    rating: 4.8,
+   640→    reviewCount: 6730,
+   641→    isLazMall: true,
+   642→  },
+   643→  {
+   644→    title: 'Anmum Essensis Stage 1 Infant Formula 0-6m 900g',
+   645→    category: 'Baby & Kids',
+   646→    categoryId: 6,
+   647→    price: 89.90,
+   648→    originalPrice: 109.00,
+   649→    commissionRate: 9,
+   650→    sales: 4320,
+   651→    rating: 4.7,
+   652→    reviewCount: 2340,
+   653→    isLazMall: true,
+   654→  },
+   655→  {
+   656→    title: 'Philips Avent Natural Baby Bottle Anti-Colic 260ml',
+   657→    category: 'Baby & Kids',
+   658→    categoryId: 6,
+   659→    price: 45.90,
+   660→    originalPrice: 59.90,
+   661→    commissionRate: 8,
+   662→    sales: 6890,
+   663→    rating: 4.7,
+   664→    reviewCount: 3810,
+   665→    isLazMall: true,
+   666→  },
+   667→  {
+   668→    title: 'Fisher-Price Baby Play Mat Activity Gym Educational',
+   669→    category: 'Baby & Kids',
+   670→    categoryId: 6,
+   671→    price: 149.00,
+   672→    originalPrice: 199.00,
+   673→    commissionRate: 7,
+   674→    sales: 2340,
+   675→    rating: 4.6,
+   676→    reviewCount: 1240,
+   677→    isLazMall: true,
+   678→    isFreeShipping: true,
+   679→  },
+   680→  {
+   681→    title: 'Johnson Baby Bedtime Lotion 500ml Sleep Gentle',
+   682→    category: 'Baby & Kids',
+   683→    categoryId: 6,
+   684→    price: 29.90,
+   685→    originalPrice: 39.90,
+   686→    commissionRate: 9,
+   687→    sales: 8920,
+   688→    rating: 4.7,
+   689→    reviewCount: 4520,
+   690→    isLazMall: true,
+   691→    isFreeShipping: true,
+   692→  },
+   693→]
+   694→
+   695→// ─── Helpers ────────────────────────────────────────────────────
+   696→
+   697→/** Round to 2 decimal places */
+   698→function round2(n: number): number {
+   699→  return Math.round(n * 100) / 100
+   700→}
+   701→
+   702→/** Random integer in range [min, max] */
+   703→function randInt(min: number, max: number): number {
+   704→  return Math.floor(Math.random() * (max - min + 1)) + min
+   705→}
+   706→
+   707→/** Pick a random element from an array */
+   708→function pick<T>(arr: T[]): T {
+   709→  return arr[Math.floor(Math.random() * arr.length)]
+   710→}
+   711→
+   712→/** Generate a random Lazada item ID (numeric string) */
+   713→function randomItemId(): number {
+   714→  return randInt(100000000, 999999999)
+   715→}
+   716→
+   717→/** Generate a random Lazada order SN (e.g. "lz-1234567890") */
+   718→function randomOrderSn(): string {
+   719→  const digits = randInt(1000000000, 9999999999)
+   720→  return `lz-${digits}`
+   721→}
+   722→
+   723→/** Generate a random short link code */
+   724→function randomShortCode(): string {
+   725→  return Math.random().toString(36).substring(2, 9)
+   726→}
+   727→
+   728→/** Seeded random for deterministic mock data */
+   729→function seededRandom(seed: number): number {
+   730→  const x = Math.sin(seed * 9301 + 49297) * 49297
+   731→  return x - Math.floor(x)
+   732→}
+   733→
+   734→// ─── Mock Service ───────────────────────────────────────────────
+   735→
+   736→export class LazadaMockService {
+   737→  private products: LazadaProduct[]
+   738→
+   739→  constructor() {
+   740→    this.products = this.generateProducts()
+   741→  }
+   742→
+   743→  /** Build the full product catalog from seeds */
+   744→  private generateProducts(): LazadaProduct[] {
+   745→    return PRODUCT_SEEDS.map((seed, i) => {
+   746→      const shopName = SHOP_NAMES[i % SHOP_NAMES.length]
+   747→      const itemId = randomItemId()
+   748→      const commissionAmount = round2((seed.price * seed.commissionRate) / 100)
+   749→
+   750→      return {
+   751→        id: `lz-${itemId}`,
+   752→        itemId,
+   753→        title: seed.title,
+   754→        price: seed.price,
+   755→        originalPrice: seed.originalPrice,
+   756→        commissionRate: seed.commissionRate,
+   757→        commissionAmount,
+   758→        imageUrl: `https://my-test.lazada.com.my/p/${itemId}.jpg`,
+   759→        shopName,
+   760→        category: seed.category,
+   761→        categoryId: seed.categoryId,
+   762→        sales: seed.sales,
+   763→        rating: seed.rating,
+   764→        reviewCount: seed.reviewCount,
+   765→        location: pick(LOCATIONS),
+   766→        platform: 'lazada' as const,
+   767→        productLink: `https://www.lazada.com.my/products/i${itemId}-s${itemId}.html`,
+   768→        deepLink: `lazada://product?item_id=${itemId}`,
+   769→        isLazMall: seed.isLazMall,
+   770→        isFreeShipping: seed.isFreeShipping,
+   771→      }
+   772→    })
+   773→  }
+   774→
+   775→  /**
+   776→   * Search products by keyword with filtering, sorting and pagination
+   777→   */
+   778→  async searchProducts(
+   779→    query: string,
+   780→    options?: {
+   781→      page?: number
+   782→      limit?: number
+   783→      sortField?: 'commission' | 'price' | 'sales' | 'rating'
+   784→      sortOrder?: 'asc' | 'desc'
+   785→      categoryId?: number
+   786→      minPrice?: number
+   787→      maxPrice?: number
+   788→    }
+   789→  ): Promise<{ products: LazadaProduct[]; total: number }> {
+   790→    const page = options?.page || 1
+   791→    const limit = options?.limit || 20
+   792→    const sortField = options?.sortField || 'sales'
+   793→    const sortOrder = options?.sortOrder || 'desc'
+   794→
+   795→    const queryLower = query.toLowerCase().trim()
+   796→    let filtered: LazadaProduct[]
+   797→
+   798→    if (!queryLower) {
+   799→      // Empty query → return full catalog
+   800→      filtered = [...this.products]
+   801→    } else {
+   802→      // Filter by keyword (case-insensitive match on title, category, shop)
+   803→      filtered = this.products.filter(
+   804→        (p) =>
+   805→          p.title.toLowerCase().includes(queryLower) ||
+   806→          p.category.toLowerCase().includes(queryLower) ||
+   807→          p.shopName.toLowerCase().includes(queryLower)
+   808→      )
+   809→
+   810→      // Fall back to tokenised matching
+   811→      if (filtered.length === 0) {
+   812→        const tokens = queryLower.split(/\s+/).filter(Boolean)
+   813→        filtered = this.products.filter((p) =>
+   814→          tokens.some(
+   815→            (t) =>
+   816→              p.title.toLowerCase().includes(t) ||
+   817→              p.category.toLowerCase().includes(t)
+   818→          )
+   819→        )
+   820→      }
+   821→
+   822→      // If still nothing, return a random curated subset with the query prepended
+   823→      if (filtered.length === 0) {
+   824→        const shuffled = [...this.products].sort(() => Math.random() - 0.5)
+   825→        filtered = shuffled.slice(0, Math.min(limit, shuffled.length)).map((p) => ({
+   826→          ...p,
+   827→          id: `lz-${randomItemId()}`,
+   828→          itemId: randomItemId(),
+   829→          title: `${query} - ${p.title}`,
+   830→        }))
+   831→      }
+   832→    }
+   833→
+   834→    // Category filter
+   835→    if (options?.categoryId) {
+   836→      filtered = filtered.filter((p) => p.categoryId === options.categoryId)
+   837→    }
+   838→
+   839→    // Price filters
+   840→    if (options?.minPrice !== undefined) {
+   841→      filtered = filtered.filter((p) => p.price >= (options.minPrice ?? 0))
+   842→    }
+   843→    if (options?.maxPrice !== undefined) {
+   844→      filtered = filtered.filter((p) => p.price <= (options.maxPrice ?? Infinity))
+   845→    }
+   846→
+   847→    // Sort
+   848→    filtered.sort((a, b) => {
+   849→      let aVal: number
+   850→      let bVal: number
+   851→      switch (sortField) {
+   852→        case 'commission':
+   853→          aVal = a.commissionRate
+   854→          bVal = b.commissionRate
+   855→          break
+   856→        case 'price':
+   857→          aVal = a.price
+   858→          bVal = b.price
+   859→          break
+   860→        case 'rating':
+   861→          aVal = a.rating
+   862→          bVal = b.rating
+   863→          break
+   864→        case 'sales':
+   865→        default:
+   866→          aVal = a.sales
+   867→          bVal = b.sales
+   868→      }
+   869→      return sortOrder === 'asc' ? aVal - bVal : bVal - aVal
+   870→    })
+   871→
+   872→    const total = filtered.length
+   873→    const start = (page - 1) * limit
+   874→    const paged = filtered.slice(start, start + limit)
+   875→
+   876→    return { products: paged, total }
+   877→  }
+   878→
+   879→  /** Get product detail by item ID */
+   880→  async getProductDetail(itemId: number): Promise<LazadaProduct | null> {
+   881→    const product = this.products.find((p) => p.itemId === itemId)
+   882→    if (product) return { ...product }
+   883→    // Generate a synthetic product for unknown IDs (so deep links still work)
+   884→    const seed = pick(PRODUCT_SEEDS)
+   885→    return {
+   886→      id: `lz-${itemId}`,
+   887→      itemId,
+   888→      title: seed.title,
+   889→      price: seed.price,
+   890→      originalPrice: seed.originalPrice,
+   891→      commissionRate: seed.commissionRate,
+   892→      commissionAmount: round2((seed.price * seed.commissionRate) / 100),
+   893→      imageUrl: `https://my-test.lazada.com.my/p/${itemId}.jpg`,
+   894→      shopName: pick(SHOP_NAMES),
+   895→      category: seed.category,
+   896→      categoryId: seed.categoryId,
+   897→      sales: seed.sales,
+   898→      rating: seed.rating,
+   899→      reviewCount: seed.reviewCount,
+   900→      location: pick(LOCATIONS),
+   901→      platform: 'lazada',
+   902→      productLink: `https://www.lazada.com.my/products/i${itemId}-s${itemId}.html`,
+   903→      deepLink: `lazada://product?item_id=${itemId}`,
+   904→      isLazMall: seed.isLazMall,
+   905→      isFreeShipping: seed.isFreeShipping,
+   906→    }
+   907→  }
+   908→
+   909→  /** Generate a mock affiliate tracking link */
+   910→  async generateAffiliateLink(params: {
+   911→    itemId?: number
+   912→    productUrl?: string
+   913→    subId?: string
+   914→  }): Promise<LazadaAffiliateLink> {
+   915→    const shortCode = randomShortCode()
+   916→    const itemId = params.itemId || randomItemId()
+   917→    const subId = params.subId || ''
+   918→
+   919→    return {
+   920→      shortUrl: `https://s.lazada.com.my/${shortCode}`,
+   921→      longUrl: `https://lazada.com.my/affiliate/${shortCode}?item_id=${itemId}&sub_id=${subId}`,
+   922→      deepLink: `lazada://product?item_id=${itemId}&aff_id=${shortCode}&aff_sub=${subId}`,
+   923→      trackingUrl: `https://affiliate.lazada.com.my/track/${shortCode}`,
+   924→      subId: subId || undefined,
+   925→    }
+   926→  }
+   927→
+   928→  /** Get mock commission orders */
+   929→  async getCommissionOrders(params?: {
+   930→    page?: number
+   931→    limit?: number
+   932→    startTime?: number
+   933→    endTime?: number
+   934→    commissionStatus?: 'pending' | 'confirmed' | 'rejected' | 'paid'
+   935→  }): Promise<{ orders: LazadaCommissionOrder[]; total: number }> {
+   936→    const page = params?.page || 1
+   937→    const limit = params?.limit || 50
+   938→    const statuses: Array<'pending' | 'confirmed' | 'rejected' | 'paid'> = [
+   939→      'pending',
+   940→      'confirmed',
+   941→      'rejected',
+   942→      'paid',
+   943→    ]
+   944→    const orderStatuses = ['DELIVERED', 'SHIPPED', 'IN_PROGRESS', 'COMPLETED', 'RTS']
+   945→
+   946→    const orderCount = randInt(30, 140)
+   947→    const orders: LazadaCommissionOrder[] = []
+   948→
+   949→    for (let i = 0; i < orderCount; i++) {
+   950→      const seed = i + (params?.startTime || 0)
+   951→      const tmpl = PRODUCT_SEEDS[seed % PRODUCT_SEEDS.length]
+   952→      const price = tmpl.price
+   953→      const commissionRate = tmpl.commissionRate
+   954→      const commissionAmount = round2((price * commissionRate) / 100)
+   955→      const status = statuses[Math.floor(seededRandom(seed * 7) * statuses.length)]
+   956→      const daysAgo = Math.floor(seededRandom(seed * 13) * 60)
+   957→      const orderTime = Math.floor(Date.now() / 1000) - daysAgo * 86400
+   958→      const clickTime = orderTime - randInt(300, 86400)
+   959→
+   960→      if (params?.commissionStatus && status !== params.commissionStatus) continue
+   961→      if (params?.startTime && orderTime < params.startTime) continue
+   962→      if (params?.endTime && orderTime > params.endTime) continue
+   963→
+   964→      orders.push({
+   965→        orderSn: randomOrderSn(),
+   966→        orderCreateTime: orderTime,
+   967→        itemId: randomItemId(),
+   968→        itemName: tmpl.title,
+   969→        itemPrice: price,
+   970→        commissionRate,
+   971→        commissionAmount,
+   972→        commissionStatus: status,
+   973→        orderStatus: pick(orderStatuses),
+   974→        settleTime:
+   975→          status === 'paid'
+   976→            ? orderTime + randInt(86400, 86400 * 30)
+   977→            : undefined,
+   978→        clickTime,
+   979→        subId: Math.random() > 0.6 ? `sub_${randInt(100, 999)}` : undefined,
+   980→        platform: 'lazada',
+   981→      })
+   982→    }
+   983→
+   984→    const total = orders.length
+   985→    const start = (page - 1) * limit
+   986→    return { orders: orders.slice(start, start + limit), total }
+   987→  }
+   988→
+   989→  /** Get mock commission summary */
+   990→  async getCommissionSummary(_params?: {
+   991→    startTime?: number
+   992→    endTime?: number
+   993→  }): Promise<LazadaCommissionSummary> {
+   994→    return {
+   995→      totalCommission: round2(randInt(2000, 8000) + Math.random() * 500),
+   996→      pendingCommission: round2(randInt(300, 1500) + Math.random() * 100),
+   997→      confirmedCommission: round2(randInt(1000, 4000) + Math.random() * 200),
+   998→      rejectedCommission: round2(randInt(50, 400) + Math.random() * 50),
+   999→      paidCommission: round2(randInt(500, 3000) + Math.random() * 200),
+  1000→      totalOrders: randInt(200, 1500),
+  1001→      conversionRate: round2(randInt(40, 120) / 10),
+  1002→    }
+  1003→  }
+  1004→
+  1005→  /** Test mock connection */
+  1006→  async testConnection(): Promise<{ success: boolean; message: string; region: string }> {
+  1007→    return {
+  1008→      success: true,
+  1009→      message: 'Connected to mock data service (Lazada API not configured)',
+  1010→      region: 'MY',
+  1011→    }
+  1012→  }
+  1013→
+  1014→  /** Get mock affiliate profile */
+  1015→  async getAffiliateProfile(): Promise<LazadaAffiliateProfile> {
+  1016→    return {
+  1017→      affiliateId: 'MY-LZ-AFF-20240042',
+  1018→      name: 'TheViralFinds MY',
+  1019→      email: 'affiliate@theviralfinds.my',
+  1020→      status: 'active',
+  1021→      commissionRate: 7.5,
+  1022→      totalEarnings: round2(randInt(5000, 15000) + Math.random() * 500),
+  1023→      joinDate: '2024-02-01',
+  1024→      region: 'MY',
+  1025→    }
+  1026→  }
+  1027→
+  1028→  /** Get top products by commission × sales */
+  1029→  async getTopProducts(limit?: number): Promise<LazadaProduct[]> {
+  1030→    const sorted = [...this.products].sort(
+  1031→      (a, b) =>
+  1032→        b.price * b.commissionRate * b.sales - a.price * a.commissionRate * a.sales
+  1033→    )
+  1034→    return sorted.slice(0, limit || 10)
+  1035→  }
+  1036→
+  1037→  /** Get categories */
+  1038→  async getCategories(): Promise<LazadaCategory[]> {
+  1039→    return CATEGORIES
+  1040→  }
+  1041→}
+  1042→

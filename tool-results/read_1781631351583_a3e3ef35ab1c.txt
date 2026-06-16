@@ -1,0 +1,1434 @@
+     1→'use client'
+     2→
+     3→import { useState, useCallback, useRef, useEffect } from 'react'
+     4→import { motion, AnimatePresence } from 'framer-motion'
+     5→import { cn } from '@/lib/utils'
+     6→
+     7→import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+     8→import { Badge } from '@/components/ui/badge'
+     9→import { Button } from '@/components/ui/button'
+    10→import { Input } from '@/components/ui/input'
+    11→import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+    12→import { Textarea } from '@/components/ui/textarea'
+    13→import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'
+    14→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+    15→import { Separator } from '@/components/ui/separator'
+    16→import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+    17→import { ScrollArea } from '@/components/ui/scroll-area'
+    18→import { Skeleton } from '@/components/ui/skeleton'
+    19→import { Switch } from '@/components/ui/label'
+    20→import { Label } from '@/components/ui/label'
+    21→
+    22→import {
+    23→  Bot, MessageSquare, Brain, Cpu, Zap, Clock, AlertTriangle, TrendingUp,
+    24→  Lightbulb, Target, Send, Plus, Search, Settings, Wifi, WifiOff,
+    25→  Play, Pause, Trash2, Check, X, Eye, Sparkles, RefreshCw, Copy,
+    26→  CheckCircle, ArrowRight, Database, Code2, Calendar, BarChart3,
+    27→  Star, Activity, Plug, ChevronDown, Filter, Archive
+    28→} from 'lucide-react'
+    29→
+    30→// ─── Types ───────────────────────────────────────────────────────────────────
+    31→
+    32→interface ChatMessage {
+    33→  id: string
+    34→  role: 'user' | 'assistant' | 'system'
+    35→  content: string
+    36→  timestamp: Date
+    37→}
+    38→
+    39→interface Conversation {
+    40→  id: string
+    41→  title: string
+    42→  lastMessage: string
+    43→  timestamp: Date
+    44→  messageCount: number
+    45→}
+    46→
+    47→interface Skill {
+    48→  id: string
+    49→  name: string
+    50→  description: string
+    51→  category: string
+    52→  status: 'active' | 'draft' | 'learning' | 'archived'
+    53→  usageCount: number
+    54→  successRate: number
+    55→  version: string
+    56→  learnedFrom: string
+    57→}
+    58→
+    59→interface MemoryEntry {
+    60→  id: string
+    61→  agentId: string
+    62→  sessionId: string
+    63→  role: string
+    64→  content: string
+    65→  timestamp: Date
+    66→  metadata: Record<string, string>
+    67→}
+    68→
+    69→interface Task {
+    70→  id: string
+    71→  name: string
+    72→  description: string
+    73→  schedule: string
+    74→  status: 'scheduled' | 'running' | 'completed' | 'failed'
+    75→  lastRun: Date | null
+    76→  nextRun: Date | null
+    77→  runCount: number
+    78→  lastResult: string
+    79→}
+    80→
+    81→interface Insight {
+    82→  id: string
+    83→  type: 'trend' | 'opportunity' | 'alert' | 'recommendation'
+    84→  title: string
+    85→  description: string
+    86→  severity: 'info' | 'warning' | 'critical'
+    87→  read: boolean
+    88→  actioned: boolean
+    89→  timestamp: Date
+    90→}
+    91→
+    92→interface ConnectionConfig {
+    93→  endpoint: string
+    94→  apiKey: string
+    95→  model: string
+    96→  status: 'connected' | 'disconnected' | 'testing'
+    97→  lastConnected: Date | null
+    98→  availableModels: string[]
+    99→}
+   100→
+   101→// ─── Mock Data ───────────────────────────────────────────────────────────────
+   102→
+   103→const mockConversations: Conversation[] = [
+   104→  { id: '1', title: 'Product Analysis Q1', lastMessage: 'Your top 3 products have seen a 45% increase...', timestamp: new Date(Date.now() - 1000 * 60 * 5), messageCount: 12 },
+   105→  { id: '2', title: 'Content Strategy', lastMessage: 'Here are 5 content ideas for your audience...', timestamp: new Date(Date.now() - 1000 * 60 * 60), messageCount: 8 },
+   106→  { id: '3', title: 'Link Optimization', lastMessage: 'I recommend shortening these URLs and adding...', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 3), messageCount: 15 },
+   107→  { id: '4', title: 'Market Trends MY', lastMessage: 'The Malaysian e-commerce market is shifting...', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24), messageCount: 20 },
+   108→  { id: '5', title: 'Campaign Review', lastMessage: 'Your 11.11 campaign outperformed expectations...', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 48), messageCount: 6 },
+   109→]
+   110→
+   111→const mockMessages: ChatMessage[] = [
+   112→  { id: '1', role: 'system', content: 'Hermes Agent connected. Ready to assist with your Shopee affiliate management.', timestamp: new Date(Date.now() - 1000 * 60 * 10) },
+   113→  { id: '2', role: 'user', content: 'Can you analyze my top performing products this month?', timestamp: new Date(Date.now() - 1000 * 60 * 9) },
+   114→  { id: '3', role: 'assistant', content: 'Based on your affiliate data, here are your top 5 performing products this month:\n\n1. **Wireless Earbuds Pro** - 342 clicks, 89 orders, 12.3% conversion rate\n2. **RGB Mechanical Keyboard** - 278 clicks, 67 orders, 10.8% conversion rate\n3. **Portable Blender USB** - 256 clicks, 78 orders, 13.2% conversion rate\n4. **Smart Watch Fitness** - 198 clicks, 45 orders, 9.8% conversion rate\n5. **LED Desk Lamp** - 167 clicks, 52 orders, 11.4% conversion rate\n\nYour conversion rates are above the Shopee affiliate average of 8.5%. I recommend focusing more on the Portable Blender USB as it has the highest conversion rate.', timestamp: new Date(Date.now() - 1000 * 60 * 8) },
+   115→  { id: '4', role: 'user', content: 'What about the content strategy for these products?', timestamp: new Date(Date.now() - 1000 * 60 * 7) },
+   116→  { id: '5', role: 'assistant', content: 'Here\'s a tailored content strategy for your top products:\n\n**Short-form Video Content (TikTok/Reels):**\n- Unboxing videos for the Wireless Earbuds Pro\n- "Day in my life" featuring the Smart Watch\n- Before/after blending demos with the Portable Blender\n\n**Blog/Lifestyle Posts:**\n- "Top 5 Tech Essentials Under RM100" roundup\n- Productivity setup featuring the RGB Keyboard + LED Lamp\n\n**Live Streaming Schedule:**\n- Weekly product demos every Thursday 8PM MYT\n- Q&A sessions featuring comparison reviews\n\nWant me to generate specific captions and hashtags for any of these?', timestamp: new Date(Date.now() - 1000 * 60 * 6) },
+   117→]
+   118→
+   119→const mockSkills: Skill[] = [
+   120→  { id: '1', name: 'Product Analyzer', description: 'Analyzes top-performing products and identifies trends in affiliate data', category: 'Analytics', status: 'active', usageCount: 156, successRate: 94.2, version: '2.3.1', learnedFrom: '156 executions' },
+   121→  { id: '2', name: 'Content Generator', description: 'Creates engaging social media content tailored for Malaysian audience', category: 'Content', status: 'active', usageCount: 89, successRate: 87.3, version: '1.8.0', learnedFrom: '89 executions' },
+   122→  { id: '3', name: 'Link Optimizer', description: 'Optimizes affiliate links for maximum conversion and tracking accuracy', category: 'Optimization', status: 'active', usageCount: 234, successRate: 91.7, version: '3.1.0', learnedFrom: '234 executions' },
+   123→  { id: '4', name: 'Trend Predictor', description: 'Predicts market trends based on Shopee data patterns and seasonal events', category: 'Analytics', status: 'learning', usageCount: 45, successRate: 72.1, version: '0.9.2', learnedFrom: '45 executions + market data' },
+   124→  { id: '5', name: 'Commission Tracker', description: 'Tracks and forecasts commission earnings across all affiliate programs', category: 'Analytics', status: 'active', usageCount: 312, successRate: 98.5, version: '4.0.0', learnedFrom: '312 executions' },
+   125→  { id: '6', name: 'Audience Profiler', description: 'Builds detailed audience profiles from interaction and purchase data', category: 'Analytics', status: 'draft', usageCount: 0, successRate: 0, version: '0.1.0', learnedFrom: 'Training data' },
+   126→  { id: '7', name: 'Hashtag Researcher', description: 'Researches optimal hashtags for Malaysian social media platforms', category: 'Content', status: 'active', usageCount: 178, successRate: 85.6, version: '2.0.1', learnedFrom: '178 executions' },
+   127→  { id: '8', name: 'Competitor Monitor', description: 'Monitors competitor affiliate strategies and pricing changes', category: 'Monitoring', status: 'archived', usageCount: 67, successRate: 68.4, version: '1.2.0', learnedFrom: '67 executions' },
+   128→]
+   129→
+   130→const mockMemories: MemoryEntry[] = [
+   131→  { id: '1', agentId: 'hermes-main', sessionId: 'sess-001', role: 'assistant', content: 'User prefers products in the RM20-RM100 price range for Malaysian audience', timestamp: new Date(Date.now() - 1000 * 60 * 30), metadata: { type: 'preference', confidence: '0.92', source: 'interaction' } },
+   132→  { id: '2', agentId: 'hermes-main', sessionId: 'sess-001', role: 'system', content: 'Optimal posting time for Malaysian audience: 8PM-10PM MYT on weekdays', timestamp: new Date(Date.now() - 1000 * 60 * 60), metadata: { type: 'insight', confidence: '0.88', source: 'analytics' } },
+   133→  { id: '3', agentId: 'hermes-analytics', sessionId: 'sess-002', role: 'assistant', content: 'Shopee 12.12 sale historically increases conversion by 3.2x for electronics', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), metadata: { type: 'trend', confidence: '0.95', source: 'historical_data' } },
+   134→  { id: '4', agentId: 'hermes-main', sessionId: 'sess-003', role: 'assistant', content: 'Top affiliate categories: Electronics (42%), Beauty (28%), Home & Living (18%)', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5), metadata: { type: 'statistic', confidence: '0.99', source: 'api_data' } },
+   135→  { id: '5', agentId: 'hermes-content', sessionId: 'sess-004', role: 'system', content: 'Bahasa Malay mixed with English (Manglish) performs 23% better in captions', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 8), metadata: { type: 'insight', confidence: '0.84', source: 'content_analysis' } },
+   136→  { id: '6', agentId: 'hermes-analytics', sessionId: 'sess-002', role: 'assistant', content: 'Video content gets 4.7x more engagement than image posts on TikTok', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 12), metadata: { type: 'insight', confidence: '0.91', source: 'social_metrics' } },
+   137→  { id: '7', agentId: 'hermes-main', sessionId: 'sess-005', role: 'system', content: 'User\'s audience demographic: 65% female, age 18-34, Klang Valley area', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24), metadata: { type: 'demographic', confidence: '0.87', source: 'audience_data' } },
+   138→  { id: '8', agentId: 'hermes-content', sessionId: 'sess-006', role: 'assistant', content: 'Lazada vs Shopee: User generates 78% of revenue from Shopee affiliate links', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 36), metadata: { type: 'statistic', confidence: '0.96', source: 'commission_data' } },
+   139→]
+   140→
+   141→const mockTasks: Task[] = [
+   142→  { id: '1', name: 'Daily Product Report', description: 'Generates daily report of top performing products and their metrics', schedule: '0 9 * * *', status: 'scheduled', lastRun: new Date(Date.now() - 1000 * 60 * 60 * 24), nextRun: new Date(Date.now() + 1000 * 60 * 60 * 12), runCount: 45, lastResult: 'Success: 5 products tracked, 2 trending up' },
+   143→  { id: '2', name: 'Commission Sync', description: 'Syncs commission data from Shopee Affiliate API', schedule: '*/30 * * * *', status: 'running', lastRun: new Date(Date.now() - 1000 * 60 * 15), nextRun: new Date(Date.now() + 1000 * 60 * 15), runCount: 892, lastResult: 'Success: RM 1,245.50 synced today' },
+   144→  { id: '3', name: 'Trend Alert Monitor', description: 'Monitors market trends and sends alerts for significant changes', schedule: '0 */2 * * *', status: 'scheduled', lastRun: new Date(Date.now() - 1000 * 60 * 60 * 2), nextRun: new Date(Date.now() + 1000 * 60 * 5), runCount: 128, lastResult: 'Alert: Wireless earbuds trending +34%' },
+   145→  { id: '4', name: 'Content Calendar Update', description: 'Updates content calendar based on upcoming Shopee campaigns', schedule: '0 10 * * 1', status: 'completed', lastRun: new Date(Date.now() - 1000 * 60 * 60 * 48), nextRun: new Date(Date.now() + 1000 * 60 * 60 * 120), runCount: 8, lastResult: 'Success: 12 content items scheduled' },
+   146→  { id: '5', name: 'Link Health Check', description: 'Checks all affiliate links for validity and optimizes broken ones', schedule: '0 3 * * *', status: 'failed', lastRun: new Date(Date.now() - 1000 * 60 * 60 * 6), nextRun: new Date(Date.now() + 1000 * 60 * 60 * 18), runCount: 30, lastResult: 'Failed: API timeout after 3 retries' },
+   147→  { id: '6', name: 'Weekly Performance Summary', description: 'Compiles weekly performance metrics and sends email report', schedule: '0 18 * * 5', status: 'scheduled', lastRun: new Date(Date.now() - 1000 * 60 * 60 * 168), nextRun: new Date(Date.now() + 1000 * 60 * 60 * 24), runCount: 12, lastResult: 'Success: RM 8,450 total commission this week' },
+   148→]
+   149→
+   150→const mockInsights: Insight[] = [
+   151→  { id: '1', type: 'trend', title: 'Electronics Category Surging', description: 'Electronics affiliate clicks have increased 34% in the past 7 days, driven by new wireless earbuds launches. Consider increasing content frequency for this category.', severity: 'info', read: false, actioned: false, timestamp: new Date(Date.now() - 1000 * 60 * 30) },
+   152→  { id: '2', type: 'opportunity', title: '12.12 Sale Prep Window', description: 'The 12.12 sale is 2 weeks away. Start creating pre-sale content now to capture early search traffic. Historical data shows 3x more conversions with early content.', severity: 'info', read: false, actioned: false, timestamp: new Date(Date.now() - 1000 * 60 * 60) },
+   153→  { id: '3', type: 'alert', title: 'Broken Affiliate Links Detected', description: '3 of your affiliate links are returning 404 errors. Products may have been delisted. Immediate action recommended to prevent commission loss.', severity: 'critical', read: true, actioned: false, timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2) },
+   154→  { id: '4', type: 'recommendation', title: 'Optimize Posting Schedule', description: 'Your audience engagement peaks at 8-10 PM MYT. Shifting 60% of your content to this window could increase engagement by an estimated 23%.', severity: 'info', read: false, actioned: false, timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4) },
+   155→  { id: '5', type: 'alert', title: 'Commission Rate Change', description: 'Shopee has updated commission rates for the Beauty category from 4.5% to 3.8%. Review your product focus strategy accordingly.', severity: 'warning', read: true, actioned: true, timestamp: new Date(Date.now() - 1000 * 60 * 60 * 8) },
+   156→  { id: '6', type: 'trend', title: 'Short-Form Video Dominance', description: 'TikTok video content is generating 4.7x more clicks than image posts. Allocate more resources to video creation for maximum ROI.', severity: 'info', read: false, actioned: false, timestamp: new Date(Date.now() - 1000 * 60 * 60 * 12) },
+   157→  { id: '7', type: 'opportunity', title: 'Untapped Niche: Home Office', description: 'Home office products show low competition but high search volume. Your existing audience matches the buyer profile for this category.', severity: 'info', read: false, actioned: false, timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24) },
+   158→  { id: '8', type: 'recommendation', title: 'A/B Test Landing Pages', description: 'Running A/B tests on your product landing pages could improve conversion rates by 15-25%. Start with your top 3 products.', severity: 'warning', read: true, actioned: false, timestamp: new Date(Date.now() - 1000 * 60 * 60 * 36) },
+   159→]
+   160→
+   161→const mockAvailableModels = [
+   162→  'hermes-3-llama-3.1-405b',
+   163→  'hermes-3-llama-3.1-70b',
+   164→  'hermes-3-llama-3.1-8b',
+   165→  'hermes-2-pro-mistral-7b',
+   166→  'hermes-2-theta-llama-3-8b',
+   167→]
+   168→
+   169→// ─── Helper Components ───────────────────────────────────────────────────────
+   170→
+   171→function TypingIndicator() {
+   172→  return (
+   173→    <div className="flex items-center gap-2 px-4 py-2">
+   174→      <Avatar className="h-7 w-7">
+   175→        <AvatarFallback className="bg-hermes/10 text-hermes text-xs">
+   176→          <Bot className="h-3.5 w-3.5" />
+   177→        </AvatarFallback>
+   178→      </Avatar>
+   179→      <div className="flex items-center gap-1 bg-hermes/10 rounded-2xl px-4 py-2.5">
+   180→        <span className="typing-dot h-1.5 w-1.5 rounded-full bg-hermes" />
+   181→        <span className="typing-dot h-1.5 w-1.5 rounded-full bg-hermes" />
+   182→        <span className="typing-dot h-1.5 w-1.5 rounded-full bg-hermes" />
+   183→      </div>
+   184→    </div>
+   185→  )
+   186→}
+   187→
+   188→function StatusDot({ connected }: { connected: boolean }) {
+   189→  return (
+   190→    <span className={cn(
+   191→      'inline-block h-2.5 w-2.5 rounded-full',
+   192→      connected ? 'bg-green-500' : 'bg-red-500'
+   193→    )} />
+   194→  )
+   195→}
+   196→
+   197→function SkillStatusBadge({ status }: { status: Skill['status'] }) {
+   198→  const variants: Record<Skill['status'], { label: string; className: string }> = {
+   199→    active: { label: 'Active', className: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20' },
+   200→    draft: { label: 'Draft', className: 'bg-muted text-muted-foreground border-border' },
+   201→    learning: { label: 'Learning', className: 'bg-hermes/10 text-hermes border-hermes/20' },
+   202→    archived: { label: 'Archived', className: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20' },
+   203→  }
+   204→  const v = variants[status]
+   205→  return <Badge variant="outline" className={cn('text-xs', v.className)}>{v.label}</Badge>
+   206→}
+   207→
+   208→function TaskStatusBadge({ status }: { status: Task['status'] }) {
+   209→  const variants: Record<Task['status'], { label: string; className: string }> = {
+   210→    scheduled: { label: 'Scheduled', className: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' },
+   211→    running: { label: 'Running', className: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20' },
+   212→    completed: { label: 'Completed', className: 'bg-muted text-muted-foreground border-border' },
+   213→    failed: { label: 'Failed', className: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20' },
+   214→  }
+   215→  const v = variants[status]
+   216→  return <Badge variant="outline" className={cn('text-xs', v.className)}>{v.label}</Badge>
+   217→}
+   218→
+   219→function SeverityBadge({ severity }: { severity: Insight['severity'] }) {
+   220→  const variants: Record<Insight['severity'], { label: string; className: string }> = {
+   221→    info: { label: 'Info', className: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' },
+   222→    warning: { label: 'Warning', className: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20' },
+   223→    critical: { label: 'Critical', className: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20' },
+   224→  }
+   225→  const v = variants[severity]
+   226→  return <Badge variant="outline" className={cn('text-xs', v.className)}>{v.label}</Badge>
+   227→}
+   228→
+   229→function InsightTypeIcon({ type }: { type: Insight['type'] }) {
+   230→  const icons: Record<Insight['type'], React.ReactNode> = {
+   231→    trend: <TrendingUp className="h-4 w-4 text-blue-500" />,
+   232→    opportunity: <Lightbulb className="h-4 w-4 text-green-500" />,
+   233→    alert: <AlertTriangle className="h-4 w-4 text-red-500" />,
+   234→    recommendation: <Target className="h-4 w-4 text-hermes" />,
+   235→  }
+   236→  return <>{icons[type]}</>
+   237→}
+   238→
+   239→function formatDate(date: Date): string {
+   240→  const now = new Date()
+   241→  const diff = now.getTime() - date.getTime()
+   242→  const minutes = Math.floor(diff / 60000)
+   243→  const hours = Math.floor(diff / 3600000)
+   244→  const days = Math.floor(diff / 86400000)
+   245→  if (minutes < 1) return 'Just now'
+   246→  if (minutes < 60) return `${minutes}m ago`
+   247→  if (hours < 24) return `${hours}h ago`
+   248→  return `${days}d ago`
+   249→}
+   250→
+   251→function formatDateTime(date: Date): string {
+   252→  return date.toLocaleString('en-MY', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+   253→}
+   254→
+   255→// ─── Chat Tab ────────────────────────────────────────────────────────────────
+   256→
+   257→function ChatTab() {
+   258→  const [messages, setMessages] = useState<ChatMessage[]>(mockMessages)
+   259→  const [input, setInput] = useState('')
+   260→  const [isTyping, setIsTyping] = useState(false)
+   261→  const [selectedConversation, setSelectedConversation] = useState('1')
+   262→  const [sidebarOpen, setSidebarOpen] = useState(false)
+   263→  const messagesEndRef = useRef<HTMLDivElement>(null)
+   264→  const inputRef = useRef<HTMLTextAreaElement>(null)
+   265→
+   266→  const scrollToBottom = useCallback(() => {
+   267→    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+   268→  }, [])
+   269→
+   270→  useEffect(() => {
+   271→    scrollToBottom()
+   272→  }, [messages, isTyping, scrollToBottom])
+   273→
+   274→  const sendMessage = useCallback((content: string) => {
+   275→    if (!content.trim()) return
+   276→    const userMsg: ChatMessage = {
+   277→      id: Date.now().toString(),
+   278→      role: 'user',
+   279→      content: content.trim(),
+   280→      timestamp: new Date(),
+   281→    }
+   282→    setMessages(prev => [...prev, userMsg])
+   283→    setInput('')
+   284→    setIsTyping(true)
+   285→
+   286→    // Simulate AI response
+   287→    setTimeout(() => {
+   288→      const responses = [
+   289→        "I've analyzed the data and here are my findings:\n\n📊 **Key Metrics:**\n- Click-through rate: 12.4% (↑ 2.1% vs last week)\n- Conversion rate: 8.7% (↑ 0.5% vs last week)\n- Revenue per click: RM 0.45\n\nThe upward trend is consistent with seasonal patterns. I recommend maintaining your current content strategy while increasing frequency for top performers.",
+   290→        "Based on your affiliate performance, here's what I suggest:\n\n🎯 **Priority Actions:**\n1. Increase content for top 3 products by 25%\n2. Schedule posts during peak hours (8-10 PM MYT)\n3. Create comparison content for similar products\n\nThese actions could boost your monthly commission by an estimated 15-20%.",
+   291→        "Great question! Let me break down the market trends:\n\n📈 **Trending Categories:**\n- Electronics: +34% search volume\n- Beauty: +18% search volume\n- Home & Living: +12% search volume\n\n🔍 **Opportunities:**\n- Smart home devices are emerging\n- Sustainable products gaining traction\n- Budget-friendly options preferred in current market",
+   292→        "Here's my analysis of your link performance:\n\n🔗 **Link Health:**\n- 47 active links, 3 need attention\n- Average CTR: 11.2%\n- Best performing: Wireless Earbuds (18.3% CTR)\n\n⚡ **Quick Wins:**\n- Replace broken links (3 found)\n- Optimize underperforming links with better descriptions\n- Add tracking parameters for better analytics",
+   293→      ]
+   294→      const aiMsg: ChatMessage = {
+   295→        id: (Date.now() + 1).toString(),
+   296→        role: 'assistant',
+   297→        content: responses[Math.floor(Math.random() * responses.length)],
+   298→        timestamp: new Date(),
+   299→      }
+   300→      setIsTyping(false)
+   301→      setMessages(prev => [...prev, aiMsg])
+   302→    }, 1500 + Math.random() * 1000)
+   303→  }, [])
+   304→
+   305→  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+   306→    if (e.key === 'Enter' && !e.shiftKey) {
+   307→      e.preventDefault()
+   308→      sendMessage(input)
+   309→    }
+   310→  }, [input, sendMessage])
+   311→
+   312→  const quickActions = [
+   313→    { label: 'Analyze my top products', icon: BarChart3 },
+   314→    { label: 'Generate content', icon: Sparkles },
+   315→    { label: 'Optimize my links', icon: Zap },
+   316→    { label: 'Market trends', icon: TrendingUp },
+   317→  ]
+   318→
+   319→  return (
+   320→    <div className="flex h-[calc(100vh-12rem)] min-h-[500px] gap-0">
+   321→      {/* Sidebar - Conversations */}
+   322→      <AnimatePresence>
+   323→        {(sidebarOpen || typeof window !== 'undefined' && window.innerWidth >= 768) && (
+   324→          <motion.div
+   325→            initial={{ width: 0, opacity: 0 }}
+   326→            animate={{ width: 280, opacity: 1 }}
+   327→            exit={{ width: 0, opacity: 0 }}
+   328→            transition={{ duration: 0.2 }}
+   329→            className="flex-shrink-0 overflow-hidden border-r border-hermes/10 bg-card"
+   330→          >
+   331→            <div className="flex h-full w-[280px] flex-col">
+   332→              <div className="flex items-center justify-between border-b border-hermes/10 p-4">
+   333→                <h3 className="text-sm font-semibold">Conversations</h3>
+   334→                <Button size="sm" variant="ghost" className="h-7 w-7 p-0 md:hidden" onClick={() => setSidebarOpen(false)}>
+   335→                  <X className="h-4 w-4" />
+   336→                </Button>
+   337→              </div>
+   338→              <ScrollArea className="flex-1">
+   339→                <div className="space-y-1 p-2">
+   340→                  {mockConversations.map(conv => (
+   341→                    <button
+   342→                      key={conv.id}
+   343→                      onClick={() => setSelectedConversation(conv.id)}
+   344→                      className={cn(
+   345→                        'w-full rounded-lg px-3 py-2.5 text-left transition-colors',
+   346→                        selectedConversation === conv.id
+   347→                          ? 'bg-hermes/10 text-foreground'
+   348→                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+   349→                      )}
+   350→                    >
+   351→                      <div className="flex items-center justify-between">
+   352→                        <span className="text-sm font-medium truncate">{conv.title}</span>
+   353→                        <span className="text-[10px] text-muted-foreground ml-2 flex-shrink-0">{formatDate(conv.timestamp)}</span>
+   354→                      </div>
+   355→                      <p className="text-xs text-muted-foreground truncate mt-0.5">{conv.lastMessage}</p>
+   356→                      <span className="text-[10px] text-muted-foreground">{conv.messageCount} messages</span>
+   357→                    </button>
+   358→                  ))}
+   359→                </div>
+   360→              </ScrollArea>
+   361→              <div className="p-3 border-t border-hermes/10">
+   362→                <Button variant="outline" size="sm" className="w-full border-hermes/20 text-hermes hover:bg-hermes/10">
+   363→                  <Plus className="h-3.5 w-3.5 mr-1.5" /> New Chat
+   364→                </Button>
+   365→              </div>
+   366→            </div>
+   367→          </motion.div>
+   368→        )}
+   369→      </AnimatePresence>
+   370→
+   371→      {/* Main Chat Area */}
+   372→      <div className="flex flex-1 flex-col min-w-0">
+   373→        {/* Chat Header */}
+   374→        <div className="flex items-center justify-between border-b border-hermes/10 px-4 py-3">
+   375→          <div className="flex items-center gap-3">
+   376→            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 md:hidden" onClick={() => setSidebarOpen(!sidebarOpen)}>
+   377→              <MessageSquare className="h-4 w-4" />
+   378→            </Button>
+   379→            <div className="flex items-center gap-2">
+   380→              <Avatar className="h-8 w-8">
+   381→                <AvatarFallback className="bg-hermes text-hermes-foreground text-xs">
+   382→                  <Bot className="h-4 w-4" />
+   383→                </AvatarFallback>
+   384→              </Avatar>
+   385→              <div>
+   386→                <div className="flex items-center gap-2">
+   387→                  <span className="text-sm font-semibold">Hermes Agent</span>
+   388→                  <StatusDot connected={true} />
+   389→                </div>
+   390→                <p className="text-[10px] text-muted-foreground">hermes-3-llama-3.1-405b</p>
+   391→              </div>
+   392→            </div>
+   393→          </div>
+   394→          <div className="flex items-center gap-1">
+   395→            <Badge variant="outline" className="text-[10px] border-green-500/20 bg-green-500/10 text-green-600">
+   396→              <Wifi className="h-2.5 w-2.5 mr-1" /> Connected
+   397→            </Badge>
+   398→          </div>
+   399→        </div>
+   400→
+   401→        {/* Messages Area */}
+   402→        <ScrollArea className="flex-1 px-4 py-4">
+   403→          <div className="mx-auto max-w-3xl space-y-4">
+   404→            {/* System prompt indicator */}
+   405→            <div className="flex justify-center">
+   406→              <div className="flex items-center gap-2 rounded-full bg-hermes/5 px-4 py-1.5 border border-hermes/10">
+   407→                <Sparkles className="h-3 w-3 text-hermes" />
+   408→                <span className="text-[11px] text-hermes font-medium">Hermes is ready — Shopee Affiliate Assistant mode</span>
+   409→              </div>
+   410→            </div>
+   411→
+   412→            {messages.map((msg) => (
+   413→              <motion.div
+   414→                key={msg.id}
+   415→                initial={{ opacity: 0, y: 8 }}
+   416→                animate={{ opacity: 1, y: 0 }}
+   417→                transition={{ duration: 0.3 }}
+   418→                className={cn(
+   419→                  'flex gap-2',
+   420→                  msg.role === 'user' ? 'justify-end' : 'justify-start'
+   421→                )}
+   422→              >
+   423→                {msg.role === 'assistant' && (
+   424→                  <Avatar className="h-7 w-7 mt-1 flex-shrink-0">
+   425→                    <AvatarFallback className="bg-hermes text-hermes-foreground text-xs">
+   426→                      <Bot className="h-3.5 w-3.5" />
+   427→                    </AvatarFallback>
+   428→                  </Avatar>
+   429→                )}
+   430→                <div
+   431→                  className={cn(
+   432→                    'max-w-[80%] rounded-2xl px-4 py-2.5 text-sm',
+   433→                    msg.role === 'user'
+   434→                      ? 'bg-shopee/10 text-foreground rounded-br-md'
+   435→                      : msg.role === 'system'
+   436→                        ? 'bg-muted text-muted-foreground text-xs italic max-w-full rounded-bl-md'
+   437→                        : 'bg-hermes/10 text-foreground rounded-bl-md'
+   438→                  )}
+   439→                >
+   440→                  {msg.role === 'assistant' ? (
+   441→                    <div className="whitespace-pre-wrap leading-relaxed">
+   442→                      {msg.content.split('\n').map((line, i) => {
+   443→                        // Simple markdown bold
+   444→                        const parts = line.split(/(\*\*.*?\*\*)/g)
+   445→                        return (
+   446→                          <span key={i}>
+   447→                            {i > 0 && <br />}
+   448→                            {parts.map((part, j) => {
+   449→                              if (part.startsWith('**') && part.endsWith('**')) {
+   450→                                return <strong key={j} className="font-semibold">{part.slice(2, -2)}</strong>
+   451→                              }
+   452→                              return <span key={j}>{part}</span>
+   453→                            })}
+   454→                          </span>
+   455→                        )
+   456→                      })}
+   457→                    </div>
+   458→                  ) : (
+   459→                    msg.content
+   460→                  )}
+   461→                  <div className={cn(
+   462→                    'mt-1 text-[10px]',
+   463→                    msg.role === 'user' ? 'text-right text-muted-foreground/60' : 'text-muted-foreground/60'
+   464→                  )}>
+   465→                    {formatDate(msg.timestamp)}
+   466→                  </div>
+   467→                </div>
+   468→                {msg.role === 'user' && (
+   469→                  <Avatar className="h-7 w-7 mt-1 flex-shrink-0">
+   470→                    <AvatarFallback className="bg-shopee text-shopee-foreground text-xs">U</AvatarFallback>
+   471→                  </Avatar>
+   472→                )}
+   473→              </motion.div>
+   474→            ))}
+   475→
+   476→            {isTyping && <TypingIndicator />}
+   477→            <div ref={messagesEndRef} />
+   478→          </div>
+   479→        </ScrollArea>
+   480→
+   481→        {/* Quick Actions */}
+   482→        {messages.length <= 2 && (
+   483→          <div className="mx-auto flex max-w-3xl flex-wrap gap-2 px-4 pb-2">
+   484→            {quickActions.map((action) => (
+   485→              <Button
+   486→                key={action.label}
+   487→                variant="outline"
+   488→                size="sm"
+   489→                className="border-hermes/20 text-hermes hover:bg-hermes/10 text-xs"
+   490→                onClick={() => sendMessage(action.label)}
+   491→              >
+   492→                <action.icon className="h-3 w-3 mr-1.5" />
+   493→                {action.label}
+   494→              </Button>
+   495→            ))}
+   496→          </div>
+   497→        )}
+   498→
+   499→        {/* Input Area */}
+   500→        <div className="border-t border-hermes/10 p-4">
+   501→          <div className="mx-auto max-w-3xl">
+   502→            <div className="flex items-end gap-2 rounded-xl border border-hermes/20 bg-card p-2 focus-within:border-hermes/40 transition-colors">
+   503→              <Textarea
+   504→                ref={inputRef as React.RefObject<HTMLTextAreaElement>}
+   505→                value={input}
+   506→                onChange={(e) => setInput(e.target.value)}
+   507→                onKeyDown={handleKeyDown}
+   508→                placeholder="Ask Hermes anything about your affiliate business..."
+   509→                className="min-h-[40px] max-h-[120px] flex-1 resize-none border-0 bg-transparent text-sm focus-visible:ring-0 p-2 placeholder:text-muted-foreground/50"
+   510→                rows={1}
+   511→              />
+   512→              <Button
+   513→                size="sm"
+   514→                className="bg-hermes hover:bg-hermes-dark text-hermes-foreground h-9 w-9 p-0 rounded-lg"
+   515→                onClick={() => sendMessage(input)}
+   516→                disabled={!input.trim() || isTyping}
+   517→              >
+   518→                <Send className="h-4 w-4" />
+   519→              </Button>
+   520→            </div>
+   521→            <p className="mt-1.5 text-center text-[10px] text-muted-foreground/50">
+   522→              Hermes uses your affiliate data to provide personalized insights. Press Enter to send, Shift+Enter for new line.
+   523→            </p>
+   524→          </div>
+   525→        </div>
+   526→      </div>
+   527→    </div>
+   528→  )
+   529→}
+   530→
+   531→// ─── Skills Tab ──────────────────────────────────────────────────────────────
+   532→
+   533→function SkillsTab() {
+   534→  const [categoryFilter, setCategoryFilter] = useState('all')
+   535→  const [statusFilter, setStatusFilter] = useState('all')
+   536→  const [showNewSkillDialog, setShowNewSkillDialog] = useState(false)
+   537→
+   538→  const categories = ['all', ...Array.from(new Set(mockSkills.map(s => s.category)))]
+   539→  const statuses: string[] = ['all', 'active', 'draft', 'learning', 'archived']
+   540→
+   541→  const filtered = mockSkills.filter(s => {
+   542→    if (categoryFilter !== 'all' && s.category !== categoryFilter) return false
+   543→    if (statusFilter !== 'all' && s.status !== statusFilter) return false
+   544→    return true
+   545→  })
+   546→
+   547→  return (
+   548→    <div className="space-y-6">
+   549→      {/* Header */}
+   550→      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+   551→        <div>
+   552→          <h2 className="text-lg font-semibold flex items-center gap-2">
+   553→            <Brain className="h-5 w-5 text-hermes" />
+   554→            Skills Library
+   555→          </h2>
+   556→          <p className="text-sm text-muted-foreground mt-1">Manage and monitor your AI agent skills</p>
+   557→        </div>
+   558→        <Dialog open={showNewSkillDialog} onOpenChange={setShowNewSkillDialog}>
+   559→          <DialogTrigger asChild>
+   560→            <Button className="bg-hermes hover:bg-hermes-dark text-hermes-foreground">
+   561→              <Plus className="h-4 w-4 mr-2" /> Create Skill
+   562→            </Button>
+   563→          </DialogTrigger>
+   564→          <DialogContent>
+   565→            <DialogHeader>
+   566→              <DialogTitle>Create New Skill</DialogTitle>
+   567→            </DialogHeader>
+   568→            <div className="space-y-4 pt-2">
+   569→              <div className="space-y-2">
+   570→                <Label>Skill Name</Label>
+   571→                <Input placeholder="e.g., Price Monitor" />
+   572→              </div>
+   573→              <div className="space-y-2">
+   574→                <Label>Description</Label>
+   575→                <Textarea placeholder="What does this skill do?" rows={3} />
+   576→              </div>
+   577→              <div className="space-y-2">
+   578→                <Label>Category</Label>
+   579→                <Select>
+   580→                  <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+   581→                  <SelectContent>
+   582→                    <SelectItem value="Analytics">Analytics</SelectItem>
+   583→                    <SelectItem value="Content">Content</SelectItem>
+   584→                    <SelectItem value="Optimization">Optimization</SelectItem>
+   585→                    <SelectItem value="Monitoring">Monitoring</SelectItem>
+   586→                  </SelectContent>
+   587→                </Select>
+   588→              </div>
+   589→              <Button className="w-full bg-hermes hover:bg-hermes-dark text-hermes-foreground" onClick={() => setShowNewSkillDialog(false)}>
+   590→                Create Skill
+   591→              </Button>
+   592→            </div>
+   593→          </DialogContent>
+   594→        </Dialog>
+   595→      </div>
+   596→
+   597→      {/* Filters */}
+   598→      <div className="flex flex-wrap items-center gap-3">
+   599→        <div className="flex items-center gap-2">
+   600→          <Filter className="h-4 w-4 text-muted-foreground" />
+   601→          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+   602→            <SelectTrigger className="w-[140px] h-8 text-xs">
+   603→              <SelectValue placeholder="Category" />
+   604→            </SelectTrigger>
+   605→            <SelectContent>
+   606→              {categories.map(c => <SelectItem key={c} value={c} className="text-xs">{c === 'all' ? 'All Categories' : c}</SelectItem>)}
+   607→            </SelectContent>
+   608→          </Select>
+   609→        </div>
+   610→        <Select value={statusFilter} onValueChange={setStatusFilter}>
+   611→          <SelectTrigger className="w-[130px] h-8 text-xs">
+   612→            <SelectValue placeholder="Status" />
+   613→          </SelectTrigger>
+   614→          <SelectContent>
+   615→            {statuses.map(s => <SelectItem key={s} value={s} className="text-xs">{s === 'all' ? 'All Statuses' : s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>)}
+   616→          </SelectContent>
+   617→        </Select>
+   618→        <Badge variant="secondary" className="text-xs">{filtered.length} skills</Badge>
+   619→      </div>
+   620→
+   621→      {/* Skills Grid */}
+   622→      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+   623→        <AnimatePresence mode="popLayout">
+   624→          {filtered.map((skill, i) => (
+   625→            <motion.div
+   626→              key={skill.id}
+   627→              initial={{ opacity: 0, y: 12 }}
+   628→              animate={{ opacity: 1, y: 0 }}
+   629→              exit={{ opacity: 0, scale: 0.95 }}
+   630→              transition={{ duration: 0.2, delay: i * 0.03 }}
+   631→            >
+   632→              <Card className="card-hover border-hermes/10 h-full">
+   633→                <CardHeader className="pb-3">
+   634→                  <div className="flex items-start justify-between">
+   635→                    <div className="space-y-1">
+   636→                      <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   637→                        <Cpu className="h-4 w-4 text-hermes" />
+   638→                        {skill.name}
+   639→                      </CardTitle>
+   640→                      <CardDescription className="text-xs">{skill.description}</CardDescription>
+   641→                    </div>
+   642→                    <SkillStatusBadge status={skill.status} />
+   643→                  </div>
+   644→                </CardHeader>
+   645→                <CardContent className="space-y-3">
+   646→                  <div className="flex items-center justify-between text-xs">
+   647→                    <span className="text-muted-foreground">Category</span>
+   648→                    <Badge variant="secondary" className="text-[10px]">{skill.category}</Badge>
+   649→                  </div>
+   650→                  <div className="flex items-center justify-between text-xs">
+   651→                    <span className="text-muted-foreground">Usage</span>
+   652→                    <span className="font-medium">{skill.usageCount.toLocaleString()} runs</span>
+   653→                  </div>
+   654→                  <div className="flex items-center justify-between text-xs">
+   655→                    <span className="text-muted-foreground">Success Rate</span>
+   656→                    <div className="flex items-center gap-1.5">
+   657→                      <div className="h-1.5 w-16 rounded-full bg-muted overflow-hidden">
+   658→                        <div
+   659→                          className="h-full rounded-full bg-hermes"
+   660→                          style={{ width: `${skill.successRate}%` }}
+   661→                        />
+   662→                      </div>
+   663→                      <span className="font-medium">{skill.successRate}%</span>
+   664→                    </div>
+   665→                  </div>
+   666→                  <div className="flex items-center justify-between text-xs">
+   667→                    <span className="text-muted-foreground">Version</span>
+   668→                    <span className="font-mono text-[10px]">v{skill.version}</span>
+   669→                  </div>
+   670→                  <div className="flex items-center justify-between text-xs">
+   671→                    <span className="text-muted-foreground">Learned from</span>
+   672→                    <span className="text-[10px] text-hermes">{skill.learnedFrom}</span>
+   673→                  </div>
+   674→                  <Separator className="bg-hermes/10" />
+   675→                  <div className="flex items-center gap-2">
+   676→                    <Button size="sm" variant="outline" className="flex-1 h-7 text-[11px] border-hermes/20">
+   677→                      <Settings className="h-3 w-3 mr-1" /> Edit
+   678→                    </Button>
+   679→                    {skill.status !== 'active' ? (
+   680→                      <Button size="sm" variant="outline" className="flex-1 h-7 text-[11px] border-green-500/20 text-green-600 hover:bg-green-500/10">
+   681→                        <Play className="h-3 w-3 mr-1" /> Activate
+   682→                      </Button>
+   683→                    ) : (
+   684→                      <Button size="sm" variant="outline" className="flex-1 h-7 text-[11px] border-orange-500/20 text-orange-600 hover:bg-orange-500/10">
+   685→                        <Archive className="h-3 w-3 mr-1" /> Archive
+   686→                      </Button>
+   687→                    )}
+   688→                  </div>
+   689→                </CardContent>
+   690→              </Card>
+   691→            </motion.div>
+   692→          ))}
+   693→        </AnimatePresence>
+   694→      </div>
+   695→    </div>
+   696→  )
+   697→}
+   698→
+   699→// ─── Memory Tab ──────────────────────────────────────────────────────────────
+   700→
+   701→function MemoryTab() {
+   702→  const [searchQuery, setSearchQuery] = useState('')
+   703→  const [agentFilter, setAgentFilter] = useState('all')
+   704→  const [sessionFilter, setSessionFilter] = useState('all')
+   705→  const [memories, setMemories] = useState(mockMemories)
+   706→
+   707→  const agents = ['all', ...Array.from(new Set(memories.map(m => m.agentId)))]
+   708→  const sessions = ['all', ...Array.from(new Set(memories.map(m => m.sessionId)))]
+   709→
+   710→  const filtered = memories.filter(m => {
+   711→    if (searchQuery && !m.content.toLowerCase().includes(searchQuery.toLowerCase())) return false
+   712→    if (agentFilter !== 'all' && m.agentId !== agentFilter) return false
+   713→    if (sessionFilter !== 'all' && m.sessionId !== sessionFilter) return false
+   714→    return true
+   715→  })
+   716→
+   717→  const deleteMemory = (id: string) => {
+   718→    setMemories(prev => prev.filter(m => m.id !== id))
+   719→  }
+   720→
+   721→  return (
+   722→    <div className="space-y-6">
+   723→      {/* Header */}
+   724→      <div>
+   725→        <h2 className="text-lg font-semibold flex items-center gap-2">
+   726→          <Database className="h-5 w-5 text-hermes" />
+   727→          Memory Browser
+   728→        </h2>
+   729→        <p className="text-sm text-muted-foreground mt-1">Explore and manage Hermes persistent memory entries</p>
+   730→      </div>
+   731→
+   732→      {/* Search & Filters */}
+   733→      <div className="flex flex-col sm:flex-row gap-3">
+   734→        <div className="relative flex-1">
+   735→          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+   736→          <Input
+   737→            value={searchQuery}
+   738→            onChange={(e) => setSearchQuery(e.target.value)}
+   739→            placeholder="Search memories..."
+   740→            className="pl-9 h-9 text-sm"
+   741→          />
+   742→        </div>
+   743→        <Select value={agentFilter} onValueChange={setAgentFilter}>
+   744→          <SelectTrigger className="w-[160px] h-9 text-xs">
+   745→            <SelectValue placeholder="Agent" />
+   746→          </SelectTrigger>
+   747→          <SelectContent>
+   748→            {agents.map(a => <SelectItem key={a} value={a} className="text-xs">{a === 'all' ? 'All Agents' : a}</SelectItem>)}
+   749→          </SelectContent>
+   750→        </Select>
+   751→        <Select value={sessionFilter} onValueChange={setSessionFilter}>
+   752→          <SelectTrigger className="w-[160px] h-9 text-xs">
+   753→            <SelectValue placeholder="Session" />
+   754→          </SelectTrigger>
+   755→          <SelectContent>
+   756→            {sessions.map(s => <SelectItem key={s} value={s} className="text-xs">{s === 'all' ? 'All Sessions' : s}</SelectItem>)}
+   757→          </SelectContent>
+   758→        </Select>
+   759→      </div>
+   760→
+   761→      {/* Memory Cards */}
+   762→      <div className="space-y-3">
+   763→        <AnimatePresence mode="popLayout">
+   764→          {filtered.map((memory, i) => (
+   765→            <motion.div
+   766→              key={memory.id}
+   767→              initial={{ opacity: 0, y: 8 }}
+   768→              animate={{ opacity: 1, y: 0 }}
+   769→              exit={{ opacity: 0, x: -20 }}
+   770→              transition={{ duration: 0.2, delay: i * 0.03 }}
+   771→            >
+   772→              <Card className="border-hermes/10 card-hover">
+   773→                <CardContent className="p-4">
+   774→                  <div className="flex items-start justify-between gap-4">
+   775→                    <div className="flex-1 min-w-0 space-y-2">
+   776→                      <div className="flex flex-wrap items-center gap-2">
+   777→                        <Badge variant="outline" className="text-[10px] border-hermes/20 text-hermes">
+   778→                          <Code2 className="h-2.5 w-2.5 mr-1" /> {memory.agentId}
+   779→                        </Badge>
+   780→                        <Badge variant="secondary" className="text-[10px]">
+   781→                          <Clock className="h-2.5 w-2.5 mr-1" /> {memory.sessionId}
+   782→                        </Badge>
+   783→                        <Badge variant="outline" className="text-[10px] capitalize">{memory.role}</Badge>
+   784→                        <span className="text-[10px] text-muted-foreground">{formatDate(memory.timestamp)}</span>
+   785→                      </div>
+   786→                      <p className="text-sm text-foreground leading-relaxed">{memory.content}</p>
+   787→                      <div className="flex flex-wrap gap-2">
+   788→                        {Object.entries(memory.metadata).map(([key, value]) => (
+   789→                          <span key={key} className="text-[10px] text-muted-foreground bg-muted rounded px-1.5 py-0.5">
+   790→                            {key}: {value}
+   791→                          </span>
+   792→                        ))}
+   793→                      </div>
+   794→                    </div>
+   795→                    <Button
+   796→                      size="sm"
+   797→                      variant="ghost"
+   798→                      className="h-7 w-7 p-0 text-muted-foreground hover:text-red-500 flex-shrink-0"
+   799→                      onClick={() => deleteMemory(memory.id)}
+   800→                    >
+   801→                      <Trash2 className="h-3.5 w-3.5" />
+   802→                    </Button>
+   803→                  </div>
+   804→                </CardContent>
+   805→              </Card>
+   806→            </motion.div>
+   807→          ))}
+   808→        </AnimatePresence>
+   809→      </div>
+   810→
+   811→      {filtered.length === 0 && (
+   812→        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+   813→          <Database className="h-10 w-10 mb-3 opacity-30" />
+   814→          <p className="text-sm">No memories found</p>
+   815→          <p className="text-xs mt-1">Try adjusting your search or filters</p>
+   816→        </div>
+   817→      )}
+   818→    </div>
+   819→  )
+   820→}
+   821→
+   822→// ─── Tasks Tab ───────────────────────────────────────────────────────────────
+   823→
+   824→function TasksTab() {
+   825→  const [tasks, setTasks] = useState(mockTasks)
+   826→  const [showNewTaskDialog, setShowNewTaskDialog] = useState(false)
+   827→
+   828→  const runTaskNow = (id: string) => {
+   829→    setTasks(prev => prev.map(t =>
+   830→      t.id === id ? { ...t, status: 'running' as const } : t
+   831→    ))
+   832→    setTimeout(() => {
+   833→      setTasks(prev => prev.map(t =>
+   834→        t.id === id ? { ...t, status: 'completed' as const, lastRun: new Date(), runCount: t.runCount + 1 } : t
+   835→      ))
+   836→    }, 3000)
+   837→  }
+   838→
+   839→  const pauseTask = (id: string) => {
+   840→    setTasks(prev => prev.map(t =>
+   841→      t.id === id ? { ...t, status: 'scheduled' as const } : t
+   842→    ))
+   843→  }
+   844→
+   845→  const deleteTask = (id: string) => {
+   846→    setTasks(prev => prev.filter(t => t.id !== id))
+   847→  }
+   848→
+   849→  return (
+   850→    <div className="space-y-6">
+   851→      {/* Header */}
+   852→      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+   853→        <div>
+   854→          <h2 className="text-lg font-semibold flex items-center gap-2">
+   855→            <Clock className="h-5 w-5 text-hermes" />
+   856→            Scheduled Tasks
+   857→          </h2>
+   858→          <p className="text-sm text-muted-foreground mt-1">Automated jobs running on your behalf</p>
+   859→        </div>
+   860→        <Dialog open={showNewTaskDialog} onOpenChange={setShowNewTaskDialog}>
+   861→          <DialogTrigger asChild>
+   862→            <Button className="bg-hermes hover:bg-hermes-dark text-hermes-foreground">
+   863→              <Plus className="h-4 w-4 mr-2" /> Create Task
+   864→            </Button>
+   865→          </DialogTrigger>
+   866→          <DialogContent>
+   867→            <DialogHeader>
+   868→              <DialogTitle>Create New Task</DialogTitle>
+   869→            </DialogHeader>
+   870→            <div className="space-y-4 pt-2">
+   871→              <div className="space-y-2">
+   872→                <Label>Task Name</Label>
+   873→                <Input placeholder="e.g., Daily Revenue Report" />
+   874→              </div>
+   875→              <div className="space-y-2">
+   876→                <Label>Description</Label>
+   877→                <Textarea placeholder="What should this task do?" rows={3} />
+   878→              </div>
+   879→              <div className="space-y-2">
+   880→                <Label>Schedule (Cron)</Label>
+   881→                <Input placeholder="0 9 * * *" />
+   882→                <p className="text-[10px] text-muted-foreground">Minute Hour Day Month Weekday</p>
+   883→              </div>
+   884→              <Button className="w-full bg-hermes hover:bg-hermes-dark text-hermes-foreground" onClick={() => setShowNewTaskDialog(false)}>
+   885→                Create Task
+   886→              </Button>
+   887→            </div>
+   888→          </DialogContent>
+   889→        </Dialog>
+   890→      </div>
+   891→
+   892→      {/* Task Cards */}
+   893→      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+   894→        <AnimatePresence mode="popLayout">
+   895→          {tasks.map((task, i) => (
+   896→            <motion.div
+   897→              key={task.id}
+   898→              initial={{ opacity: 0, y: 12 }}
+   899→              animate={{ opacity: 1, y: 0 }}
+   900→              exit={{ opacity: 0, scale: 0.95 }}
+   901→              transition={{ duration: 0.2, delay: i * 0.04 }}
+   902→            >
+   903→              <Card className="border-hermes/10 card-hover h-full">
+   904→                <CardHeader className="pb-3">
+   905→                  <div className="flex items-start justify-between">
+   906→                    <div className="space-y-1">
+   907→                      <CardTitle className="text-sm font-semibold flex items-center gap-2">
+   908→                        <Activity className="h-4 w-4 text-hermes" />
+   909→                        {task.name}
+   910→                      </CardTitle>
+   911→                      <CardDescription className="text-xs">{task.description}</CardDescription>
+   912→                    </div>
+   913→                    <TaskStatusBadge status={task.status} />
+   914→                  </div>
+   915→                </CardHeader>
+   916→                <CardContent className="space-y-3">
+   917→                  <div className="flex items-center justify-between text-xs">
+   918→                    <span className="text-muted-foreground">Schedule</span>
+   919→                    <code className="font-mono text-[10px] bg-muted px-2 py-0.5 rounded">{task.schedule}</code>
+   920→                  </div>
+   921→                  <div className="flex items-center justify-between text-xs">
+   922→                    <span className="text-muted-foreground">Last Run</span>
+   923→                    <span className="text-[11px]">{task.lastRun ? formatDateTime(task.lastRun) : 'Never'}</span>
+   924→                  </div>
+   925→                  <div className="flex items-center justify-between text-xs">
+   926→                    <span className="text-muted-foreground">Next Run</span>
+   927→                    <span className="text-[11px]">{task.nextRun ? formatDateTime(task.nextRun) : '—'}</span>
+   928→                  </div>
+   929→                  <div className="flex items-center justify-between text-xs">
+   930→                    <span className="text-muted-foreground">Run Count</span>
+   931→                    <span className="font-medium">{task.runCount}</span>
+   932→                  </div>
+   933→                  <div className="space-y-1">
+   934→                    <span className="text-xs text-muted-foreground">Last Result</span>
+   935→                    <p className={cn(
+   936→                      'text-xs rounded-md px-2.5 py-1.5 border',
+   937→                      task.status === 'failed'
+   938→                        ? 'bg-red-500/5 border-red-500/20 text-red-600 dark:text-red-400'
+   939→                        : 'bg-muted/50 border-border text-foreground'
+   940→                    )}>
+   941→                      {task.lastResult}
+   942→                    </p>
+   943→                  </div>
+   944→                  <Separator className="bg-hermes/10" />
+   945→                  <div className="flex items-center gap-2">
+   946→                    <Button
+   947→                      size="sm"
+   948→                      variant="outline"
+   949→                      className="flex-1 h-7 text-[11px] border-hermes/20 text-hermes hover:bg-hermes/10"
+   950→                      onClick={() => runTaskNow(task.id)}
+   951→                      disabled={task.status === 'running'}
+   952→                    >
+   953→                      <Play className="h-3 w-3 mr-1" /> Run Now
+   954→                    </Button>
+   955→                    {task.status === 'running' && (
+   956→                      <Button
+   957→                        size="sm"
+   958→                        variant="outline"
+   959→                        className="flex-1 h-7 text-[11px] border-yellow-500/20 text-yellow-600 hover:bg-yellow-500/10"
+   960→                        onClick={() => pauseTask(task.id)}
+   961→                      >
+   962→                        <Pause className="h-3 w-3 mr-1" /> Pause
+   963→                      </Button>
+   964→                    )}
+   965→                    <Button
+   966→                      size="sm"
+   967→                      variant="ghost"
+   968→                      className="h-7 w-7 p-0 text-muted-foreground hover:text-red-500"
+   969→                      onClick={() => deleteTask(task.id)}
+   970→                    >
+   971→                      <Trash2 className="h-3.5 w-3.5" />
+   972→                    </Button>
+   973→                  </div>
+   974→                </CardContent>
+   975→              </Card>
+   976→            </motion.div>
+   977→          ))}
+   978→        </AnimatePresence>
+   979→      </div>
+   980→    </div>
+   981→  )
+   982→}
+   983→
+   984→// ─── Insights Tab ────────────────────────────────────────────────────────────
+   985→
+   986→function InsightsTab() {
+   987→  const [insights, setInsights] = useState(mockInsights)
+   988→  const [typeFilter, setTypeFilter] = useState('all')
+   989→  const [severityFilter, setSeverityFilter] = useState('all')
+   990→
+   991→  const types: string[] = ['all', 'trend', 'opportunity', 'alert', 'recommendation']
+   992→  const severities: string[] = ['all', 'info', 'warning', 'critical']
+   993→
+   994→  const filtered = insights.filter(i => {
+   995→    if (typeFilter !== 'all' && i.type !== typeFilter) return false
+   996→    if (severityFilter !== 'all' && i.severity !== severityFilter) return false
+   997→    return true
+   998→  })
+   999→
+  1000→  const markAsRead = (id: string) => {
+  1001→    setInsights(prev => prev.map(i => i.id === id ? { ...i, read: true } : i))
+  1002→  }
+  1003→
+  1004→  const markAsActioned = (id: string) => {
+  1005→    setInsights(prev => prev.map(i => i.id === id ? { ...i, actioned: true, read: true } : i))
+  1006→  }
+  1007→
+  1008→  const unreadCount = insights.filter(i => !i.read).length
+  1009→
+  1010→  return (
+  1011→    <div className="space-y-6">
+  1012→      {/* Header */}
+  1013→      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+  1014→        <div>
+  1015→          <h2 className="text-lg font-semibold flex items-center gap-2">
+  1016→            <Lightbulb className="h-5 w-5 text-hermes" />
+  1017→            AI Insights
+  1018→            {unreadCount > 0 && (
+  1019→              <Badge className="bg-hermes text-hermes-foreground text-[10px] ml-1">{unreadCount} new</Badge>
+  1020→            )}
+  1021→          </h2>
+  1022→          <p className="text-sm text-muted-foreground mt-1">Smart observations and recommendations from Hermes</p>
+  1023→        </div>
+  1024→      </div>
+  1025→
+  1026→      {/* Filters */}
+  1027→      <div className="flex flex-wrap items-center gap-3">
+  1028→        <div className="flex items-center gap-2">
+  1029→          <Filter className="h-4 w-4 text-muted-foreground" />
+  1030→          <Select value={typeFilter} onValueChange={setTypeFilter}>
+  1031→            <SelectTrigger className="w-[160px] h-8 text-xs">
+  1032→              <SelectValue placeholder="Type" />
+  1033→            </SelectTrigger>
+  1034→            <SelectContent>
+  1035→              {types.map(t => <SelectItem key={t} value={t} className="text-xs">{t === 'all' ? 'All Types' : t.charAt(0).toUpperCase() + t.slice(1)}</SelectItem>)}
+  1036→            </SelectContent>
+  1037→          </Select>
+  1038→        </div>
+  1039→        <Select value={severityFilter} onValueChange={setSeverityFilter}>
+  1040→          <SelectTrigger className="w-[140px] h-8 text-xs">
+  1041→            <SelectValue placeholder="Severity" />
+  1042→          </SelectTrigger>
+  1043→          <SelectContent>
+  1044→            {severities.map(s => <SelectItem key={s} value={s} className="text-xs">{s === 'all' ? 'All Severities' : s.charAt(0).toUpperCase() + s.slice(1)}</SelectItem>)}
+  1045→          </SelectContent>
+  1046→        </Select>
+  1047→      </div>
+  1048→
+  1049→      {/* Insights Cards */}
+  1050→      <div className="space-y-3">
+  1051→        <AnimatePresence mode="popLayout">
+  1052→          {filtered.map((insight, i) => (
+  1053→            <motion.div
+  1054→              key={insight.id}
+  1055→              initial={{ opacity: 0, y: 8 }}
+  1056→              animate={{ opacity: 1, y: 0 }}
+  1057→              exit={{ opacity: 0, x: -20 }}
+  1058→              transition={{ duration: 0.2, delay: i * 0.03 }}
+  1059→            >
+  1060→              <Card className={cn(
+  1061→                'border-hermes/10 card-hover',
+  1062→                !insight.read && 'border-l-2 border-l-hermes'
+  1063→              )}>
+  1064→                <CardContent className="p-4">
+  1065→                  <div className="flex items-start gap-3">
+  1066→                    <div className={cn(
+  1067→                      'mt-0.5 flex-shrink-0 rounded-lg p-2',
+  1068→                      insight.type === 'trend' && 'bg-blue-500/10',
+  1069→                      insight.type === 'opportunity' && 'bg-green-500/10',
+  1070→                      insight.type === 'alert' && 'bg-red-500/10',
+  1071→                      insight.type === 'recommendation' && 'bg-hermes/10',
+  1072→                    )}>
+  1073→                      <InsightTypeIcon type={insight.type} />
+  1074→                    </div>
+  1075→                    <div className="flex-1 min-w-0 space-y-2">
+  1076→                      <div className="flex items-start justify-between gap-2">
+  1077→                        <div className="space-y-1">
+  1078→                          <h4 className="text-sm font-semibold flex items-center gap-2">
+  1079→                            {insight.title}
+  1080→                            {!insight.read && <span className="h-1.5 w-1.5 rounded-full bg-hermes" />}
+  1081→                          </h4>
+  1082→                          <p className="text-xs text-muted-foreground leading-relaxed">{insight.description}</p>
+  1083→                        </div>
+  1084→                        <SeverityBadge severity={insight.severity} />
+  1085→                      </div>
+  1086→                      <div className="flex items-center justify-between">
+  1087→                        <span className="text-[10px] text-muted-foreground">{formatDate(insight.timestamp)}</span>
+  1088→                        <div className="flex items-center gap-1.5">
+  1089→                          {!insight.read && (
+  1090→                            <Button size="sm" variant="ghost" className="h-6 px-2 text-[10px] text-muted-foreground hover:text-foreground" onClick={() => markAsRead(insight.id)}>
+  1091→                              <Eye className="h-3 w-3 mr-1" /> Read
+  1092→                            </Button>
+  1093→                          )}
+  1094→                          {!insight.actioned && (
+  1095→                            <Button size="sm" variant="outline" className="h-6 px-2 text-[10px] border-hermes/20 text-hermes hover:bg-hermes/10" onClick={() => markAsActioned(insight.id)}>
+  1096→                              <CheckCircle className="h-3 w-3 mr-1" /> Action
+  1097→                            </Button>
+  1098→                          )}
+  1099→                          {insight.actioned && (
+  1100→                            <Badge variant="outline" className="text-[10px] border-green-500/20 bg-green-500/10 text-green-600">
+  1101→                              <Check className="h-2.5 w-2.5 mr-0.5" /> Actioned
+  1102→                            </Badge>
+  1103→                          )}
+  1104→                        </div>
+  1105→                      </div>
+  1106→                    </div>
+  1107→                  </div>
+  1108→                </CardContent>
+  1109→              </Card>
+  1110→            </motion.div>
+  1111→          ))}
+  1112→        </AnimatePresence>
+  1113→      </div>
+  1114→
+  1115→      {filtered.length === 0 && (
+  1116→        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+  1117→          <Lightbulb className="h-10 w-10 mb-3 opacity-30" />
+  1118→          <p className="text-sm">No insights found</p>
+  1119→          <p className="text-xs mt-1">Try adjusting your filters</p>
+  1120→        </div>
+  1121→      )}
+  1122→    </div>
+  1123→  )
+  1124→}
+  1125→
+  1126→// ─── Connection Tab ──────────────────────────────────────────────────────────
+  1127→
+  1128→function ConnectionTab() {
+  1129→  const [connection, setConnection] = useState<ConnectionConfig>({
+  1130→    endpoint: 'http://localhost:5001/v1',
+  1131→    apiKey: 'sk-hermes-xxxxxxxxxxxxx',
+  1132→    model: 'hermes-3-llama-3.1-405b',
+  1133→    status: 'connected',
+  1134→    lastConnected: new Date(),
+  1135→    availableModels: mockAvailableModels,
+  1136→  })
+  1137→  const [testing, setTesting] = useState(false)
+  1138→  const [testResult, setTestResult] = useState<'success' | 'error' | null>(null)
+  1139→
+  1140→  const testConnection = () => {
+  1141→    setTesting(true)
+  1142→    setTestResult(null)
+  1143→    setTimeout(() => {
+  1144→      setTesting(false)
+  1145→      setTestResult('success')
+  1146→      setConnection(prev => ({ ...prev, status: 'connected', lastConnected: new Date() }))
+  1147→    }, 2000)
+  1148→  }
+  1149→
+  1150→  const saveConnection = () => {
+  1151→    setTestResult(null)
+  1152→    // Simulate save
+  1153→  }
+  1154→
+  1155→  return (
+  1156→    <div className="space-y-6">
+  1157→      {/* Header */}
+  1158→      <div>
+  1159→        <h2 className="text-lg font-semibold flex items-center gap-2">
+  1160→          <Plug className="h-5 w-5 text-hermes" />
+  1161→          Connection Settings
+  1162→        </h2>
+  1163→        <p className="text-sm text-muted-foreground mt-1">Configure your Hermes Agent API connection</p>
+  1164→      </div>
+  1165→
+  1166→      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+  1167→        {/* Connection Form */}
+  1168→        <Card className="border-hermes/10">
+  1169→          <CardHeader>
+  1170→            <CardTitle className="text-sm font-semibold">API Configuration</CardTitle>
+  1171→            <CardDescription className="text-xs">Hermes Agent uses an OpenAI-compatible API server</CardDescription>
+  1172→          </CardHeader>
+  1173→          <CardContent className="space-y-4">
+  1174→            <div className="space-y-2">
+  1175→              <Label className="text-xs">Endpoint URL</Label>
+  1176→              <div className="flex items-center gap-2">
+  1177→                <Input
+  1178→                  value={connection.endpoint}
+  1179→                  onChange={(e) => setConnection(prev => ({ ...prev, endpoint: e.target.value }))}
+  1180→                  placeholder="http://localhost:5001/v1"
+  1181→                  className="text-sm"
+  1182→                />
+  1183→              </div>
+  1184→            </div>
+  1185→
+  1186→            <div className="space-y-2">
+  1187→              <Label className="text-xs">API Key</Label>
+  1188→              <Input
+  1189→                type="password"
+  1190→                value={connection.apiKey}
+  1191→                onChange={(e) => setConnection(prev => ({ ...prev, apiKey: e.target.value }))}
+  1192→                placeholder="sk-hermes-..."
+  1193→                className="text-sm"
+  1194→              />
+  1195→            </div>
+  1196→
+  1197→            <div className="space-y-2">
+  1198→              <Label className="text-xs">Model</Label>
+  1199→              <Select value={connection.model} onValueChange={(v) => setConnection(prev => ({ ...prev, model: v }))}>
+  1200→                <SelectTrigger className="text-sm">
+  1201→                  <SelectValue placeholder="Select model" />
+  1202→                </SelectTrigger>
+  1203→                <SelectContent>
+  1204→                  {connection.availableModels.map(m => (
+  1205→                    <SelectItem key={m} value={m} className="text-xs">{m}</SelectItem>
+  1206→                  ))}
+  1207→                </SelectContent>
+  1208→              </Select>
+  1209→            </div>
+  1210→
+  1211→            <Separator className="bg-hermes/10" />
+  1212→
+  1213→            <div className="flex items-center gap-3">
+  1214→              <Button
+  1215→                variant="outline"
+  1216→                className="flex-1 border-hermes/20 text-hermes hover:bg-hermes/10"
+  1217→                onClick={testConnection}
+  1218→                disabled={testing}
+  1219→              >
+  1220→                {testing ? (
+  1221→                  <><RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Testing...</>
+  1222→                ) : (
+  1223→                  <><Wifi className="h-4 w-4 mr-2" /> Test Connection</>
+  1224→                )}
+  1225→              </Button>
+  1226→              <Button
+  1227→                className="flex-1 bg-hermes hover:bg-hermes-dark text-hermes-foreground"
+  1228→                onClick={saveConnection}
+  1229→              >
+  1230→                <Check className="h-4 w-4 mr-2" /> Save Connection
+  1231→              </Button>
+  1232→            </div>
+  1233→
+  1234→            {testResult && (
+  1235→              <motion.div
+  1236→                initial={{ opacity: 0, y: 4 }}
+  1237→                animate={{ opacity: 1, y: 0 }}
+  1238→                className={cn(
+  1239→                  'rounded-lg p-3 text-xs',
+  1240→                  testResult === 'success'
+  1241→                    ? 'bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-400'
+  1242→                    : 'bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400'
+  1243→                )}
+  1244→              >
+  1245→                {testResult === 'success' ? (
+  1246→                  <span className="flex items-center gap-2"><CheckCircle className="h-4 w-4" /> Connection successful! Hermes Agent is reachable.</span>
+  1247→                ) : (
+  1248→                  <span className="flex items-center gap-2"><AlertTriangle className="h-4 w-4" /> Connection failed. Please check your settings.</span>
+  1249→                )}
+  1250→              </motion.div>
+  1251→            )}
+  1252→          </CardContent>
+  1253→        </Card>
+  1254→
+  1255→        {/* Connection Status */}
+  1256→        <div className="space-y-4">
+  1257→          <Card className="border-hermes/10">
+  1258→            <CardHeader>
+  1259→              <CardTitle className="text-sm font-semibold">Connection Status</CardTitle>
+  1260→            </CardHeader>
+  1261→            <CardContent className="space-y-4">
+  1262→              <div className="flex items-center gap-3">
+  1263→                <div className={cn(
+  1264→                  'rounded-full p-3',
+  1265→                  connection.status === 'connected' ? 'bg-green-500/10' : 'bg-red-500/10'
+  1266→                )}>
+  1267→                  {connection.status === 'connected' ? (
+  1268→                    <Wifi className="h-6 w-6 text-green-500" />
+  1269→                  ) : (
+  1270→                    <WifiOff className="h-6 w-6 text-red-500" />
+  1271→                  )}
+  1272→                </div>
+  1273→                <div>
+  1274→                  <p className="text-sm font-medium">{connection.status === 'connected' ? 'Connected' : 'Disconnected'}</p>
+  1275→                  <p className="text-xs text-muted-foreground">
+  1276→                    {connection.lastConnected
+  1277→                      ? `Last connected: ${formatDateTime(connection.lastConnected)}`
+  1278→                      : 'Never connected'
+  1279→                    }
+  1280→                  </p>
+  1281→                </div>
+  1282→              </div>
+  1283→
+  1284→              <Separator className="bg-hermes/10" />
+  1285→
+  1286→              <div className="space-y-3">
+  1287→                <div className="flex items-center justify-between text-xs">
+  1288→                  <span className="text-muted-foreground">Endpoint</span>
+  1289→                  <code className="font-mono text-[10px] bg-muted px-2 py-0.5 rounded">{connection.endpoint}</code>
+  1290→                </div>
+  1291→                <div className="flex items-center justify-between text-xs">
+  1292→                  <span className="text-muted-foreground">Active Model</span>
+  1293→                  <code className="font-mono text-[10px] bg-muted px-2 py-0.5 rounded">{connection.model}</code>
+  1294→                </div>
+  1295→                <div className="flex items-center justify-between text-xs">
+  1296→                  <span className="text-muted-foreground">API Version</span>
+  1297→                  <code className="font-mono text-[10px] bg-muted px-2 py-0.5 rounded">v1 (OpenAI compatible)</code>
+  1298→                </div>
+  1299→                <div className="flex items-center justify-between text-xs">
+  1300→                  <span className="text-muted-foreground">Latency</span>
+  1301→                  <span className="text-[11px] font-medium text-green-600 dark:text-green-400">42ms</span>
+  1302→                </div>
+  1303→              </div>
+  1304→            </CardContent>
+  1305→          </Card>
+  1306→
+  1307→          <Card className="border-hermes/10">
+  1308→            <CardHeader>
+  1309→              <CardTitle className="text-sm font-semibold">Available Models</CardTitle>
+  1310→              <CardDescription className="text-xs">Models accessible through the current connection</CardDescription>
+  1311→            </CardHeader>
+  1312→            <CardContent>
+  1313→              <div className="space-y-2">
+  1314→                {connection.availableModels.map((model, i) => (
+  1315→                  <div key={model} className={cn(
+  1316→                    'flex items-center justify-between rounded-lg border px-3 py-2 text-xs',
+  1317→                    model === connection.model ? 'border-hermes/30 bg-hermes/5' : 'border-border'
+  1318→                  )}>
+  1319→                    <div className="flex items-center gap-2">
+  1320→                      <Cpu className="h-3.5 w-3.5 text-hermes" />
+  1321→                      <span className="font-mono text-[11px]">{model}</span>
+  1322→                    </div>
+  1323→                    {model === connection.model && (
+  1324→                      <Badge variant="outline" className="text-[9px] border-hermes/30 text-hermes">Active</Badge>
+  1325→                    )}
+  1326→                    <Badge variant="secondary" className="text-[9px]">
+  1327→                      {model.includes('405b') ? '405B' : model.includes('70b') ? '70B' : model.includes('8b') ? '8B' : model.includes('7b') ? '7B' : '?'}
+  1328→                    </Badge>
+  1329→                  </div>
+  1330→                ))}
+  1331→              </div>
+  1332→            </CardContent>
+  1333→          </Card>
+  1334→        </div>
+  1335→      </div>
+  1336→    </div>
+  1337→  )
+  1338→}
+  1339→
+  1340→// ─── Main HermesPage ─────────────────────────────────────────────────────────
+  1341→
+  1342→export function HermesPage() {
+  1343→  const [activeTab, setActiveTab] = useState('chat')
+  1344→
+  1345→  const tabs = [
+  1346→    { value: 'chat', label: 'AI Chat', icon: MessageSquare },
+  1347→    { value: 'skills', label: 'Skills', icon: Brain },
+  1348→    { value: 'memory', label: 'Memory', icon: Database },
+  1349→    { value: 'tasks', label: 'Tasks', icon: Clock },
+  1350→    { value: 'insights', label: 'Insights', icon: Lightbulb },
+  1351→    { value: 'connection', label: 'Connection', icon: Plug },
+  1352→  ]
+  1353→
+  1354→  return (
+  1355→    <div className="min-h-screen bg-background">
+  1356→      {/* Header */}
+  1357→      <div className="border-b border-hermes/10 bg-card">
+  1358→        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+  1359→          <div className="flex items-center justify-between py-4">
+  1360→            <div className="flex items-center gap-3">
+  1361→              <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-hermes/10 border border-hermes/20">
+  1362→                <Bot className="h-5 w-5 text-hermes" />
+  1363→              </div>
+  1364→              <div>
+  1365→                <h1 className="text-lg font-bold flex items-center gap-2">
+  1366→                  HERMES
+  1367→                  <Badge variant="outline" className="text-[9px] border-hermes/30 text-hermes font-mono">AGENT</Badge>
+  1368→                </h1>
+  1369→                <p className="text-xs text-muted-foreground">Self-Improving AI Agent by Nous Research</p>
+  1370→              </div>
+  1371→            </div>
+  1372→            <div className="flex items-center gap-2">
+  1373→              <Badge variant="outline" className="border-green-500/20 bg-green-500/10 text-green-600 text-[10px]">
+  1374→                <span className="mr-1.5 h-1.5 w-1.5 rounded-full bg-green-500 inline-block" />
+  1375→                Online
+  1376→              </Badge>
+  1377→              <Badge variant="outline" className="text-[10px] border-hermes/20 text-hermes">
+  1378→                <Sparkles className="h-2.5 w-2.5 mr-1" />
+  1379→                8 Skills Active
+  1380→              </Badge>
+  1381→            </div>
+  1382→          </div>
+  1383→        </div>
+  1384→      </div>
+  1385→
+  1386→      {/* Tab Navigation */}
+  1387→      <div className="border-b border-hermes/10 bg-card">
+  1388→        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+  1389→          <Tabs value={activeTab} onValueChange={setActiveTab}>
+  1390→            <TabsList className="bg-transparent h-auto p-0 gap-0">
+  1391→              {tabs.map(tab => (
+  1392→                <TabsTrigger
+  1393→                  key={tab.value}
+  1394→                  value={tab.value}
+  1395→                  className={cn(
+  1396→                    'relative rounded-none border-b-2 border-transparent px-3 sm:px-4 py-3 text-xs sm:text-sm font-medium text-muted-foreground transition-colors data-[state=active]:text-hermes data-[state=active]:border-hermes data-[state=active]:bg-transparent data-[state=active]:shadow-none hover:text-foreground'
+  1397→                  )}
+  1398→                >
+  1399→                  <tab.icon className="h-3.5 w-3.5 sm:mr-2" />
+  1400→                  <span className="hidden sm:inline">{tab.label}</span>
+  1401→                </TabsTrigger>
+  1402→              ))}
+  1403→            </TabsList>
+  1404→
+  1405→            <TabsContent value="chat" className="mt-0 border-0">
+  1406→              <ChatTab />
+  1407→            </TabsContent>
+  1408→
+  1409→            <TabsContent value="skills" className="mt-0 border-0 p-4 sm:p-6 lg:p-8">
+  1410→              <SkillsTab />
+  1411→            </TabsContent>
+  1412→
+  1413→            <TabsContent value="memory" className="mt-0 border-0 p-4 sm:p-6 lg:p-8">
+  1414→              <MemoryTab />
+  1415→            </TabsContent>
+  1416→
+  1417→            <TabsContent value="tasks" className="mt-0 border-0 p-4 sm:p-6 lg:p-8">
+  1418→              <TasksTab />
+  1419→            </TabsContent>
+  1420→
+  1421→            <TabsContent value="insights" className="mt-0 border-0 p-4 sm:p-6 lg:p-8">
+  1422→              <InsightsTab />
+  1423→            </TabsContent>
+  1424→
+  1425→            <TabsContent value="connection" className="mt-0 border-0 p-4 sm:p-6 lg:p-8">
+  1426→              <ConnectionTab />
+  1427→            </TabsContent>
+  1428→          </Tabs>
+  1429→        </div>
+  1430→      </div>
+  1431→    </div>
+  1432→  )
+  1433→}
+  1434→

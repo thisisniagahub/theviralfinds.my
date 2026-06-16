@@ -24,8 +24,13 @@ import {
   Lightbulb, Target, Send, Plus, Search, Settings, Wifi, WifiOff,
   Play, Pause, Trash2, Check, X, Eye, Sparkles, RefreshCw, Copy,
   CheckCircle, ArrowRight, Database, Code2, Calendar, BarChart3,
-  Star, Activity, Plug, ChevronDown, Filter, Archive
+  Star, Activity, Plug, ChevronDown, Filter, Archive, Bell
 } from 'lucide-react'
+
+// ─── Proactive Insights section (Fasa 3.5) ──────────────────────────────────
+// Reusable component embedded in its own tab below. Built in a separate file
+// so it can also be dropped into the Dashboard or any other page.
+import { HermesInsightsSection } from '@/components/pages/hermes-insights-section'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1348,6 +1353,7 @@ export function HermesPage() {
     { value: 'memory', label: 'Memory', icon: Database },
     { value: 'tasks', label: 'Tasks', icon: Clock },
     { value: 'insights', label: 'Insights', icon: Lightbulb },
+    { value: 'proactive-insights', label: 'Proactive', icon: Bell },
     { value: 'connection', label: 'Connection', icon: Plug },
   ]
 
@@ -1420,6 +1426,10 @@ export function HermesPage() {
 
             <TabsContent value="insights" className="mt-0 border-0 p-4 sm:p-6 lg:p-8">
               <InsightsTab />
+            </TabsContent>
+
+            <TabsContent value="proactive-insights" className="mt-0 border-0 p-4 sm:p-6 lg:p-8">
+              <HermesInsightsSection />
             </TabsContent>
 
             <TabsContent value="connection" className="mt-0 border-0 p-4 sm:p-6 lg:p-8">

@@ -1,0 +1,791 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect } from 'react'
+     4→import { motion } from 'framer-motion'
+     5→import {
+     6→  LayoutDashboard,
+     7→  TrendingUp,
+     8→  TrendingDown,
+     9→  MousePointer,
+    10→  ShoppingCart,
+    11→  DollarSign,
+    12→  Percent,
+    13→  Plus,
+    14→  BarChart3,
+    15→  Megaphone,
+    16→  Link2,
+    17→  Zap,
+    18→  ArrowUpRight,
+    19→  ArrowDownRight,
+    20→  Activity,
+    21→  ShoppingBag,
+    22→  Eye,
+    23→} from 'lucide-react'
+    24→import {
+    25→  AreaChart,
+    26→  Area,
+    27→  BarChart,
+    28→  Bar,
+    29→  XAxis,
+    30→  YAxis,
+    31→  Tooltip,
+    32→  ResponsiveContainer,
+    33→  CartesianGrid,
+    34→} from 'recharts'
+    35→import {
+    36→  Card,
+    37→  CardContent,
+    38→  CardHeader,
+    39→  CardTitle,
+    40→  CardDescription,
+    41→} from '@/components/ui/card'
+    42→import { Badge } from '@/components/ui/badge'
+    43→import { Button } from '@/components/ui/button'
+    44→import { Progress } from '@/components/ui/progress'
+    45→import { Skeleton } from '@/components/ui/skeleton'
+    46→import { cn } from '@/lib/utils'
+    47→
+    48→// ─── Mock Data ────────────────────────────────────────────────────────────────
+    49→
+    50→const earningsData = Array.from({ length: 30 }, (_, i) => {
+    51→  const date = new Date()
+    52→  date.setDate(date.getDate() - (29 - i))
+    53→  const dayLabel = `${date.getDate()}/${date.getMonth() + 1}`
+    54→  return {
+    55→    name: dayLabel,
+    56→    earnings: Math.round((Math.sin(i / 4) * 40 + 80 + Math.random() * 50) * 100) / 100,
+    57→  }
+    58→})
+    59→
+    60→const clicksData = Array.from({ length: 14 }, (_, i) => {
+    61→  const date = new Date()
+    62→  date.setDate(date.getDate() - (13 - i))
+    63→  const dayLabel = `${date.getDate()}/${date.getMonth() + 1}`
+    64→  return {
+    65→    name: dayLabel,
+    66→    clicks: Math.round(Math.sin(i / 3) * 120 + 280 + Math.random() * 100),
+    67→  }
+    68→})
+    69→
+    70→const topProducts = [
+    71→  { id: 1, name: 'Xiaomi Robot Vacuum X10+', clicks: 1842, conversions: 127, earnings: 3810.0, rate: 6.9 },
+    72→  { id: 2, name: 'Anker Soundcore Life Q30', clicks: 1534, conversions: 98, earnings: 2450.0, rate: 6.4 },
+    73→  { id: 3, name: 'SK-II Facial Treatment Essence', clicks: 1287, conversions: 84, earnings: 2184.0, rate: 6.5 },
+    74→  { id: 4, name: 'Dreame T30 Cordless Vacuum', clicks: 1105, conversions: 71, earnings: 1775.0, rate: 6.4 },
+    75→  { id: 5, name: 'Philips Air Purifier AC3858', clicks: 978, conversions: 59, earnings: 1475.0, rate: 6.0 },
+    76→]
+    77→
+    78→const recentActivity = [
+    79→  { id: 1, type: 'conversion', message: 'Conversion from Xiaomi Robot Vacuum X10+', time: '2 min ago', amount: 'RM 30.00' },
+    80→  { id: 2, type: 'click', message: '12 new clicks on Anker Soundcore Life Q30', time: '8 min ago', amount: null },
+    81→  { id: 3, type: 'conversion', message: 'Conversion from SK-II Facial Treatment Essence', time: '15 min ago', amount: 'RM 26.00' },
+    82→  { id: 4, type: 'click', message: '28 new clicks on Dreame T30 Cordless Vacuum', time: '22 min ago', amount: null },
+    83→  { id: 5, type: 'conversion', message: 'Conversion from Philips Air Purifier AC3858', time: '35 min ago', amount: 'RM 25.00' },
+    84→  { id: 6, type: 'payout', message: 'Monthly payout processed', time: '1 hour ago', amount: 'RM 4,520.00' },
+    85→  { id: 7, type: 'click', message: '45 new clicks across all products', time: '2 hours ago', amount: null },
+    86→  { id: 8, type: 'conversion', message: 'Conversion from Anker Soundcore Life Q30', time: '3 hours ago', amount: 'RM 25.00' },
+    87→]
+    88→
+    89→const quickActions = [
+    90→  { label: 'Create Link', icon: Link2, color: 'bg-shopee/10 text-shopee' },
+    91→  { label: 'New Campaign', icon: Megaphone, color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' },
+    92→  { label: 'View Analytics', icon: BarChart3, color: 'bg-violet-500/10 text-violet-600 dark:text-violet-400' },
+    93→  { label: 'Quick Boost', icon: Zap, color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400' },
+    94→]
+    95→
+    96→// ─── Stat Card Data ───────────────────────────────────────────────────────────
+    97→
+    98→const stats = [
+    99→  {
+   100→    title: 'Total Clicks',
+   101→    value: '12,847',
+   102→    trend: 12.5,
+   103→    trendUp: true,
+   104→    icon: MousePointer,
+   105→    color: 'bg-shopee/10 text-shopee',
+   106→  },
+   107→  {
+   108→    title: 'Total Conversions',
+   109→    value: '834',
+   110→    trend: 8.3,
+   111→    trendUp: true,
+   112→    icon: ShoppingCart,
+   113→    color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+   114→  },
+   115→  {
+   116→    title: 'Total Earnings',
+   117→    value: 'RM 12,694',
+   118→    trend: 15.2,
+   119→    trendUp: true,
+   120→    icon: DollarSign,
+   121→    color: 'bg-violet-500/10 text-violet-600 dark:text-violet-400',
+   122→  },
+   123→  {
+   124→    title: 'Conversion Rate',
+   125→    value: '6.49%',
+   126→    trend: 2.1,
+   127→    trendUp: false,
+   128→    icon: Percent,
+   129→    color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400',
+   130→  },
+   131→]
+   132→
+   133→// ─── Sub-Components ───────────────────────────────────────────────────────────
+   134→
+   135→function WelcomeBanner() {
+   136→  const now = new Date()
+   137→  const dateStr = now.toLocaleDateString('en-MY', {
+   138→    weekday: 'long',
+   139→    year: 'numeric',
+   140→    month: 'long',
+   141→    day: 'numeric',
+   142→  })
+   143→
+   144→  const hour = now.getHours()
+   145→  let greeting = 'Good Morning'
+   146→  if (hour >= 12 && hour < 17) greeting = 'Good Afternoon'
+   147→  if (hour >= 17) greeting = 'Good Evening'
+   148→
+   149→  return (
+   150→    <motion.div
+   151→      initial={{ opacity: 0, y: 20 }}
+   152→      animate={{ opacity: 1, y: 0 }}
+   153→      transition={{ duration: 0.5 }}
+   154→    >
+   155→      <Card className="card-hover border-shopee/20 bg-gradient-to-r from-shopee/5 via-shopee/10 to-transparent overflow-hidden">
+   156→        <CardContent className="flex items-center gap-4 py-2">
+   157→          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-shopee/15 animate-float">
+   158→            <LayoutDashboard className="h-6 w-6 text-shopee" />
+   159→          </div>
+   160→          <div className="flex-1 min-w-0">
+   161→            <h2 className="text-lg font-bold text-foreground sm:text-xl">
+   162→              {greeting}, TheViralFindsMY! 👋
+   163→            </h2>
+   164→            <p className="text-sm text-muted-foreground mt-0.5">{dateStr}</p>
+   165→            <div className="flex flex-wrap items-center gap-2 mt-2">
+   166→              <Badge variant="secondary" className="text-xs">
+   167→                <Eye className="mr-1 h-3 w-3" />
+   168→                1,247 views today
+   169→              </Badge>
+   170→              <Badge variant="secondary" className="text-xs">
+   171→                <ShoppingBag className="mr-1 h-3 w-3" />
+   172→                23 orders today
+   173→              </Badge>
+   174→            </div>
+   175→          </div>
+   176→        </CardContent>
+   177→      </Card>
+   178→    </motion.div>
+   179→  )
+   180→}
+   181→
+   182→function StatCard({
+   183→  stat,
+   184→  index,
+   185→}: {
+   186→  stat: (typeof stats)[0]
+   187→  index: number
+   188→}) {
+   189→  const Icon = stat.icon
+   190→  return (
+   191→    <motion.div
+   192→      initial={{ opacity: 0, y: 20 }}
+   193→      animate={{ opacity: 1, y: 0 }}
+   194→      transition={{ duration: 0.4, delay: index * 0.1 }}
+   195→    >
+   196→      <Card className="card-hover">
+   197→        <CardHeader className="flex flex-row items-center justify-between pb-2">
+   198→          <CardDescription className="text-sm font-medium">
+   199→            {stat.title}
+   200→          </CardDescription>
+   201→          <div className={cn('flex h-9 w-9 items-center justify-center rounded-lg', stat.color)}>
+   202→            <Icon className="h-4 w-4" />
+   203→          </div>
+   204→        </CardHeader>
+   205→        <CardContent>
+   206→          <div className="text-2xl font-bold">{stat.value}</div>
+   207→          <div className="flex items-center gap-1 mt-1">
+   208→            {stat.trendUp ? (
+   209→              <ArrowUpRight className="h-3.5 w-3.5 text-emerald-500" />
+   210→            ) : (
+   211→              <ArrowDownRight className="h-3.5 w-3.5 text-red-500" />
+   212→            )}
+   213→            <span
+   214→              className={cn(
+   215→                'text-xs font-medium',
+   216→                stat.trendUp ? 'text-emerald-500' : 'text-red-500'
+   217→              )}
+   218→            >
+   219→              {stat.trend}%
+   220→            </span>
+   221→            <span className="text-xs text-muted-foreground">vs last month</span>
+   222→          </div>
+   223→        </CardContent>
+   224→      </Card>
+   225→    </motion.div>
+   226→  )
+   227→}
+   228→
+   229→function StatCardSkeleton() {
+   230→  return (
+   231→    <Card>
+   232→      <CardHeader className="flex flex-row items-center justify-between pb-2">
+   233→        <Skeleton className="h-4 w-24" />
+   234→        <Skeleton className="h-9 w-9 rounded-lg" />
+   235→      </CardHeader>
+   236→      <CardContent>
+   237→        <Skeleton className="h-7 w-28 mb-2" />
+   238→        <Skeleton className="h-3 w-36" />
+   239→      </CardContent>
+   240→    </Card>
+   241→  )
+   242→}
+   243→
+   244→function EarningsChart() {
+   245→  return (
+   246→    <motion.div
+   247→      initial={{ opacity: 0, y: 20 }}
+   248→      animate={{ opacity: 1, y: 0 }}
+   249→      transition={{ duration: 0.5, delay: 0.4 }}
+   250→    >
+   251→      <Card className="card-hover">
+   252→        <CardHeader>
+   253→          <CardTitle className="text-base">Earnings Overview</CardTitle>
+   254→          <CardDescription>Last 30 days performance</CardDescription>
+   255→        </CardHeader>
+   256→        <CardContent>
+   257→          <ResponsiveContainer width="100%" height={250}>
+   258→            <AreaChart data={earningsData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+   259→              <defs>
+   260→                <linearGradient id="earningsGradient" x1="0" y1="0" x2="0" y2="1">
+   261→                  <stop offset="5%" stopColor="var(--shopee)" stopOpacity={0.3} />
+   262→                  <stop offset="95%" stopColor="var(--shopee)" stopOpacity={0} />
+   263→                </linearGradient>
+   264→              </defs>
+   265→              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+   266→              <XAxis
+   267→                dataKey="name"
+   268→                tick={{ fontSize: 11 }}
+   269→                stroke="var(--muted-foreground)"
+   270→                tickLine={false}
+   271→                axisLine={false}
+   272→                interval={4}
+   273→              />
+   274→              <YAxis
+   275→                tick={{ fontSize: 11 }}
+   276→                stroke="var(--muted-foreground)"
+   277→                tickLine={false}
+   278→                axisLine={false}
+   279→                tickFormatter={(v) => `RM${v}`}
+   280→              />
+   281→              <Tooltip
+   282→                contentStyle={{
+   283→                  backgroundColor: 'var(--card)',
+   284→                  border: '1px solid var(--border)',
+   285→                  borderRadius: '8px',
+   286→                  fontSize: '12px',
+   287→                }}
+   288→                formatter={(value: number) => [`RM ${value.toFixed(2)}`, 'Earnings']}
+   289→              />
+   290→              <Area
+   291→                type="monotone"
+   292→                dataKey="earnings"
+   293→                stroke="var(--shopee)"
+   294→                strokeWidth={2}
+   295→                fill="url(#earningsGradient)"
+   296→              />
+   297→            </AreaChart>
+   298→          </ResponsiveContainer>
+   299→        </CardContent>
+   300→      </Card>
+   301→    </motion.div>
+   302→  )
+   303→}
+   304→
+   305→function ClicksChart() {
+   306→  return (
+   307→    <motion.div
+   308→      initial={{ opacity: 0, y: 20 }}
+   309→      animate={{ opacity: 1, y: 0 }}
+   310→      transition={{ duration: 0.5, delay: 0.5 }}
+   311→    >
+   312→      <Card className="card-hover">
+   313→        <CardHeader>
+   314→          <CardTitle className="text-base">Clicks Overview</CardTitle>
+   315→          <CardDescription>Last 14 days click data</CardDescription>
+   316→        </CardHeader>
+   317→        <CardContent>
+   318→          <ResponsiveContainer width="100%" height={250}>
+   319→            <BarChart data={clicksData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+   320→              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+   321→              <XAxis
+   322→                dataKey="name"
+   323→                tick={{ fontSize: 11 }}
+   324→                stroke="var(--muted-foreground)"
+   325→                tickLine={false}
+   326→                axisLine={false}
+   327→              />
+   328→              <YAxis
+   329→                tick={{ fontSize: 11 }}
+   330→                stroke="var(--muted-foreground)"
+   331→                tickLine={false}
+   332→                axisLine={false}
+   333→              />
+   334→              <Tooltip
+   335→                contentStyle={{
+   336→                  backgroundColor: 'var(--card)',
+   337→                  border: '1px solid var(--border)',
+   338→                  borderRadius: '8px',
+   339→                  fontSize: '12px',
+   340→                }}
+   341→                formatter={(value: number) => [value, 'Clicks']}
+   342→              />
+   343→              <Bar
+   344→                dataKey="clicks"
+   345→                fill="var(--shopee)"
+   346→                radius={[4, 4, 0, 0]}
+   347→                opacity={0.85}
+   348→              />
+   349→            </BarChart>
+   350→          </ResponsiveContainer>
+   351→        </CardContent>
+   352→      </Card>
+   353→    </motion.div>
+   354→  )
+   355→}
+   356→
+   357→function ChartSkeleton() {
+   358→  return (
+   359→    <Card>
+   360→      <CardHeader>
+   361→        <Skeleton className="h-5 w-36 mb-1" />
+   362→        <Skeleton className="h-4 w-44" />
+   363→      </CardHeader>
+   364→      <CardContent>
+   365→        <Skeleton className="h-[250px] w-full rounded-lg" />
+   366→      </CardContent>
+   367→    </Card>
+   368→  )
+   369→}
+   370→
+   371→function TopProducts() {
+   372→  return (
+   373→    <motion.div
+   374→      initial={{ opacity: 0, y: 20 }}
+   375→      animate={{ opacity: 1, y: 0 }}
+   376→      transition={{ duration: 0.5, delay: 0.6 }}
+   377→    >
+   378→      <Card className="card-hover">
+   379→        <CardHeader>
+   380→          <CardTitle className="text-base">Top Products</CardTitle>
+   381→          <CardDescription>Best performing affiliate products</CardDescription>
+   382→        </CardHeader>
+   383→        <CardContent>
+   384→          <div className="space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
+   385→            {topProducts.map((product, idx) => (
+   386→              <div
+   387→                key={product.id}
+   388→                className="flex items-center gap-3 rounded-lg border p-3 transition-colors hover:bg-accent/50"
+   389→              >
+   390→                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-shopee/10 text-shopee text-sm font-bold">
+   391→                  {idx + 1}
+   392→                </div>
+   393→                <div className="flex-1 min-w-0">
+   394→                  <p className="text-sm font-medium truncate">{product.name}</p>
+   395→                  <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+   396→                    <span className="flex items-center gap-0.5">
+   397→                      <MousePointer className="h-3 w-3" />
+   398→                      {product.clicks.toLocaleString()}
+   399→                    </span>
+   400→                    <span className="flex items-center gap-0.5">
+   401→                      <ShoppingCart className="h-3 w-3" />
+   402→                      {product.conversions}
+   403→                    </span>
+   404→                    <span className="flex items-center gap-0.5">
+   405→                      <Percent className="h-3 w-3" />
+   406→                      {product.rate}%
+   407→                    </span>
+   408→                  </div>
+   409→                </div>
+   410→                <div className="text-right shrink-0">
+   411→                  <p className="text-sm font-semibold text-shopee">
+   412→                    RM {product.earnings.toFixed(2)}
+   413→                  </p>
+   414→                </div>
+   415→              </div>
+   416→            ))}
+   417→          </div>
+   418→        </CardContent>
+   419→      </Card>
+   420→    </motion.div>
+   421→  )
+   422→}
+   423→
+   424→function TopProductsSkeleton() {
+   425→  return (
+   426→    <Card>
+   427→      <CardHeader>
+   428→        <Skeleton className="h-5 w-28 mb-1" />
+   429→        <Skeleton className="h-4 w-48" />
+   430→      </CardHeader>
+   431→      <CardContent className="space-y-3">
+   432→        {Array.from({ length: 5 }).map((_, i) => (
+   433→          <div key={i} className="flex items-center gap-3 rounded-lg border p-3">
+   434→            <Skeleton className="h-8 w-8 rounded-md" />
+   435→            <div className="flex-1 space-y-2">
+   436→              <Skeleton className="h-4 w-40" />
+   437→              <Skeleton className="h-3 w-52" />
+   438→            </div>
+   439→            <Skeleton className="h-4 w-20" />
+   440→          </div>
+   441→        ))}
+   442→      </CardContent>
+   443→    </Card>
+   444→  )
+   445→}
+   446→
+   447→function RecentActivityList() {
+   448→  const iconMap: Record<string, React.ReactNode> = {
+   449→    conversion: <ShoppingCart className="h-3.5 w-3.5 text-emerald-500" />,
+   450→    click: <MousePointer className="h-3.5 w-3.5 text-shopee" />,
+   451→    payout: <DollarSign className="h-3.5 w-3.5 text-violet-500" />,
+   452→  }
+   453→
+   454→  const colorMap: Record<string, string> = {
+   455→    conversion: 'bg-emerald-500/10 border-emerald-500/20',
+   456→    click: 'bg-shopee/10 border-shopee/20',
+   457→    payout: 'bg-violet-500/10 border-violet-500/20',
+   458→  }
+   459→
+   460→  return (
+   461→    <motion.div
+   462→      initial={{ opacity: 0, y: 20 }}
+   463→      animate={{ opacity: 1, y: 0 }}
+   464→      transition={{ duration: 0.5, delay: 0.7 }}
+   465→    >
+   466→      <Card className="card-hover">
+   467→        <CardHeader>
+   468→          <CardTitle className="text-base">Recent Activity</CardTitle>
+   469→          <CardDescription>Latest affiliate events</CardDescription>
+   470→        </CardHeader>
+   471→        <CardContent>
+   472→          <div className="space-y-1 max-h-96 overflow-y-auto custom-scrollbar">
+   473→            {recentActivity.map((activity, idx) => (
+   474→              <div
+   475→                key={activity.id}
+   476→                className="flex items-start gap-3 rounded-lg p-2 transition-colors hover:bg-accent/50"
+   477→              >
+   478→                <div
+   479→                  className={cn(
+   480→                    'flex h-7 w-7 shrink-0 items-center justify-center rounded-full border mt-0.5',
+   481→                    colorMap[activity.type] || 'bg-muted border-border'
+   482→                  )}
+   483→                >
+   484→                  {iconMap[activity.type] || <Activity className="h-3.5 w-3.5 text-muted-foreground" />}
+   485→                </div>
+   486→                <div className="flex-1 min-w-0">
+   487→                  <p className="text-sm leading-snug">{activity.message}</p>
+   488→                  <div className="flex items-center gap-2 mt-0.5">
+   489→                    <span className="text-xs text-muted-foreground">{activity.time}</span>
+   490→                    {activity.amount && (
+   491→                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+   492→                        {activity.amount}
+   493→                      </Badge>
+   494→                    )}
+   495→                  </div>
+   496→                </div>
+   497→              </div>
+   498→            ))}
+   499→          </div>
+   500→        </CardContent>
+   501→      </Card>
+   502→    </motion.div>
+   503→  )
+   504→}
+   505→
+   506→function RecentActivitySkeleton() {
+   507→  return (
+   508→    <Card>
+   509→      <CardHeader>
+   510→        <Skeleton className="h-5 w-32 mb-1" />
+   511→        <Skeleton className="h-4 w-40" />
+   512→      </CardHeader>
+   513→      <CardContent className="space-y-2">
+   514→        {Array.from({ length: 6 }).map((_, i) => (
+   515→          <div key={i} className="flex items-start gap-3 p-2">
+   516→            <Skeleton className="h-7 w-7 rounded-full" />
+   517→            <div className="flex-1 space-y-1.5">
+   518→              <Skeleton className="h-4 w-56" />
+   519→              <Skeleton className="h-3 w-24" />
+   520→            </div>
+   521→          </div>
+   522→        ))}
+   523→      </CardContent>
+   524→    </Card>
+   525→  )
+   526→}
+   527→
+   528→function QuickActions() {
+   529→  return (
+   530→    <motion.div
+   531→      initial={{ opacity: 0, y: 20 }}
+   532→      animate={{ opacity: 1, y: 0 }}
+   533→      transition={{ duration: 0.5, delay: 0.8 }}
+   534→    >
+   535→      <Card className="card-hover">
+   536→        <CardHeader>
+   537→          <CardTitle className="text-base">Quick Actions</CardTitle>
+   538→          <CardDescription>Common tasks at your fingertips</CardDescription>
+   539→        </CardHeader>
+   540→        <CardContent>
+   541→          <div className="grid grid-cols-2 gap-3">
+   542→            {quickActions.map((action) => {
+   543→              const Icon = action.icon
+   544→              return (
+   545→                <Button
+   546→                  key={action.label}
+   547→                  variant="outline"
+   548→                  className="h-auto flex-col gap-2 py-4 hover:scale-[1.02] transition-transform"
+   549→                >
+   550→                  <div className={cn('flex h-10 w-10 items-center justify-center rounded-xl', action.color)}>
+   551→                    <Icon className="h-5 w-5" />
+   552→                  </div>
+   553→                  <span className="text-xs font-medium">{action.label}</span>
+   554→                </Button>
+   555→              )
+   556→            })}
+   557→          </div>
+   558→        </CardContent>
+   559→      </Card>
+   560→    </motion.div>
+   561→  )
+   562→}
+   563→
+   564→function QuickActionsSkeleton() {
+   565→  return (
+   566→    <Card>
+   567→      <CardHeader>
+   568→        <Skeleton className="h-5 w-28 mb-1" />
+   569→        <Skeleton className="h-4 w-52" />
+   570→      </CardHeader>
+   571→      <CardContent>
+   572→        <div className="grid grid-cols-2 gap-3">
+   573→          {Array.from({ length: 4 }).map((_, i) => (
+   574→            <Skeleton key={i} className="h-24 rounded-lg" />
+   575→          ))}
+   576→        </div>
+   577→      </CardContent>
+   578→    </Card>
+   579→  )
+   580→}
+   581→
+   582→function PerformanceScore() {
+   583→  const score = 78
+   584→
+   585→  const circumference = 2 * Math.PI * 54
+   586→  const offset = circumference - (score / 100) * circumference
+   587→
+   588→  const getScoreLabel = (s: number) => {
+   589→    if (s >= 80) return 'Excellent'
+   590→    if (s >= 60) return 'Good'
+   591→    if (s >= 40) return 'Average'
+   592→    return 'Needs Work'
+   593→  }
+   594→
+   595→  const getScoreColor = (s: number) => {
+   596→    if (s >= 80) return 'text-emerald-500'
+   597→    if (s >= 60) return 'text-shopee'
+   598→    if (s >= 40) return 'text-amber-500'
+   599→    return 'text-red-500'
+   600→  }
+   601→
+   602→  return (
+   603→    <motion.div
+   604→      initial={{ opacity: 0, y: 20 }}
+   605→      animate={{ opacity: 1, y: 0 }}
+   606→      transition={{ duration: 0.5, delay: 0.9 }}
+   607→    >
+   608→      <Card className="card-hover">
+   609→        <CardHeader>
+   610→          <CardTitle className="text-base">Performance Score</CardTitle>
+   611→          <CardDescription>Overall affiliate health</CardDescription>
+   612→        </CardHeader>
+   613→        <CardContent>
+   614→          <div className="flex flex-col items-center gap-4">
+   615→            <div className="relative h-36 w-36">
+   616→              <svg className="h-36 w-36 -rotate-90" viewBox="0 0 120 120">
+   617→                <circle
+   618→                  cx="60"
+   619→                  cy="60"
+   620→                  r="54"
+   621→                  fill="none"
+   622→                  stroke="var(--muted)"
+   623→                  strokeWidth="8"
+   624→                />
+   625→                <circle
+   626→                  cx="60"
+   627→                  cy="60"
+   628→                  r="54"
+   629→                  fill="none"
+   630→                  stroke="var(--shopee)"
+   631→                  strokeWidth="8"
+   632→                  strokeDasharray={circumference}
+   633→                  strokeDashoffset={offset}
+   634→                  strokeLinecap="round"
+   635→                  className="transition-all duration-1000 ease-out"
+   636→                />
+   637→              </svg>
+   638→              <div className="absolute inset-0 flex flex-col items-center justify-center">
+   639→                <span className="text-3xl font-bold">{score}</span>
+   640→                <span className="text-xs text-muted-foreground">out of 100</span>
+   641→              </div>
+   642→            </div>
+   643→            <div className="text-center">
+   644→              <Badge
+   645→                variant="secondary"
+   646→                className={cn('text-sm font-semibold', getScoreColor(score))}
+   647→              >
+   648→                {getScoreLabel(score)}
+   649→              </Badge>
+   650→              <div className="mt-3 w-full space-y-2">
+   651→                <div className="flex items-center justify-between text-xs">
+   652→                  <span className="text-muted-foreground">Click Rate</span>
+   653→                  <span className="font-medium">85%</span>
+   654→                </div>
+   655→                <Progress value={85} className="h-1.5" />
+   656→                <div className="flex items-center justify-between text-xs">
+   657→                  <span className="text-muted-foreground">Conversion Rate</span>
+   658→                  <span className="font-medium">72%</span>
+   659→                </div>
+   660→                <Progress value={72} className="h-1.5" />
+   661→                <div className="flex items-center justify-between text-xs">
+   662→                  <span className="text-muted-foreground">Earnings Growth</span>
+   663→                  <span className="font-medium">78%</span>
+   664→                </div>
+   665→                <Progress value={78} className="h-1.5" />
+   666→              </div>
+   667→            </div>
+   668→          </div>
+   669→        </CardContent>
+   670→      </Card>
+   671→    </motion.div>
+   672→  )
+   673→}
+   674→
+   675→function PerformanceScoreSkeleton() {
+   676→  return (
+   677→    <Card>
+   678→      <CardHeader>
+   679→        <Skeleton className="h-5 w-36 mb-1" />
+   680→        <Skeleton className="h-4 w-40" />
+   681→      </CardHeader>
+   682→      <CardContent className="flex flex-col items-center gap-4">
+   683→        <Skeleton className="h-36 w-36 rounded-full" />
+   684→        <Skeleton className="h-5 w-20 rounded-full" />
+   685→        <div className="w-full space-y-2">
+   686→          {Array.from({ length: 3 }).map((_, i) => (
+   687→            <div key={i} className="space-y-1">
+   688→              <div className="flex justify-between">
+   689→                <Skeleton className="h-3 w-20" />
+   690→                <Skeleton className="h-3 w-8" />
+   691→              </div>
+   692→              <Skeleton className="h-1.5 w-full rounded-full" />
+   693→            </div>
+   694→          ))}
+   695→        </div>
+   696→      </CardContent>
+   697→    </Card>
+   698→  )
+   699→}
+   700→
+   701→// ─── Main Dashboard Component ─────────────────────────────────────────────────
+   702→
+   703→export function DashboardPage() {
+   704→  const [isLoading, setIsLoading] = useState(true)
+   705→
+   706→  useEffect(() => {
+   707→    const timer = setTimeout(() => setIsLoading(false), 1000)
+   708→    return () => clearTimeout(timer)
+   709→  }, [])
+   710→
+   711→  if (isLoading) {
+   712→    return (
+   713→      <div className="space-y-6 p-4 md:p-6">
+   714→        {/* Welcome Banner Skeleton */}
+   715→        <Card className="border-shopee/20">
+   716→          <CardContent className="flex items-center gap-4 py-2">
+   717→            <Skeleton className="h-12 w-12 rounded-xl animate-float" />
+   718→            <div className="flex-1 space-y-2">
+   719→              <Skeleton className="h-6 w-56" />
+   720→              <Skeleton className="h-4 w-72" />
+   721→              <div className="flex gap-2">
+   722→                <Skeleton className="h-5 w-28 rounded-full" />
+   723→                <Skeleton className="h-5 w-28 rounded-full" />
+   724→              </div>
+   725→            </div>
+   726→          </CardContent>
+   727→        </Card>
+   728→
+   729→        {/* Stat Cards Skeleton */}
+   730→        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+   731→          {Array.from({ length: 4 }).map((_, i) => (
+   732→            <StatCardSkeleton key={i} />
+   733→          ))}
+   734→        </div>
+   735→
+   736→        {/* Charts Skeleton */}
+   737→        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+   738→          <ChartSkeleton />
+   739→          <ChartSkeleton />
+   740→        </div>
+   741→
+   742→        {/* Bottom Section Skeleton */}
+   743→        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+   744→          <TopProductsSkeleton />
+   745→          <div className="space-y-4">
+   746→            <QuickActionsSkeleton />
+   747→            <PerformanceScoreSkeleton />
+   748→          </div>
+   749→        </div>
+   750→      </div>
+   751→    )
+   752→  }
+   753→
+   754→  return (
+   755→    <div className="space-y-6 p-4 md:p-6">
+   756→      {/* Welcome Banner */}
+   757→      <WelcomeBanner />
+   758→
+   759→      {/* Stat Cards */}
+   760→      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+   761→        {stats.map((stat, idx) => (
+   762→          <StatCard key={stat.title} stat={stat} index={idx} />
+   763→        ))}
+   764→      </div>
+   765→
+   766→      {/* Charts Row */}
+   767→      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+   768→        <EarningsChart />
+   769→        <ClicksChart />
+   770→      </div>
+   771→
+   772→      {/* Bottom Section */}
+   773→      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+   774→        {/* Top Products */}
+   775→        <TopProducts />
+   776→
+   777→        {/* Right Column: Quick Actions + Performance */}
+   778→        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+   779→          <QuickActions />
+   780→          <PerformanceScore />
+   781→        </div>
+   782→      </div>
+   783→
+   784→      {/* Recent Activity - Full Width */}
+   785→      <RecentActivityList />
+   786→    </div>
+   787→  )
+   788→}
+   789→
+   790→export default DashboardPage
+   791→

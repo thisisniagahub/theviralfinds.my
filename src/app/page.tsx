@@ -51,6 +51,30 @@ const SettingsPage = lazy(() => import('@/components/pages/settings-page').then(
 const LoginPage = lazy(() => import('@/components/pages/login-page').then(m => ({ default: m.LoginPage })))
 const RegisterPage = lazy(() => import('@/components/pages/register-page').then(m => ({ default: m.RegisterPage })))
 
+// Fasa 2 — Multi-platform expansion
+const TikTokPage = lazy(() => import('@/components/pages/tiktok-page').then(m => ({ default: m.TikTokPage })))
+const LazadaPage = lazy(() => import('@/components/pages/lazada-page').then(m => ({ default: m.LazadaPage })))
+const LivePage = lazy(() => import('@/components/pages/live-page').then(m => ({ default: m.LivePage })))
+const ComparePage = lazy(() => import('@/components/pages/compare-page').then(m => ({ default: m.ComparePage })))
+const UnifiedPage = lazy(() => import('@/components/pages/unified-page').then(m => ({ default: m.UnifiedPage })))
+const MatcherPage = lazy(() => import('@/components/pages/matcher-page').then(m => ({ default: m.MatcherPage })))
+
+// Fasa 3 — AI Superpowers
+const RecommenderPage = lazy(() => import('@/components/pages/recommender-page').then(m => ({ default: m.RecommenderPage })))
+const ThumbnailsPage = lazy(() => import('@/components/pages/thumbnails-page').then(m => ({ default: m.ThumbnailsPage })))
+const AlertsPage = lazy(() => import('@/components/pages/alerts-page').then(m => ({ default: m.AlertsPage })))
+const AbTestingPage = lazy(() => import('@/components/pages/abtesting-page').then(m => ({ default: m.AbTestingPage })))
+const AudiencePage = lazy(() => import('@/components/pages/audience-page').then(m => ({ default: m.AudiencePage })))
+const HashtagsPage = lazy(() => import('@/components/pages/hashtags-page').then(m => ({ default: m.HashtagsPage })))
+const CalendarPage = lazy(() => import('@/components/pages/calendar-page').then(m => ({ default: m.CalendarPage })))
+
+// Fasa 4 — Monetize & Scale
+const PricingPage = lazy(() => import('@/components/pages/pricing-page').then(m => ({ default: m.PricingPage })))
+const MarketplacePage = lazy(() => import('@/components/pages/marketplace-page').then(m => ({ default: m.MarketplacePage })))
+const TeamPage = lazy(() => import('@/components/pages/team-page').then(m => ({ default: m.TeamPage })))
+const WhiteLabelPage = lazy(() => import('@/components/pages/whitelabel-page').then(m => ({ default: m.WhiteLabelPage })))
+const ApiKeysPage = lazy(() => import('@/components/pages/apikeys-page').then(m => ({ default: m.ApiKeysPage })))
+
 function PageLoader() {
   return <PageSkeleton />
 }
@@ -74,6 +98,27 @@ const pageComponents: Record<PageId, React.LazyExoticComponent<React.ComponentTy
   referrals: ReferralsPage,
   notifications: NotificationsPage,
   settings: SettingsPage,
+  // Fasa 2
+  tiktok: TikTokPage,
+  lazada: LazadaPage,
+  live: LivePage,
+  compare: ComparePage,
+  unified: UnifiedPage,
+  matcher: MatcherPage,
+  // Fasa 3
+  recommender: RecommenderPage,
+  thumbnails: ThumbnailsPage,
+  alerts: AlertsPage,
+  abtesting: AbTestingPage,
+  audience: AudiencePage,
+  hashtags: HashtagsPage,
+  calendar: CalendarPage,
+  // Fasa 4
+  pricing: PricingPage,
+  marketplace: MarketplacePage,
+  team: TeamPage,
+  whitelabel: WhiteLabelPage,
+  apikeys: ApiKeysPage,
 }
 
 // Onboarding Tour

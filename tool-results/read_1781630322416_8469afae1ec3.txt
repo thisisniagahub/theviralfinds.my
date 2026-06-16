@@ -1,0 +1,646 @@
+     1→     1→/**
+     2→     2→ * Shopee Affiliate API - Mock Data Service
+     3→     3→ * 
+     4→     4→ * Simulates realistic Shopee data for Malaysia (MY) market.
+     5→     5→ * Uses Malaysian Ringgit (RM) pricing, Malay/English mixed product names,
+     6→     6→ * and authentic Malaysian shop names.
+     7→     7→ * 
+     8→     8→ * This service mirrors the same method signatures as the real API,
+     9→     9→ * so they can be used interchangeably.
+    10→    10→ */
+    11→    11→
+    12→    12→// ─── Types (mirrored from affiliate-api.ts) ─────────────────────
+    13→    13→
+    14→    14→export interface ShopeeProduct {
+    15→    15→  itemId: number
+    16→    16→  name: string
+    17→    17→  image: string
+    18→    18→  price: number
+    19→    19→  originalPrice?: number
+    20→    20→  commissionRate: number
+    21→    21→  commissionMin: number
+    22→    22→  commissionMax: number
+    23→    23→  sales: number
+    24→    24→  ratingStar: number
+    25→    25→  shopName: string
+    26→    26→  shopId: number
+    27→    27→  category: string
+    28→    28→  categoryId: number
+    29→    29→  productLink: string
+    30→    30→  deepLink?: string
+    31→    31→}
+    32→    32→
+    33→    33→export interface ShopeeAffiliateLink {
+    34→    34→  shortUrl: string
+    35→    35→  longUrl: string
+    36→    36→  deepLink: string
+    37→    37→  generateUrl: string
+    38→    38→}
+    39→    39→
+    40→    40→export interface ShopeeCommissionOrder {
+    41→    41→  orderSn: string
+    42→    42→  orderCreateTime: number
+    43→    43→  itemId: number
+    44→    44→  itemName: string
+    45→    45→  itemPrice: number
+    46→    46→  commissionRate: number
+    47→    47→  commission: number
+    48→    48→  commissionStatus: 'pending' | 'confirmed' | 'rejected' | 'paid'
+    49→    49→  orderStatus: string
+    50→    50→  settleTime?: number
+    51→    51→  clickTime: number
+    52→    52→  subId?: string
+    53→    53→}
+    54→    54→
+    55→    55→export interface ShopeeCommissionSummary {
+    56→    56→  totalCommission: number
+    57→    57→  pendingCommission: number
+    58→    58→  confirmedCommission: number
+    59→    59→  rejectedCommission: number
+    60→    60→  paidCommission: number
+    61→    61→  totalOrders: number
+    62→    62→  conversionRate: number
+    63→    63→}
+    64→    64→
+    65→    65→export interface ShopeeClickStats {
+    66→    66→  date: string
+    67→    67→  clicks: number
+    68→    68→  uniqueClicks: number
+    69→    69→  conversions: number
+    70→    70→  earnings: number
+    71→    71→}
+    72→    72→
+    73→    73→export interface ShopeeAffiliateProfile {
+    74→    74→  affiliateId: string
+    75→    75→  name: string
+    76→    76→  email: string
+    77→    77→  status: string
+    78→    78→  commissionRate: number
+    79→    79→  totalEarnings: number
+    80→    80→  joinDate: string
+    81→    81→  region: string
+    82→    82→}
+    83→    83→
+    84→    84→export interface ShopeeCategory {
+    85→    85→  categoryId: number
+    86→    86→  name: string
+    87→    87→  productCount: number
+    88→    88→  avgCommissionRate: number
+    89→    89→}
+    90→    90→
+    91→    91→// ─── Seed Data ──────────────────────────────────────────────────
+    92→    92→
+    93→    93→const CATEGORIES: ShopeeCategory[] = [
+    94→    94→  { categoryId: 1, name: 'Electronics', productCount: 15420, avgCommissionRate: 3.5 },
+    95→    95→  { categoryId: 2, name: 'Fashion', productCount: 32150, avgCommissionRate: 5.0 },
+    96→    96→  { categoryId: 3, name: 'Home & Living', productCount: 18700, avgCommissionRate: 4.2 },
+    97→    97→  { categoryId: 4, name: 'Beauty & Health', productCount: 24500, avgCommissionRate: 6.0 },
+    98→    98→  { categoryId: 5, name: 'Sports & Outdoors', productCount: 9800, avgCommissionRate: 4.0 },
+    99→    99→  { categoryId: 6, name: 'Food & Beverages', productCount: 12300, avgCommissionRate: 3.0 },
+   100→   100→  { categoryId: 7, name: 'Toys & Games', productCount: 7600, avgCommissionRate: 4.5 },
+   101→   101→  { categoryId: 8, name: 'Automotive', productCount: 5400, avgCommissionRate: 3.8 },
+   102→   102→]
+   103→   103→
+   104→   104→const SHOP_NAMES = [
+   105→   105→  'TechGadget MY Official',
+   106→   106→  'GadgetZone Malaysia',
+   107→   107→  'Xiaomi Official Store MY',
+   108→   108→  'Samsung Malaysia Official',
+   109→   109→  'Kedai Gadget KL',
+   110→   110→  'FashionHub.My',
+   111→   111→  'BajuKurung Premium',
+   112→   112→  'Muslimah Style MY',
+   113→   113→  'Kasut Wanita Official',
+   114→   114→  'Trendy Fashion MY',
+   115→   115→  'HomeDecor Malaysia',
+   116→   116→  'Kedai Runcit Online',
+   117→   117→  'Kitchen World MY',
+   118→   118→  'Cosmetic Beauty MY',
+   119→   119→  'K-Beauty Malaysia',
+   120→   120→  'Skincare HQ MY',
+   121→   121→  'SportStation MY',
+   122→   122→  'Outdoor Adventure MY',
+   123→   123→  'Makanan Snack MY',
+   124→   124→  'Kopi & Tea Malaysia',
+   125→   125→  'ToyLand Malaysia',
+   126→   126→  'GameZone MY',
+   127→   127→  'AutoParts Malaysia',
+   128→   128→  'Car Accessories MY',
+   129→   129→  'Official Store MY',
+   130→   130→  'Premium Seller KL',
+   131→   131→  'BestDeal Malaysia',
+   132→   132→  'Shopee Mall Official',
+   133→   133→  'Digital World MY',
+   134→   134→  'Smart Living Store',
+   135→   135→]
+   136→   136→
+   137→   137→const PRODUCT_TEMPLATES: Array<{
+   138→   138→  name: string
+   139→   139→  category: string
+   140→   140→  categoryId: number
+   141→   141→  priceRange: [number, number]
+   142→   142→  commissionRange: [number, number]
+   143→   143→  salesRange: [number, number]
+   144→   144→}> = [
+   145→   145→  // Electronics
+   146→   146→  { name: 'Xiaomi Redmi Note 13 Pro 5G - ORIGINAL Malaysia Set', category: 'Electronics', categoryId: 1, priceRange: [699, 1299], commissionRange: [2, 4], salesRange: [2000, 15000] },
+   147→   147→  { name: 'Samsung Galaxy S24 Ultra 512GB Malaysia Warranty', category: 'Electronics', categoryId: 1, priceRange: [2599, 4499], commissionRange: [1.5, 3], salesRange: [500, 5000] },
+   148→   148→  { name: 'Wireless Earbuds TWS Bluetooth 5.3 Earphone', category: 'Electronics', categoryId: 1, priceRange: [15.90, 89.90], commissionRange: [4, 8], salesRange: [5000, 50000] },
+   149→   149→  { name: 'USB-C Hub 7-in-1 Multiport Adapter HDMI PD', category: 'Electronics', categoryId: 1, priceRange: [29.90, 79.90], commissionRange: [3, 6], salesRange: [1000, 8000] },
+   150→   150→  { name: 'Mechanical Keyboard RGB Gaming 75% Hot-Swap', category: 'Electronics', categoryId: 1, priceRange: [59.90, 299.00], commissionRange: [3, 5], salesRange: [800, 6000] },
+   151→   151→  { name: 'Powerbank 20000mAh Fast Charging PD 65W', category: 'Electronics', categoryId: 1, priceRange: [39.90, 129.00], commissionRange: [3, 6], salesRange: [3000, 20000] },
+   152→   152→  { name: 'Smartwatch Fitness Tracker Heart Rate SpO2', category: 'Electronics', categoryId: 1, priceRange: [49.90, 259.00], commissionRange: [4, 7], salesRange: [2000, 15000] },
+   153→   153→  { name: 'Webcam 1080P HD Microphone Auto Focus Stream', category: 'Electronics', categoryId: 1, priceRange: [35.00, 149.00], commissionRange: [3, 6], salesRange: [500, 4000] },
+   154→   154→  { name: 'iPhone 15 Pro Max 256GB Original Malaysia Set', category: 'Electronics', categoryId: 1, priceRange: [4299, 5299], commissionRange: [1, 2], salesRange: [200, 2000] },
+   155→   155→  { name: 'Tablet Android 10 Inch 4GB RAM 64GB Kids Mode', category: 'Electronics', categoryId: 1, priceRange: [199.00, 599.00], commissionRange: [3, 5], salesRange: [1000, 8000] },
+   156→   156→
+   157→   157→  // Fashion
+   158→   158→  { name: 'Baju Kurung Moden Ready Stock - premium quality', category: 'Fashion', categoryId: 2, priceRange: [39.90, 159.00], commissionRange: [5, 8], salesRange: [3000, 25000] },
+   159→   159→  { name: 'Kasut Wanita Heels Office Lady Formal shoes', category: 'Fashion', categoryId: 2, priceRange: [29.90, 129.00], commissionRange: [5, 7], salesRange: [1000, 8000] },
+   160→   160→  { name: 'Telekung Solat Cotton Premium - Rose Gold', category: 'Fashion', categoryId: 2, priceRange: [35.00, 99.00], commissionRange: [5, 9], salesRange: [2000, 12000] },
+   161→   161→  { name: 'Tudung Bawal Premium Cotton Matte 50x50', category: 'Fashion', categoryId: 2, priceRange: [15.90, 49.90], commissionRange: [6, 10], salesRange: [5000, 40000] },
+   162→   162→  { name: 'Kemeja Lelaki Slim Fit Formal Office Shirt', category: 'Fashion', categoryId: 2, priceRange: [29.90, 89.90], commissionRange: [5, 8], salesRange: [2000, 15000] },
+   163→   163→  { name: 'Jubah Muslimah Gaun Modern Elegant - free size', category: 'Fashion', categoryId: 2, priceRange: [49.90, 129.00], commissionRange: [5, 8], salesRange: [1500, 10000] },
+   164→   164→  { name: 'Seluar Jeans Wanita High Waist Skinny Stretch', category: 'Fashion', categoryId: 2, priceRange: [35.00, 89.00], commissionRange: [5, 7], salesRange: [2000, 12000] },
+   165→   165→  { name: 'Hoodie Unisex Oversized Streetwear Cotton Combed', category: 'Fashion', categoryId: 2, priceRange: [39.90, 99.00], commissionRange: [5, 8], salesRange: [3000, 20000] },
+   166→   166→  { name: 'Kasut Lelaki Sports Running Breathable Mesh', category: 'Fashion', categoryId: 2, priceRange: [49.90, 169.00], commissionRange: [4, 7], salesRange: [1000, 8000] },
+   167→   167→  { name: 'Bajutidur Wanita Cotton Set Sulam Premium', category: 'Fashion', categoryId: 2, priceRange: [25.90, 69.90], commissionRange: [6, 9], salesRange: [3000, 18000] },
+   168→   168→
+   169→   169→  // Home & Living
+   170→   170→  { name: 'Set Cadar Katil 5in1 Microfiber King Queen Single', category: 'Home & Living', categoryId: 3, priceRange: [29.90, 89.90], commissionRange: [4, 7], salesRange: [5000, 30000] },
+   171→   171→  { name: 'Rak Buku 5 Tier Storage Organizer Skruless', category: 'Home & Living', categoryId: 3, priceRange: [25.00, 59.90], commissionRange: [4, 6], salesRange: [2000, 12000] },
+   172→   172→  { name: 'Pembasuh Kipas Ultrasonic Humidifier LED 300ml', category: 'Home & Living', categoryId: 3, priceRange: [19.90, 49.90], commissionRange: [5, 8], salesRange: [3000, 18000] },
+   173→   173→  { name: 'Tikar Sembahjad Velvet Premium 80x120cm', category: 'Home & Living', categoryId: 3, priceRange: [35.00, 99.00], commissionRange: [5, 8], salesRange: [2000, 10000] },
+   174→   174→  { name: 'Vacuum Cleaner Wireless Rechargeable 6000Pa', category: 'Home & Living', categoryId: 3, priceRange: [59.00, 199.00], commissionRange: [3, 6], salesRange: [1000, 6000] },
+   175→   175→  { name: 'Lampu Meja LED Study Eye-Caring Touch Dimmer', category: 'Home & Living', categoryId: 3, priceRange: [19.90, 69.90], commissionRange: [5, 8], salesRange: [2000, 10000] },
+   176→   176→  { name: 'Kasur Lipat Folding Mattress 4inch Queen Single', category: 'Home & Living', categoryId: 3, priceRange: [79.00, 199.00], commissionRange: [3, 5], salesRange: [1000, 5000] },
+   177→   177→
+   178→   178→  // Beauty & Health
+   179→   179→  { name: 'Serum Vitamin C 20% Anti-Aging Brightening 30ml', category: 'Beauty & Health', categoryId: 4, priceRange: [19.90, 69.90], commissionRange: [6, 10], salesRange: [5000, 30000] },
+   180→   180→  { name: 'Sunscreen SPF50+ PA++++ Tone Up Cream 50ml', category: 'Beauty & Health', categoryId: 4, priceRange: [15.90, 49.90], commissionRange: [7, 12], salesRange: [8000, 50000] },
+   181→   181→  { name: 'Sheet Mask Korea 10pcs Hydrating Collagen Aloe', category: 'Beauty & Health', categoryId: 4, priceRange: [9.90, 29.90], commissionRange: [8, 12], salesRange: [10000, 60000] },
+   182→   182→  { name: 'Lip Tint Velvet Matte Long Lasting Korean', category: 'Beauty & Health', categoryId: 4, priceRange: [8.90, 35.00], commissionRange: [8, 12], salesRange: [8000, 40000] },
+   183→   183→  { name: 'Hair Treatment Argan Oil Keratin 200ml Repair', category: 'Beauty & Health', categoryId: 4, priceRange: [19.90, 59.90], commissionRange: [6, 10], salesRange: [3000, 15000] },
+   184→   184→  { name: 'Body Lotion Whitening Moisturizing 400ml', category: 'Beauty & Health', categoryId: 4, priceRange: [12.90, 39.90], commissionRange: [6, 9], salesRange: [5000, 25000] },
+   185→   185→  { name: 'Cleanser Foam Acne Gentle Daily 150ml', category: 'Beauty & Health', categoryId: 4, priceRange: [9.90, 35.00], commissionRange: [7, 11], salesRange: [6000, 35000] },
+   186→   186→  { name: 'Perfume Original 50ml Long Lasting Unisex', category: 'Beauty & Health', categoryId: 4, priceRange: [29.90, 129.00], commissionRange: [5, 8], salesRange: [2000, 10000] },
+   187→   187→
+   188→   188→  // Sports & Outdoors
+   189→   189→  { name: 'Tikar Yoga Premium 6mm Anti-Slip TPE Non-Toxic', category: 'Sports & Outdoors', categoryId: 5, priceRange: [19.90, 69.90], commissionRange: [4, 7], salesRange: [3000, 15000] },
+   190→   190→  { name: 'Dumbbell Set 20kg Adjustable Home Gym Rubber', category: 'Sports & Outdoors', categoryId: 5, priceRange: [59.00, 189.00], commissionRange: [3, 5], salesRange: [1000, 5000] },
+   191→   191→  { name: 'Resistance Band Set 5pcs Latex Loop Exercise', category: 'Sports & Outdoors', categoryId: 5, priceRange: [9.90, 29.90], commissionRange: [5, 8], salesRange: [5000, 25000] },
+   192→   192→  { name: 'Besi Angkat Adjustable Dumbbell 24kg Quick Change', category: 'Sports & Outdoors', categoryId: 5, priceRange: [199.00, 499.00], commissionRange: [2, 4], salesRange: [500, 3000] },
+   193→   193→  { name: 'Trekking Pole Carbon Fiber Ultralight Pair', category: 'Sports & Outdoors', categoryId: 5, priceRange: [35.00, 129.00], commissionRange: [4, 6], salesRange: [800, 4000] },
+   194→   194→  { name: 'Shaker Bottle 700ml Protein Gym Leak-Proof BPA Free', category: 'Sports & Outdoors', categoryId: 5, priceRange: [9.90, 29.90], commissionRange: [5, 8], salesRange: [5000, 25000] },
+   195→   195→
+   196→   196→  // Food & Beverages
+   197→   197→  { name: 'Kopi Susu Tambun 3in1 30 sachets - Best Seller', category: 'Food & Beverages', categoryId: 6, priceRange: [12.90, 29.90], commissionRange: [3, 5], salesRange: [10000, 80000] },
+   198→   198→  { name: 'Keropok Lekor Terengganu 500g Frozen Ready Fried', category: 'Food & Beverages', categoryId: 6, priceRange: [15.00, 35.00], commissionRange: [3, 6], salesRange: [3000, 15000] },
+   199→   199→  { name: 'Sambal Ikan Bilis Mama Recipe 250g Ready to Eat', category: 'Food & Beverages', categoryId: 6, priceRange: [9.90, 19.90], commissionRange: [4, 7], salesRange: [5000, 30000] },
+   200→   200→  { name: 'Teh O Ais Limau 30 sachets Instant Drink', category: 'Food & Beverages', categoryId: 6, priceRange: [8.90, 19.90], commissionRange: [3, 5], salesRange: [8000, 50000] },
+   201→   201→  { name: 'Kuih Raya Premium Mixed 4in1 Tin 800g Festive', category: 'Food & Beverages', categoryId: 6, priceRange: [25.00, 59.90], commissionRange: [4, 7], salesRange: [2000, 12000] },
+   202→   202→  { name: 'Madu Asli Pure Honey 500g Royal Jelly Original', category: 'Food & Beverages', categoryId: 6, priceRange: [29.90, 89.90], commissionRange: [3, 5], salesRange: [2000, 10000] },
+   203→   203→
+   204→   204→  // Toys & Games
+   205→   205→  { name: 'LEGO Compatible Building Blocks 1000pcs Creative', category: 'Toys & Games', categoryId: 7, priceRange: [25.00, 79.90], commissionRange: [4, 7], salesRange: [2000, 12000] },
+   206→   206→  { name: 'Board Game Monopoly Malaysia Edition Family Fun', category: 'Toys & Games', categoryId: 7, priceRange: [29.90, 69.90], commissionRange: [4, 6], salesRange: [1000, 6000] },
+   207→   207→  { name: 'Action Figure Anime Collectible 15cm PVC Gift', category: 'Toys & Games', categoryId: 7, priceRange: [15.90, 59.90], commissionRange: [5, 8], salesRange: [1500, 8000] },
+   208→   208→  { name: 'Puzzle 1000pcs Scenery Adult Jigsaw Educational', category: 'Toys & Games', categoryId: 7, priceRange: [12.90, 39.90], commissionRange: [5, 7], salesRange: [2000, 10000] },
+   209→   209→  { name: 'RC Car Remote Control 2.4GHz Drift High Speed 1:16', category: 'Toys & Games', categoryId: 7, priceRange: [49.90, 159.00], commissionRange: [4, 6], salesRange: [800, 4000] },
+   210→   210→
+   211→   211→  // Automotive
+   212→   212→  { name: 'Dashcam 4K WiFi Front Rear Dual Camera Car', category: 'Automotive', categoryId: 8, priceRange: [89.00, 299.00], commissionRange: [3, 5], salesRange: [1000, 5000] },
+   213→   213→  { name: 'Car Phone Holder Magnetic Dashboard Mount 360°', category: 'Automotive', categoryId: 8, priceRange: [9.90, 29.90], commissionRange: [5, 8], salesRange: [8000, 40000] },
+   214→   214→  { name: 'Tire Inflator Portable Air Compressor 12V Digital', category: 'Automotive', categoryId: 8, priceRange: [35.00, 99.00], commissionRange: [3, 6], salesRange: [2000, 8000] },
+   215→   215→  { name: 'Car Seat Cover Leather Universal Full Set Premium', category: 'Automotive', categoryId: 8, priceRange: [59.00, 199.00], commissionRange: [4, 6], salesRange: [1000, 5000] },
+   216→   216→  { name: 'Car Charger USB-C PD 65W Fast Charging Dual Port', category: 'Automotive', categoryId: 8, priceRange: [12.90, 39.90], commissionRange: [5, 8], salesRange: [5000, 25000] },
+   217→   217→  { name: 'Car Vacuum Cleaner Wireless 6000Pa Handheld', category: 'Automotive', categoryId: 8, priceRange: [29.90, 89.90], commissionRange: [4, 7], salesRange: [2000, 10000] },
+   218→   218→]
+   219→   219→
+   220→   220→// ─── Helpers ────────────────────────────────────────────────────
+   221→   221→
+   222→   222→/** Generate a random number in range [min, max] */
+   223→   223→function rand(min: number, max: number): number {
+   224→   224→  return Math.random() * (max - min) + min
+   225→   225→}
+   226→   226→
+   227→   227→/** Round to 2 decimal places */
+   228→   228→function round2(n: number): number {
+   229→   229→  return Math.round(n * 100) / 100
+   230→   230→}
+   231→   231→
+   232→   232→/** Random integer in range [min, max] */
+   233→   233→function randInt(min: number, max: number): number {
+   234→   234→  return Math.floor(Math.random() * (max - min + 1)) + min
+   235→   235→}
+   236→   236→
+   237→   237→/** Pick a random element from an array */
+   238→   238→function pick<T>(arr: T[]): T {
+   239→   239→  return arr[Math.floor(Math.random() * arr.length)]
+   240→   240→}
+   241→   241→
+   242→   242→/** Generate a random Shopee item ID */
+   243→   243→function randomItemId(): number {
+   244→   244→  return randInt(10000000, 99999999)
+   245→   245→}
+   246→   246→
+   247→   247→/** Generate a random order SN */
+   248→   248→function randomOrderSn(): string {
+   249→   249→  const prefix = pick(['MY', 'SH', 'SP'])
+   250→   250→  const digits = randInt(100000000000, 999999999999)
+   251→   251→  return `${prefix}${digits}`
+   252→   252→}
+   253→   253→
+   254→   254→/** Generate a random short link code */
+   255→   255→function randomShortCode(): string {
+   256→   256→  return Math.random().toString(36).substring(2, 8)
+   257→   257→}
+   258→   258→
+   259→   259→/** Generate a seeded random number (deterministic for a given seed) */
+   260→   260→function seededRandom(seed: number): number {
+   261→   261→  const x = Math.sin(seed * 9301 + 49297) * 49297
+   262→   262→  return x - Math.floor(x)
+   263→   263→}
+   264→   264→
+   265→   265→/** Format a date as YYYY-MM-DD */
+   266→   266→function formatDate(date: Date): string {
+   267→   267→  return date.toISOString().split('T')[0]
+   268→   268→}
+   269→   269→
+   270→   270→// ─── Mock Service ───────────────────────────────────────────────
+   271→   271→
+   272→   272→export class ShopeeMockService {
+   273→   273→  private products: ShopeeProduct[]
+   274→   274→
+   275→   275→  constructor() {
+   276→   276→    this.products = this.generateProducts()
+   277→   277→  }
+   278→   278→
+   279→   279→  /**
+   280→   280→   * Generate all mock products from templates
+   281→   281→   */
+   282→   282→  private generateProducts(): ShopeeProduct[] {
+   283→   283→    const products: ShopeeProduct[] = []
+   284→   284→
+   285→   285→    for (let i = 0; i < PRODUCT_TEMPLATES.length; i++) {
+   286→   286→      const tmpl = PRODUCT_TEMPLATES[i]
+   287→   287→      const shopName = SHOP_NAMES[i % SHOP_NAMES.length]
+   288→   288→      const itemId = randomItemId()
+   289→   289→      const price = round2(rand(tmpl.priceRange[0], tmpl.priceRange[1]))
+   290→   290→      const originalPrice = Math.random() > 0.3 ? round2(price * rand(1.1, 1.8)) : undefined
+   291→   291→      const commissionRate = round2(rand(tmpl.commissionRange[0], tmpl.commissionRange[1]))
+   292→   292→      const sales = randInt(tmpl.salesRange[0], tmpl.salesRange[1])
+   293→   293→      const ratingStar = round2(rand(3.8, 5.0))
+   294→   294→
+   295→   295→      products.push({
+   296→   296→        itemId,
+   297→   297→        name: tmpl.name,
+   298→   298→        image: `https://cf.shopee.com.my/file/sg-${itemId.toString(16)}`,
+   299→   299→        price,
+   300→   300→        originalPrice,
+   301→   301→        commissionRate,
+   302→   302→        commissionMin: round2(price * commissionRate / 100 * 0.5),
+   303→   303→        commissionMax: round2(price * commissionRate / 100 * 2),
+   304→   304→        sales,
+   305→   305→        ratingStar,
+   306→   306→        shopName,
+   307→   307→        shopId: randInt(100000, 999999),
+   308→   308→        category: tmpl.category,
+   309→   309→        categoryId: tmpl.categoryId,
+   310→   310→        productLink: `https://shopee.com.my/product/${shopName.replace(/\s/g, '-').toLowerCase()}-${itemId}`,
+   311→   311→      })
+   312→   312→    }
+   313→   313→
+   314→   314→    return products
+   315→   315→  }
+   316→   316→
+   317→   317→  /**
+   318→   318→   * Search products by keyword with filtering and sorting
+   319→   319→   */
+   320→   320→  async searchProducts(
+   321→   321→    query: string,
+   322→   322→    options?: {
+   323→   323→      page?: number
+   324→   324→      limit?: number
+   325→   325→      sortField?: 'commission' | 'price' | 'sales' | 'rating'
+   326→   326→      sortOrder?: 'asc' | 'desc'
+   327→   327→      categoryId?: number
+   328→   328→      minPrice?: number
+   329→   329→      maxPrice?: number
+   330→   330→    }
+   331→   331→  ): Promise<{ products: ShopeeProduct[]; total: number }> {
+   332→   332→    const page = options?.page || 1
+   333→   333→    const limit = options?.limit || 20
+   334→   334→    const sortField = options?.sortField || 'sales'
+   335→   335→    const sortOrder = options?.sortOrder || 'desc'
+   336→   336→
+   337→   337→    // Filter by keyword (case-insensitive match on name and category)
+   338→   338→    const queryLower = query.toLowerCase()
+   339→   339→    let filtered = this.products.filter(
+   340→   340→      (p) =>
+   341→   341→        p.name.toLowerCase().includes(queryLower) ||
+   342→   342→        p.category.toLowerCase().includes(queryLower) ||
+   343→   343→        p.shopName.toLowerCase().includes(queryLower)
+   344→   344→    )
+   345→   345→
+   346→   346→    // If no keyword matches, return a mix of random products with the query appended
+   347→   347→    if (filtered.length === 0) {
+   348→   348→      const keywords = queryLower.split(/\s+/).filter(Boolean)
+   349→   349→      filtered = this.products.filter(
+   350→   350→        (p) => keywords.some((kw) => p.name.toLowerCase().includes(kw) || p.category.toLowerCase().includes(kw))
+   351→   351→      )
+   352→   352→
+   353→   353→      // If still no matches, return a curated subset with modified names
+   354→   354→      if (filtered.length === 0) {
+   355→   355→        const shuffled = [...this.products].sort(() => Math.random() - 0.5)
+   356→   356→        filtered = shuffled.slice(0, Math.min(limit, shuffled.length)).map((p) => ({
+   357→   357→          ...p,
+   358→   358→          name: `${query} - ${p.name}`,
+   359→   359→          itemId: randomItemId(),
+   360→   360→        }))
+   361→   361→      }
+   362→   362→    }
+   363→   363→
+   364→   364→    // Filter by category
+   365→   365→    if (options?.categoryId) {
+   366→   366→      filtered = filtered.filter((p) => p.categoryId === options.categoryId)
+   367→   367→    }
+   368→   368→
+   369→   369→    // Filter by price range
+   370→   370→    if (options?.minPrice !== undefined) {
+   371→   371→      filtered = filtered.filter((p) => p.price >= (options.minPrice ?? 0))
+   372→   372→    }
+   373→   373→    if (options?.maxPrice !== undefined) {
+   374→   374→      filtered = filtered.filter((p) => p.price <= (options.maxPrice ?? Infinity))
+   375→   375→    }
+   376→   376→
+   377→   377→    // Sort
+   378→   378→    filtered.sort((a, b) => {
+   379→   379→      let aVal: number, bVal: number
+   380→   380→      switch (sortField) {
+   381→   381→        case 'commission':
+   382→   382→          aVal = a.commissionRate
+   383→   383→          bVal = b.commissionRate
+   384→   384→          break
+   385→   385→        case 'price':
+   386→   386→          aVal = a.price
+   387→   387→          bVal = b.price
+   388→   388→          break
+   389→   389→        case 'sales':
+   390→   390→          aVal = a.sales
+   391→   391→          bVal = b.sales
+   392→   392→          break
+   393→   393→        case 'rating':
+   394→   394→          aVal = a.ratingStar
+   395→   395→          bVal = b.ratingStar
+   396→   396→          break
+   397→   397→        default:
+   398→   398→          aVal = a.sales
+   399→   399→          bVal = b.sales
+   400→   400→      }
+   401→   401→      return sortOrder === 'asc' ? aVal - bVal : bVal - aVal
+   402→   402→    })
+   403→   403→
+   404→   404→    const total = filtered.length
+   405→   405→    const start = (page - 1) * limit
+   406→   406→    const paged = filtered.slice(start, start + limit)
+   407→   407→
+   408→   408→    return { products: paged, total }
+   409→   409→  }
+   410→   410→
+   411→   411→  /**
+   412→   412→   * Get product detail by item ID
+   413→   413→   */
+   414→   414→  async getProductDetail(itemId: number): Promise<ShopeeProduct | null> {
+   415→   415→    const product = this.products.find((p) => p.itemId === itemId)
+   416→   416→    if (product) return { ...product }
+   417→   417→    // Return a generated product for unknown IDs
+   418→   418→    const tmpl = pick(PRODUCT_TEMPLATES)
+   419→   419→    const price = round2(rand(tmpl.priceRange[0], tmpl.priceRange[1]))
+   420→   420→    const commissionRate = round2(rand(tmpl.commissionRange[0], tmpl.commissionRange[1]))
+   421→   421→    return {
+   422→   422→      itemId,
+   423→   423→      name: tmpl.name,
+   424→   424→      image: `https://cf.shopee.com.my/file/sg-${itemId.toString(16)}`,
+   425→   425→      price,
+   426→   426→      originalPrice: round2(price * rand(1.1, 1.5)),
+   427→   427→      commissionRate,
+   428→   428→      commissionMin: round2(price * commissionRate / 100 * 0.5),
+   429→   429→      commissionMax: round2(price * commissionRate / 100 * 2),
+   430→   430→      sales: randInt(tmpl.salesRange[0], tmpl.salesRange[1]),
+   431→   431→      ratingStar: round2(rand(3.8, 5.0)),
+   432→   432→      shopName: pick(SHOP_NAMES),
+   433→   433→      shopId: randInt(100000, 999999),
+   434→   434→      category: tmpl.category,
+   435→   435→      categoryId: tmpl.categoryId,
+   436→   436→      productLink: `https://shopee.com.my/product/-${itemId}`,
+   437→   437→      deepLink: `shopee://product/${itemId}`,
+   438→   438→    }
+   439→   439→  }
+   440→   440→
+   441→   441→  /**
+   442→   442→   * Generate a mock affiliate link
+   443→   443→   */
+   444→   444→  async generateAffiliateLink(params: {
+   445→   445→    itemId?: number
+   446→   446→    productUrl?: string
+   447→   447→    subId?: string
+   448→   448→    deepLinkType?: 'default' | 'app_only'
+   449→   449→  }): Promise<ShopeeAffiliateLink> {
+   450→   450→    const shortCode = randomShortCode()
+   451→   451→    const itemId = params.itemId || randomItemId()
+   452→   452→    const subId = params.subId || ''
+   453→   453→
+   454→   454→    return {
+   455→   455→      shortUrl: `https://shp.ee/${shortCode}`,
+   456→   456→      longUrl: `https://shopee.com.my/affiliate/${shortCode}?item_id=${itemId}&sub_id=${subId}`,
+   457→   457→      deepLink: `shopee://product/${itemId}?af_id=${shortCode}&af_sub=${subId}`,
+   458→   458→      generateUrl: `https://shopee.com.my/universal-link/${shortCode}`,
+   459→   459→    }
+   460→   460→  }
+   461→   461→
+   462→   462→  /**
+   463→   463→   * Get mock commission orders
+   464→   464→   */
+   465→   465→  async getCommissionOrders(params?: {
+   466→   466→    page?: number
+   467→   467→    limit?: number
+   468→   468→    startTime?: number
+   469→   469→    endTime?: number
+   470→   470→    commissionStatus?: 'pending' | 'confirmed' | 'rejected' | 'paid'
+   471→   471→  }): Promise<{ orders: ShopeeCommissionOrder[]; total: number }> {
+   472→   472→    const page = params?.page || 1
+   473→   473→    const limit = params?.limit || 50
+   474→   474→    const statuses: Array<'pending' | 'confirmed' | 'rejected' | 'paid'> = ['pending', 'confirmed', 'rejected', 'paid']
+   475→   475→    const orderStatuses = ['COMPLETED', 'IN_PROGRESS', 'SHIPPED', 'DELIVERED']
+   476→   476→
+   477→   477→    // Generate deterministic but varied orders
+   478→   478→    const orderCount = randInt(30, 150)
+   479→   479→    const orders: ShopeeCommissionOrder[] = []
+   480→   480→
+   481→   481→    for (let i = 0; i < orderCount; i++) {
+   482→   482→      const seed = i + (params?.startTime || 0)
+   483→   483→      const tmpl = PRODUCT_TEMPLATES[seed % PRODUCT_TEMPLATES.length]
+   484→   484→      const price = round2(rand(tmpl.priceRange[0], tmpl.priceRange[1]))
+   485→   485→      const commissionRate = round2(rand(tmpl.commissionRange[0], tmpl.commissionRange[1]))
+   486→   486→      const commission = round2(price * commissionRate / 100)
+   487→   487→      const status = statuses[Math.floor(seededRandom(seed * 7) * statuses.length)]
+   488→   488→      const daysAgo = Math.floor(seededRandom(seed * 13) * 60)
+   489→   489→      const orderTime = Math.floor(Date.now() / 1000) - daysAgo * 86400
+   490→   490→      const clickTime = orderTime - randInt(300, 86400)
+   491→   491→
+   492→   492→      // Filter by status if specified
+   493→   493→      if (params?.commissionStatus && status !== params.commissionStatus) continue
+   494→   494→
+   495→   495→      // Filter by time range
+   496→   496→      if (params?.startTime && orderTime < params.startTime) continue
+   497→   497→      if (params?.endTime && orderTime > params.endTime) continue
+   498→   498→
+   499→   499→      orders.push({
+   500→   500→        orderSn: randomOrderSn(),
+   501→   501→        orderCreateTime: orderTime,
+   502→   502→        itemId: randomItemId(),
+   503→   503→        itemName: tmpl.name,
+   504→   504→        itemPrice: price,
+   505→   505→        commissionRate,
+   506→   506→        commission,
+   507→   507→        commissionStatus: status,
+   508→   508→        orderStatus: pick(orderStatuses),
+   509→   509→        settleTime: status === 'paid' ? orderTime + randInt(86400, 86400 * 30) : undefined,
+   510→   510→        clickTime,
+   511→   511→        subId: Math.random() > 0.6 ? `sub_${randInt(100, 999)}` : undefined,
+   512→   512→      })
+   513→   513→    }
+   514→   514→
+   515→   515→    const total = orders.length
+   516→   516→    const start = (page - 1) * limit
+   517→   517→    const paged = orders.slice(start, start + limit)
+   518→   518→
+   519→   519→    return { orders: paged, total }
+   520→   520→  }
+   521→   521→
+   522→   522→  /**
+   523→   523→   * Get mock commission summary
+   524→   524→   */
+   525→   525→  async getCommissionSummary(_params?: {
+   526→   526→    startTime?: number
+   527→   527→    endTime?: number
+   528→   528→  }): Promise<ShopeeCommissionSummary> {
+   529→   529→    return {
+   530→   530→      totalCommission: round2(rand(2000, 8000)),
+   531→   531→      pendingCommission: round2(rand(300, 1500)),
+   532→   532→      confirmedCommission: round2(rand(1000, 4000)),
+   533→   533→      rejectedCommission: round2(rand(50, 400)),
+   534→   534→      paidCommission: round2(rand(500, 3000)),
+   535→   535→      totalOrders: randInt(200, 1500),
+   536→   536→      conversionRate: round2(rand(4, 12)),
+   537→   537→    }
+   538→   538→  }
+   539→   539→
+   540→   540→  /**
+   541→   541→   * Get mock click statistics with daily data
+   542→   542→   */
+   543→   543→  async getClickStats(params: {
+   544→   544→    startTime: number
+   545→   545→    endTime: number
+   546→   546→    granularity?: 'hour' | 'day' | 'week' | 'month'
+   547→   547→  }): Promise<ShopeeClickStats[]> {
+   548→   548→    const granularity = params.granularity || 'day'
+   549→   549→    const startTime = params.startTime * 1000 // Convert to ms
+   550→   550→    const endTime = params.endTime * 1000
+   551→   551→
+   552→   552→    const stats: ShopeeClickStats[] = []
+   553→   553→
+   554→   554→    if (granularity === 'hour') {
+   555→   555→      // Generate hourly stats for a day
+   556→   556→      const startDate = new Date(startTime)
+   557→   557→      for (let h = 0; h < 24; h++) {
+   558→   558→        const date = new Date(startDate)
+   559→   559→        date.setHours(h, 0, 0, 0)
+   560→   560→        const seed = date.getTime() / 1000
+   561→   561→        stats.push({
+   562→   562→          date: `${formatDate(date)} ${String(h).padStart(2, '0')}:00`,
+   563→   563→          clicks: Math.floor(seededRandom(seed) * 200 + 20),
+   564→   564→          uniqueClicks: Math.floor(seededRandom(seed + 1) * 150 + 15),
+   565→   565→          conversions: Math.floor(seededRandom(seed + 2) * 15 + 1),
+   566→   566→          earnings: round2(seededRandom(seed + 3) * 80 + 5),
+   567→   567→        })
+   568→   568→      }
+   569→   569→    } else {
+   570→   570→      // Generate daily stats
+   571→   571→      const start = new Date(startTime)
+   572→   572→      const end = new Date(endTime)
+   573→   573→      const current = new Date(start)
+   574→   574→
+   575→   575→      while (current <= end) {
+   576→   576→        const seed = current.getTime() / 86400000
+   577→   577→        const dayOfWeek = current.getDay()
+   578→   578→        // Weekends get more traffic
+   579→   579→        const weekendMultiplier = dayOfWeek === 0 || dayOfWeek === 6 ? 1.5 : 1.0
+   580→   580→
+   581→   581→        stats.push({
+   582→   582→          date: formatDate(current),
+   583→   583→          clicks: Math.floor((seededRandom(seed) * 400 + 80) * weekendMultiplier),
+   584→   584→          uniqueClicks: Math.floor((seededRandom(seed + 1) * 280 + 60) * weekendMultiplier),
+   585→   585→          conversions: Math.floor((seededRandom(seed + 2) * 25 + 3) * weekendMultiplier),
+   586→   586→          earnings: round2((seededRandom(seed + 3) * 180 + 30) * weekendMultiplier),
+   587→   587→        })
+   588→   588→
+   589→   589→        if (granularity === 'week') {
+   590→   590→          current.setDate(current.getDate() + 7)
+   591→   591→        } else if (granularity === 'month') {
+   592→   592→          current.setMonth(current.getMonth() + 1)
+   593→   593→        } else {
+   594→   594→          current.setDate(current.getDate() + 1)
+   595→   595→        }
+   596→   596→      }
+   597→   597→    }
+   598→   598→
+   599→   599→    return stats
+   600→   600→  }
+   601→   601→
+   602→   602→  /**
+   603→   603→   * Test mock connection
+   604→   604→   */
+   605→   605→  async testConnection(): Promise<{ success: boolean; message: string; region: string }> {
+   606→   606→    return {
+   607→   607→      success: true,
+   608→   608→      message: 'Connected to mock data service (Shopee API not configured)',
+   609→   609→      region: 'MY',
+   610→   610→    }
+   611→   611→  }
+   612→   612→
+   613→   613→  /**
+   614→   614→   * Get mock affiliate profile
+   615→   615→   */
+   616→   616→  async getAffiliateProfile(): Promise<ShopeeAffiliateProfile> {
+   617→   617→    return {
+   618→   618→      affiliateId: 'MY-AFF-20240001',
+   619→   619→      name: 'TheViralFinds MY',
+   620→   620→      email: 'affiliate@theviralfinds.my',
+   621→   621→      status: 'active',
+   622→   622→      commissionRate: 5.5,
+   623→   623→      totalEarnings: round2(rand(5000, 15000)),
+   624→   624→      joinDate: '2024-01-15',
+   625→   625→      region: 'MY',
+   626→   626→    }
+   627→   627→  }
+   628→   628→
+   629→   629→  /**
+   630→   630→   * Get top products by commission/earnings
+   631→   631→   */
+   632→   632→  async getTopProducts(limit?: number): Promise<ShopeeProduct[]> {
+   633→   633→    const sorted = [...this.products].sort(
+   634→   634→      (a, b) => (b.price * b.commissionRate * b.sales) - (a.price * a.commissionRate * a.sales)
+   635→   635→    )
+   636→   636→    return sorted.slice(0, limit || 10)
+   637→   637→  }
+   638→   638→
+   639→   639→  /**
+   640→   640→   * Get product categories
+   641→   641→   */
+   642→   642→  async getCategories(): Promise<ShopeeCategory[]> {
+   643→   643→    return CATEGORIES
+   644→   644→  }
+   645→   645→}
+   646→   646→

@@ -14,6 +14,7 @@ const PUBLIC_API_PREFIXES = [
   '/api/realtime/test',  // Real-time notification test trigger (debug only)
   '/api/social/callback',// OAuth callbacks from Facebook/Instagram/Twitter (server-to-server)
   '/api/social/execute', // Scheduled post execution trigger (called by cron/interval)
+  '/api/pricing/plans',  // Public pricing catalog (marketing surface — visible pre-login)
 ]
 
 function isPublicApiPath(pathname: string): boolean {

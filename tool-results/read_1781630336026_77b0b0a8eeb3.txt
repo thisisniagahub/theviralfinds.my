@@ -1,0 +1,1244 @@
+     1→/**
+     2→ * TikTok Shop Affiliate API - Mock Data Service
+     3→ *
+     4→ * Simulates realistic TikTok Shop data for Malaysia (MY) market.
+     5→ * Uses Malaysian Ringgit (RM) pricing, Manglish / Bahasa mixed product names,
+     6→ * and authentic Malaysian TikTok shop names.
+     7→ *
+     8→ * This service mirrors the same method signatures as the real API client
+     9→ * (`api-client.ts`), so they can be used interchangeably by the
+    10→ * `affiliate-service.ts` orchestrator.
+    11→ *
+    12→ * TikTok Shop Affiliate Program (MY):
+    13→ *   - https://shop.tiktok.com/university/embed?from=affiliate
+    14→ *   - Commission rates typically 5% – 20% for MY sellers
+    15→ *   - 7-day cookie window, paid out 30-60 days after order confirmation
+    16→ */
+    17→
+    18→// ─── Types (mirrored from affiliate-service.ts) ─────────────────
+    19→
+    20→export type TikTokProductCategory =
+    21→  | 'Beauty'
+    22→  | 'Fashion'
+    23→  | 'Electronics'
+    24→  | 'Home'
+    25→  | 'Food'
+    26→  | 'Health'
+    27→  | 'Kids'
+    28→  | 'Sports'
+    29→  | 'Automotive'
+    30→
+    31→export type TikTokCommissionStatus =
+    32→  | 'pending'
+    33→  | 'confirmed'
+    34→  | 'shipped'
+    35→  | 'delivered'
+    36→  | 'paid'
+    37→  | 'rejected'
+    38→  | 'refunded'
+    39→
+    40→export interface TikTokProduct {
+    41→  id: string
+    42→  productId: string
+    43→  title: string
+    44→  description: string
+    45→  price: number
+    46→  originalPrice?: number
+    47→  currency: 'MYR'
+    48→  commissionRate: number
+    49→  commissionAmount: number
+    50→  imageUrl: string
+    51→  videoUrl?: string
+    52→  shopName: string
+    53→  shopId: string
+    54→  category: TikTokProductCategory
+    55→  sales: number
+    56→  rating: number
+    57→  reviewCount: number
+    58→  stock: number
+    59→  productLink: string
+    60→  deepLink?: string
+    61→  platform: 'tiktok'
+    62→  hashtags: string[]
+    63→  trendScore: number
+    64→}
+    65→
+    66→export interface TikTokAffiliateLink {
+    67→  shortUrl: string
+    68→  longUrl: string
+    69→  deepLink: string
+    70→  generateUrl: string
+    71→  trackingId: string
+    72→  expiresAt?: string
+    73→}
+    74→
+    75→export interface TikTokCommissionOrder {
+    76→  orderId: string
+    77→  orderCreateTime: number
+    78→  productId: string
+    79→  productTitle: string
+    80→  productImage: string
+    81→  quantity: number
+    82→  unitPrice: number
+    83→  orderAmount: number
+    84→  commissionRate: number
+    85→  commissionAmount: number
+    86→  commissionStatus: TikTokCommissionStatus
+    87→  orderStatus: string
+    88→  settleTime?: number
+    89→  clickTime: number
+    90→  customerRegion: string
+    91→  subId?: string
+    92→}
+    93→
+    94→export interface TikTokCommissionSummary {
+    95→  totalCommission: number
+    96→  pendingCommission: number
+    97→  confirmedCommission: number
+    98→  paidCommission: number
+    99→  rejectedCommission: number
+   100→  totalOrders: number
+   101→  conversionRate: number
+   102→  clickCount: number
+   103→}
+   104→
+   105→export interface TikTokAffiliateProfile {
+   106→  affiliateId: string
+   107→  name: string
+   108→  email: string
+   109→  status: string
+   110→  commissionRate: number
+   111→  totalEarnings: number
+   112→  joinDate: string
+   113→  region: string
+   114→  followerCount: number
+   115→  shopConnected: boolean
+   116→}
+   117→
+   118→export interface TikTokCategory {
+   119→  categoryId: string
+   120→  name: TikTokProductCategory
+   121→  productCount: number
+   122→  avgCommissionRate: number
+   123→}
+   124→
+   125→// ─── Seed Data ──────────────────────────────────────────────────
+   126→
+   127→export const TIKTOK_CATEGORIES: TikTokCategory[] = [
+   128→  { categoryId: 'beauty', name: 'Beauty', productCount: 18420, avgCommissionRate: 12.0 },
+   129→  { categoryId: 'fashion', name: 'Fashion', productCount: 26350, avgCommissionRate: 8.5 },
+   130→  { categoryId: 'electronics', name: 'Electronics', productCount: 12700, avgCommissionRate: 6.0 },
+   131→  { categoryId: 'home', name: 'Home', productCount: 15800, avgCommissionRate: 5.5 },
+   132→  { categoryId: 'food', name: 'Food', productCount: 9300, avgCommissionRate: 14.0 },
+   133→  { categoryId: 'health', name: 'Health', productCount: 6200, avgCommissionRate: 10.0 },
+   134→  { categoryId: 'kids', name: 'Kids', productCount: 7400, avgCommissionRate: 7.5 },
+   135→  { categoryId: 'sports', name: 'Sports', productCount: 5100, avgCommissionRate: 6.5 },
+   136→  { categoryId: 'automotive', name: 'Automotive', productCount: 3200, avgCommissionRate: 5.0 },
+   137→]
+   138→
+   139→const TIKTOK_SHOP_NAMES = [
+   140→  'beautyholic.my',
+   141→  'K-Beauty Malaysia',
+   142→  'SkincareHQ Official',
+   143→  'Cosmetic World MY',
+   144→  'GlowUp Beauty Store',
+   145→  'FashionViral.My',
+   146→  'Tudung Raya Official',
+   147→  'BajuKurung Premium',
+   148→  'Trendy Style MY',
+   149→  'Kasut Cantik Official',
+   150→  'Hoodie Hub Malaysia',
+   151→  'Streetwear My',
+   152→  'GadgetZone Malaysia',
+   153→  'XiaomiHub.My',
+   154→  'Samsung Official MY',
+   155→  'TechPulse Store',
+   156→  'Earbuds Pro MY',
+   157→  'SmartHome MY',
+   158→  'HomeDecor KL',
+   159→  'KitchenPro Malaysia',
+   160→  'Dapur Nadia Store',
+   161→  'Cleaning Hacks MY',
+   162→  'SnackHub Malaysia',
+   163→  'Kedai Makanan My',
+   164→  'Maggi Lovers My',
+   165→  'Kopie Selatan',
+   166→  'SupplementHub MY',
+   167→  'Vitamin Pro Store',
+   168→  'Wellness Malaysia',
+   169→  'AnakKidz Store',
+   170→  'ToyRaya Official',
+   171→  'Outdoor Malaysia',
+   172→  'Gym Bros Store',
+   173→  'AutoParts Malaysia',
+   174→  'Kereta Gaya Store',
+   175→]
+   176→
+   177→const HASHTAG_POOL: Record<TikTokProductCategory, string[]> = {
+   178→  Beauty: ['#tiktokbeauty', '#skincareroutine', '#glowup', '#kbeauty', '#malaysiabeauty', '#makeuptutorial'],
+   179→  Fashion: ['#ootd', '#tudungstyle', '#bajukurung', '#fashiontiktok', '#malaysianfashion', '#streetwear'],
+   180→  Electronics: ['#techfinds', '#gadgetreview', '#xiaomi', '#techmalaysia', '#earbuds', '#smartphone'],
+   181→  Home: ['#homefinds', '#dapurcantik', '#homehacks', '#cleantok', '#malaysiahome', '#kitchenmusthave'],
+   182→  Food: ['#foodtiktok', '#malaysianfood', '#snackhaul', '#maggi', '#kakibang', '#mukbang'],
+   183→  Health: ['#healthtok', '#supplement', '#vitamin', '#wellness', '#malaysiahealth', '#fitnessjourney'],
+   184→  Kids: ['#kidstuff', '#babymusthave', '#momsoftiktok', '#malaysiakids', '#toys', '#playtime'],
+   185→  Sports: ['#fitnesstok', '#gymessentials', '#yogalife', '#malaysiafitness', '#workout', '#sportsmalaysia'],
+   186→  Automotive: ['#cargadgets', '#automalaysia', '#carmods', '#kereta', '#dashcam', '#carcare'],
+   187→}
+   188→
+   189→// ─── Product Templates — 45 realistic Malaysian TikTok Shop products ─────────
+   190→
+   191→interface ProductTemplate {
+   192→  title: string
+   193→  description: string
+   194→  category: TikTokProductCategory
+   195→  price: number
+   196→  originalPrice?: number
+   197→  commissionRate: number
+   198→  sales: number
+   199→  rating: number
+   200→  reviewCount: number
+   201→  stock: number
+   202→  trendScore: number
+   203→}
+   204→
+   205→const PRODUCT_TEMPLATES: ProductTemplate[] = [
+   206→  // ───── Beauty (10) ─────
+   207→  {
+   208→    title: 'Garnier Bright Complete Vitamin C Serum 30ml',
+   209→    description: 'Brighten kulit dalam 7 hari! Vitamin C + Niacinamide untuk tone lebih cerah. Sesuai untuk semua jenis kulit.',
+   210→    category: 'Beauty',
+   211→    price: 32.90,
+   212→    originalPrice: 49.90,
+   213→    commissionRate: 12,
+   214→    sales: 24500,
+   215→    rating: 4.8,
+   216→    reviewCount: 18200,
+   217→    stock: 850,
+   218→    trendScore: 96,
+   219→  },
+   220→  {
+   221→    title: 'Cetaphil Gentle Skin Cleanser 250ml',
+   222→    description: 'Pembersih wajah lembut untuk kulit sensitif. Dermatologist recommended. Tak keringkan kulit!',
+   223→    category: 'Beauty',
+   224→    price: 42.90,
+   225→    originalPrice: 59.90,
+   226→    commissionRate: 10,
+   227→    sales: 18200,
+   228→    rating: 4.9,
+   229→    reviewCount: 15600,
+   230→    stock: 420,
+   231→    trendScore: 92,
+   232→  },
+   233→  {
+   234→    title: 'LANEIGE Lip Sleeping Mask Berry 20g',
+   235→    description: 'Rawatan bibir semalaman. Bibir kering jadi lembut dan gebu. K-beauty bestseller!',
+   236→    category: 'Beauty',
+   237→    price: 68.00,
+   238→    originalPrice: 85.00,
+   239→    commissionRate: 15,
+   240→    sales: 32100,
+   241→    rating: 4.9,
+   242→    reviewCount: 27400,
+   243→    stock: 230,
+   244→    trendScore: 98,
+   245→  },
+   246→  {
+   247→    title: 'Some By Mi AHA BHA PHA 30 Days Miracle Toner 150ml',
+   248→    description: 'Toner untuk kulit berjerawat. AHA + BHA + PHA eksfoliasi lembut. Jerawat kurang dalam 30 hari!',
+   249→    category: 'Beauty',
+   250→    price: 49.90,
+   251→    originalPrice: 79.90,
+   252→    commissionRate: 14,
+   253→    sales: 21800,
+   254→    rating: 4.7,
+   255→    reviewCount: 14200,
+   256→    stock: 580,
+   257→    trendScore: 94,
+   258→  },
+   259→  {
+   260→    title: 'Anessa Perfect UV Sunscreen Skincare Milk SPF50+ 60ml',
+   261→    description: 'Sunscreen nombor 1 Jepun. Tahan peluh, tahan air, tak melekit. Wajib ada untuk cuaca Malaysia!',
+   262→    category: 'Beauty',
+   263→    price: 89.90,
+   264→    originalPrice: 119.90,
+   265→    commissionRate: 11,
+   266→    sales: 14600,
+   267→    rating: 4.8,
+   268→    reviewCount: 9800,
+   269→    stock: 320,
+   270→    trendScore: 90,
+   271→  },
+   272→  {
+   273→    title: 'Maybelline Fit Me Matte + Poreless Foundation 30ml',
+   274→    description: 'Foundation matte untuk kulit berminyak. Coverage sederhana, tak cet pori. Shade untuk kulit Malaysia!',
+   275→    category: 'Beauty',
+   276→    price: 29.90,
+   277→    originalPrice: 39.90,
+   278→    commissionRate: 13,
+   279→    sales: 28900,
+   280→    rating: 4.6,
+   281→    reviewCount: 22100,
+   282→    stock: 940,
+   283→    trendScore: 88,
+   284→  },
+   285→  {
+   286→    title: 'Innisfree Green Tea Seed Serum 80ml',
+   287→    description: 'Serum hydrating dengan ekstrak teh hijau Jeju. Kulit lembap dan cerah sepanjang hari.',
+   288→    category: 'Beauty',
+   289→    price: 99.00,
+   290→    originalPrice: 139.00,
+   291→    commissionRate: 12,
+   292→    sales: 12300,
+   293→    rating: 4.8,
+   294→    reviewCount: 8900,
+   295→    stock: 410,
+   296→    trendScore: 87,
+   297→  },
+   298→  {
+   299→    title: 'La Roche-Posay Effaclar Duo+M 40ml',
+   300→    description: 'Rawatan jerawat dan parut. Niacinamide + Procerad. Klinikal terbukti kurangkan jerawat dalam 8 minggu.',
+   301→    category: 'Beauty',
+   302→    price: 79.90,
+   303→    originalPrice: 99.90,
+   304→    commissionRate: 10,
+   305→    sales: 16700,
+   306→    rating: 4.7,
+   307→    reviewCount: 11200,
+   308→    stock: 280,
+   309→    trendScore: 89,
+   310→  },
+   311→  {
+   312→    title: 'Romand Juicy Lasting Tint 5.5g',
+   313→    description: 'Lip tint K-beauty viral di TikTok! Tekstur juicy, tahan lama. Shade trending: Almond Rose, Figfig.',
+   314→    category: 'Beauty',
+   315→    price: 45.90,
+   316→    originalPrice: 59.90,
+   317→    commissionRate: 16,
+   318→    sales: 41200,
+   319→    rating: 4.9,
+   320→    reviewCount: 35600,
+   321→    stock: 670,
+   322→    trendScore: 99,
+   323→  },
+   324→  {
+   325→    title: 'COSRX Advanced Snail 96 Mucin Power Essence 100ml',
+   326→    description: 'Essence siput K-beauty! Hydrating, repair skin barrier. Bestseller TikTok global.',
+   327→    category: 'Beauty',
+   328→    price: 69.00,
+   329→    originalPrice: 89.00,
+   330→    commissionRate: 13,
+   331→    sales: 38400,
+   332→    rating: 4.9,
+   333→    reviewCount: 31200,
+   334→    stock: 510,
+   335→    trendScore: 97,
+   336→  },
+   337→
+   338→  // ───── Fashion (8) ─────
+   339→  {
+   340→    title: 'Uniqlo Airism Mask 3pcs',
+   341→    description: 'Topeng muka Airism selesa, breathable. 3 lapisan filter. Color: Black, White, Navy.',
+   342→    category: 'Fashion',
+   343→    price: 49.90,
+   344→    originalPrice: 59.90,
+   345→    commissionRate: 8,
+   346→    sales: 9800,
+   347→    rating: 4.7,
+   348→    reviewCount: 6300,
+   349→    stock: 1240,
+   350→    trendScore: 82,
+   351→  },
+   352→  {
+   353→    title: 'Tudung Bawal Premium Cotton Matte 50x50',
+   354→    description: 'Tudung bawal premium, lembut, tak nipis. 40+ warna available. Free shipping seluruh Malaysia!',
+   355→    category: 'Fashion',
+   356→    price: 29.90,
+   357→    originalPrice: 49.90,
+   358→    commissionRate: 12,
+   359→    sales: 52400,
+   360→    rating: 4.9,
+   361→    reviewCount: 48100,
+   362→    stock: 3200,
+   363→    trendScore: 95,
+   364→  },
+   365→  {
+   366→    title: 'Telekung Solat Cotton Premium - Rose Gold',
+   367→    description: 'Telekung solat cotton premium, sejuk dan selesa. Set tudung + baju + sarung tangan. Ready stock!',
+   368→    category: 'Fashion',
+   369→    price: 65.00,
+   370→    originalPrice: 99.00,
+   371→    commissionRate: 11,
+   372→    sales: 18900,
+   373→    rating: 4.8,
+   374→    reviewCount: 14200,
+   375→    stock: 680,
+   376→    trendScore: 90,
+   377→  },
+   378→  {
+   379→    title: 'Baju Kurung Moden Ready Stock Premium Quality',
+   380→    description: 'Baju kurung moden, embroidery cantik. Sesuai untuk raya, kenduri, office. Free size sampai XL.',
+   381→    category: 'Fashion',
+   382→    price: 89.00,
+   383→    originalPrice: 159.00,
+   384→    commissionRate: 9,
+   385→    sales: 14200,
+   386→    rating: 4.7,
+   387→    reviewCount: 9800,
+   388→    stock: 480,
+   389→    trendScore: 86,
+   390→  },
+   391→  {
+   392→    title: 'Hoodie Unisex Oversized Streetwear Cotton Combed',
+   393→    description: 'Hoodie oversized trending TikTok! Cotton combed 30s, sejuk dan tebal. Unisex, 7 warna available.',
+   394→    category: 'Fashion',
+   395→    price: 49.00,
+   396→    originalPrice: 89.00,
+   397→    commissionRate: 10,
+   398→    sales: 32800,
+   399→    rating: 4.6,
+   400→    reviewCount: 25600,
+   401→    stock: 1850,
+   402→    trendScore: 93,
+   403→  },
+   404→  {
+   405→    title: 'Kasut Wanita White Sneakers Platform Trending',
+   406→    description: 'White sneakers platform viral di TikTok! Sesuai dengan apa sahaja outfit. Sole anti-slip.',
+   407→    category: 'Fashion',
+   408→    price: 79.00,
+   409→    originalPrice: 129.00,
+   410→    commissionRate: 9,
+   411→    sales: 21600,
+   412→    rating: 4.5,
+   413→    reviewCount: 16800,
+   414→    stock: 720,
+   415→    trendScore: 91,
+   416→  },
+   417→  {
+   418→    title: 'Seluar Jeans Wanita High Waist Skinny Stretch',
+   419→    description: 'Jeans high waist, push up, mengikat perut. Stretch material, selesa untuk daily wear. Size S-XL.',
+   420→    category: 'Fashion',
+   421→    price: 59.00,
+   422→    originalPrice: 99.00,
+   423→    commissionRate: 10,
+   424→    sales: 18900,
+   425→    rating: 4.6,
+   426→    reviewCount: 13400,
+   427→    stock: 940,
+   428→    trendScore: 84,
+   429→  },
+   430→  {
+   431→    title: 'T-Shirt Polos Oversized Premium Cotton 30s',
+   432→    description: 'T-shirt oversized polos, cotton combed 30s. Drop shoulder, sesuai streetwear. 12 warna!',
+   433→    category: 'Fashion',
+   434→    price: 25.90,
+   435→    originalPrice: 45.90,
+   436→    commissionRate: 12,
+   437→    sales: 41200,
+   438→    rating: 4.7,
+   439→    reviewCount: 28900,
+   440→    stock: 2500,
+   441→    trendScore: 94,
+   442→  },
+   443→
+   444→  // ───── Electronics (8) ─────
+   445→  {
+   446→    title: 'Xiaomi Redmi Buds 4 Active',
+   447→    description: 'Earbuds Xiaomi Redmi Buds 4 Active. Bluetooth 5.3, 30 jam playtime, IP54 waterproof. Original Malaysia set!',
+   448→    category: 'Electronics',
+   449→    price: 99.00,
+   450→    originalPrice: 139.00,
+   451→    commissionRate: 6,
+   452→    sales: 18600,
+   453→    rating: 4.7,
+   454→    reviewCount: 14200,
+   455→    stock: 1100,
+   456→    trendScore: 88,
+   457→  },
+   458→  {
+   459→    title: 'Xiaomi Redmi Note 13 Pro 5G 256GB Malaysia Set',
+   460→    description: 'Redmi Note 13 Pro 5G, 200MP camera, 120Hz AMOLED. Original Zitron warranty. Free gift!',
+   461→    category: 'Electronics',
+   462→    price: 1199.00,
+   463→    originalPrice: 1499.00,
+   464→    commissionRate: 4,
+   465→    sales: 5400,
+   466→    rating: 4.8,
+   467→    reviewCount: 3200,
+   468→    stock: 180,
+   469→    trendScore: 90,
+   470→  },
+   471→  {
+   472→    title: 'Anker Soundcore Life Note 3i True Wireless Earbuds',
+   473→    description: 'Anker earbuds dengan ANC. 32 jam playtime, IPX5. Calls clear. Brand terbaik dari Anker.',
+   474→    category: 'Electronics',
+   475→    price: 159.00,
+   476→    originalPrice: 219.00,
+   477→    commissionRate: 7,
+   478→    sales: 9200,
+   479→    rating: 4.8,
+   480→    reviewCount: 7100,
+   481→    stock: 460,
+   482→    trendScore: 86,
+   483→  },
+   484→  {
+   485→    title: 'Powerbank 20000mAh Anker PowerCore PD 22.5W',
+   486→    description: 'Powerbank Anker 20000mAh, fast charging PD 22.5W. Boleh charge phone 4-5 kali. Original!',
+   487→    category: 'Electronics',
+   488→    price: 129.00,
+   489→    originalPrice: 189.00,
+   490→    commissionRate: 6,
+   491→    sales: 14800,
+   492→    rating: 4.8,
+   493→    reviewCount: 11300,
+   494→    stock: 820,
+   495→    trendScore: 85,
+   496→  },
+   497→  {
+   498→    title: 'Smartwatch Xiaomi Mi Band 8 Original Malaysia Set',
+   499→    description: 'Mi Band 8, AMOLED display, 150+ sport modes. Heart rate, SpO2, sleep monitor. Battery 16 hari!',
+   500→    category: 'Electronics',
+   501→    price: 159.00,
+   502→    originalPrice: 199.00,
+   503→    commissionRate: 7,
+   504→    sales: 22300,
+   505→    rating: 4.7,
+   506→    reviewCount: 18600,
+   507→    stock: 920,
+   508→    trendScore: 92,
+   509→  },
+   510→  {
+   511→    title: 'Logitech MX Master 3S Wireless Mouse',
+   512→    description: 'Mouse Logitech MX Master 3S, silent click, USB-C, fast scroll. Untuk productivity!',
+   513→    category: 'Electronics',
+   514→    price: 399.00,
+   515→    originalPrice: 499.00,
+   516→    commissionRate: 5,
+   517→    sales: 3400,
+   518→    rating: 4.9,
+   519→    reviewCount: 2800,
+   520→    stock: 145,
+   521→    trendScore: 81,
+   522→  },
+   523→  {
+   524→    title: 'USB-C Hub UGREEN 9-in-1 Multiport Adapter',
+   525→    description: 'UGREEN USB-C hub, 9-in-1: HDMI 4K, USB 3.0, PD 100W, SD card. Untuk laptop dan tablet.',
+   526→    category: 'Electronics',
+   527→    price: 119.00,
+   528→    originalPrice: 169.00,
+   529→    commissionRate: 6,
+   530→    sales: 11200,
+   531→    rating: 4.7,
+   532→    reviewCount: 8600,
+   533→    stock: 540,
+   534→    trendScore: 84,
+   535→  },
+   536→  {
+   537→    title: 'Mechanical Keyboard Keychron K2 Wireless RGB',
+   538→    description: 'Keychron K2 wireless mechanical keyboard, hot-swap, RGB backlight. Mac & Windows compatible.',
+   539→    category: 'Electronics',
+   540→    price: 429.00,
+   541→    originalPrice: 529.00,
+   542→    commissionRate: 5,
+   543→    sales: 2100,
+   544→    rating: 4.8,
+   545→    reviewCount: 1600,
+   546→    stock: 95,
+   547→    trendScore: 78,
+   548→  },
+   549→
+   550→  // ───── Home (7) ─────
+   551→  {
+   552→    title: 'Philips Air Fryer HD9200 4.1L',
+   553→    description: 'Air fryer Philips HD9200, 4.1L. Rapid Air Technology, kurang 90% minyak. Resipi Malaysia disertakan.',
+   554→    category: 'Home',
+   555→    price: 299.00,
+   556→    originalPrice: 449.00,
+   557→    commissionRate: 5,
+   558→    sales: 18400,
+   559→    rating: 4.8,
+   560→    reviewCount: 15600,
+   561→    stock: 680,
+   562→    trendScore: 93,
+   563→  },
+   564→  {
+   565→    title: 'Dyson V8 Absolute Cordless Vacuum Cleaner',
+   566→    description: 'Dyson V8 cordless, 2-in-1 stick + handheld. HEPA filter. Original Malaysia warranty 2 tahun.',
+   567→    category: 'Home',
+   568→    price: 1899.00,
+   569→    originalPrice: 2499.00,
+   570→    commissionRate: 4,
+   571→    sales: 2800,
+   572→    rating: 4.9,
+   573→    reviewCount: 2100,
+   574→    stock: 120,
+   575→    trendScore: 89,
+   576→  },
+   577→  {
+   578→    title: 'Set Cadar Katil Microfiber 5in1 King Queen',
+   579→    description: 'Set cadar microfiber, 5in1 termasuk bantal. Sejuk, lembut, tahan lalu. Free shipping!',
+   580→    category: 'Home',
+   581→    price: 49.90,
+   582→    originalPrice: 99.00,
+   583→    commissionRate: 8,
+   584→    sales: 38700,
+   585→    rating: 4.7,
+   586→    reviewCount: 32100,
+   587→    stock: 1800,
+   588→    trendScore: 91,
+   589→  },
+   590→  {
+   591→    title: 'Xiaomi Smart Air Purifier 4 Lite',
+   592→    description: 'Xiaomi air purifier 4 Lite, HEPA H13, OLED display. Untuk bilik hingga 36m². PM2.5 real-time.',
+   593→    category: 'Home',
+   594→    price: 499.00,
+   595→    originalPrice: 649.00,
+   596→    commissionRate: 5,
+   597→    sales: 6700,
+   598→    rating: 4.7,
+   599→    reviewCount: 5200,
+   600→    stock: 280,
+   601→    trendScore: 86,
+   602→  },
+   603→  {
+   604→    title: 'Vacuum Cleaner Wireless Rechargeable 18000Pa',
+   605→    description: 'Vacuum wireless 18000Pa suction, lightweight, LED light. Untuk rumah dan kereta. 4-in-1.',
+   606→    category: 'Home',
+   607→    price: 169.00,
+   608→    originalPrice: 299.00,
+   609→    commissionRate: 7,
+   610→    sales: 16400,
+   611→    rating: 4.5,
+   612→    reviewCount: 12800,
+   613→    stock: 760,
+   614→    trendScore: 87,
+   615→  },
+   616→  {
+   617→    title: 'Humidifier Diffuser Essential Oil 300ml LED',
+   618→    description: 'Diffuser + humidifier 2-in-1, LED 7 warna, auto-off. Untuk ruang santai dan tidur nyenyak.',
+   619→    category: 'Home',
+   620→    price: 39.90,
+   621→    originalPrice: 79.90,
+   622→    commissionRate: 9,
+   623→    sales: 24200,
+   624→    rating: 4.6,
+   625→    reviewCount: 18900,
+   626→    stock: 1240,
+   627→    trendScore: 88,
+   628→  },
+   629→  {
+   630→    title: 'Rak Storage 5 Tier Skruless Organizer',
+   631→    description: 'Rak 5 tingkat, skruless, mudah pasang. Muat 30kg setiap tingkat. Untuk dapur, bilik, garage.',
+   632→    category: 'Home',
+   633→    price: 59.90,
+   634→    originalPrice: 99.90,
+   635→    commissionRate: 8,
+   636→    sales: 21800,
+   637→    rating: 4.5,
+   638→    reviewCount: 16700,
+   639→    stock: 980,
+   640→    trendScore: 84,
+   641→  },
+   642→
+   643→  // ───── Food (5) ─────
+   644→  {
+   645→    title: 'Maggi Cup Curry Flavour 4x70g',
+   646→    description: 'Maggi cup curry, 4 in 1 pack. Sedap dan pantas! Stok panas, harga runtuh. Halal Malaysia.',
+   647→    category: 'Food',
+   648→    price: 9.90,
+   649→    originalPrice: 14.90,
+   650→    commissionRate: 15,
+   651→    sales: 68400,
+   652→    rating: 4.8,
+   653→    reviewCount: 56200,
+   654→    stock: 8400,
+   655→    trendScore: 96,
+   656→  },
+   657→  {
+   658→    title: 'Munchys Muzic Wafers Roll Vanilla 12 packs',
+   659→    description: 'Munchys wafers roll vanilla, 12 packs. Snack kegemaran keluarga Malaysia. Halal Jakim.',
+   660→    category: 'Food',
+   661→    price: 14.90,
+   662→    originalPrice: 22.90,
+   663→    commissionRate: 13,
+   664→    sales: 32600,
+   665→    rating: 4.7,
+   666→    reviewCount: 24100,
+   667→    stock: 3200,
+   668→    trendScore: 89,
+   669→  },
+   670→  {
+   671→    title: 'Kopi Susu Tambun 3in1 30 sachets Best Seller',
+   672→    description: 'Kopi susu Tambun 3in1, 30 sachet. Kaw, kaya, sedap. Best seller di Utara Malaysia!',
+   673→    category: 'Food',
+   674→    price: 24.90,
+   675→    originalPrice: 34.90,
+   676→    commissionRate: 12,
+   677→    sales: 41800,
+   678→    rating: 4.8,
+   679→    reviewCount: 33500,
+   680→    stock: 2800,
+   681→    trendScore: 92,
+   682→  },
+   683→  {
+   684→    title: 'Sambal Ikan Bilis Mama Recipe 250g Ready to Eat',
+   685→    description: 'Sambal ikan bilis mama recipe, 250g. Pedas giler, ready to eat. Sesuai dengan nasi panas!',
+   686→    category: 'Food',
+   687→    price: 12.90,
+   688→    originalPrice: 19.90,
+   689→    commissionRate: 14,
+   690→    sales: 28900,
+   691→    rating: 4.7,
+   692→    reviewCount: 21800,
+   693→    stock: 1600,
+   694→    trendScore: 90,
+   695→  },
+   696→  {
+   697→    title: 'Keropok Lekor Terengganu 500g Frozen Ready Fried',
+   698→    description: 'Keropok lekor asli Terengganu, 500g frozen. Tahan 6 bulan. Goreng 5 minit siap makan!',
+   699→    category: 'Food',
+   700→    price: 18.90,
+   701→    originalPrice: 28.90,
+   702→    commissionRate: 13,
+   703→    sales: 22300,
+   704→    rating: 4.6,
+   705→    reviewCount: 17400,
+   706→    stock: 1200,
+   707→    trendScore: 87,
+   708→  },
+   709→
+   710→  // ───── Health (3) ─────
+   711→  {
+   712→    title: 'Appeton Weight Gain Adult 900g Chocolate',
+   713→    description: 'Appeton weight gain adult, 900g. Tambah berat badan sihat. Vitamin + mineral. Halal.',
+   714→    category: 'Health',
+   715→    price: 89.00,
+   716→    originalPrice: 119.00,
+   717→    commissionRate: 9,
+   718→    sales: 7800,
+   719→    rating: 4.5,
+   720→    reviewCount: 5400,
+   721→    stock: 320,
+   722→    trendScore: 82,
+   723→  },
+   724→  {
+   725→    title: 'Blackmores Vitamin C 500mg 150 Tablets',
+   726→    description: 'Blackmores Vitamin C 500mg, 150 tablet. Boost sistem imunisasi. Original Australia.',
+   727→    category: 'Health',
+   728→    price: 79.90,
+   729→    originalPrice: 109.90,
+   730→    commissionRate: 10,
+   731→    sales: 12400,
+   732→    rating: 4.8,
+   733→    reviewCount: 9800,
+   734→    stock: 480,
+   735→    trendScore: 86,
+   736→  },
+   737→  {
+   738→    title: 'Lactokid Plus Step 3 Milk Powder 1-3 Years 900g',
+   739→    description: 'Susu Lactokid Plus Step 3, untuk anak 1-3 tahun. DHA + prebiotik. Halal Malaysia.',
+   740→    category: 'Health',
+   741→    price: 64.90,
+   742→    originalPrice: 79.90,
+   743→    commissionRate: 8,
+   744→    sales: 14600,
+   745→    rating: 4.7,
+   746→    reviewCount: 11200,
+   747→    stock: 540,
+   748→    trendScore: 84,
+   749→  },
+   750→
+   751→  // ───── Kids (2) ─────
+   752→  {
+   753→    title: 'LEGO Classic Bricks 484pcs Creative Building',
+   754→    description: 'LEGO Classic 484pcs, 35 model ideas. Untuk umur 4+. Original LEGO Malaysia.',
+   755→    category: 'Kids',
+   756→    price: 99.00,
+   757→    originalPrice: 139.00,
+   758→    commissionRate: 6,
+   759→    sales: 6800,
+   760→    rating: 4.9,
+   761→    reviewCount: 5200,
+   762→    stock: 280,
+   763→    trendScore: 85,
+   764→  },
+   765→  {
+   766→    title: 'Action Figure Anime Collectible 15cm PVC',
+   767→    description: 'Action figure anime 15cm PVC. Detail tinggi, sesuai koleksi atau hadiah. 20+ model available.',
+   768→    category: 'Kids',
+   769→    price: 39.90,
+   770→    originalPrice: 69.90,
+   771→    commissionRate: 8,
+   772→    sales: 14200,
+   773→    rating: 4.6,
+   774→    reviewCount: 10800,
+   775→    stock: 860,
+   776→    trendScore: 83,
+   777→  },
+   778→
+   779→  // ───── Sports (2) ─────
+   780→  {
+   781→    title: 'Tikar Yoga Premium 6mm Anti-Slip TPE',
+   782→    description: 'Tikar yoga 6mm TPE, anti-slip, no smell. Lightweight, free carry strap. Untuk yoga dan workout.',
+   783→    category: 'Sports',
+   784→    price: 49.90,
+   785→    originalPrice: 89.90,
+   786→    commissionRate: 7,
+   787→    sales: 16400,
+   788→    rating: 4.7,
+   789→    reviewCount: 12300,
+   790→    stock: 740,
+   791→    trendScore: 86,
+   792→  },
+   793→  {
+   794→    title: 'Adjustable Dumbbell Set 24kg Quick Change',
+   795→    description: 'Dumbbell adjustable 24kg, quick change system. Space-saving, ganti 5 set dumbbell. Untuk home gym.',
+   796→    category: 'Sports',
+   797→    price: 399.00,
+   798→    originalPrice: 599.00,
+   799→    commissionRate: 5,
+   800→    sales: 2800,
+   801→    rating: 4.6,
+   802→    reviewCount: 1900,
+   803→    stock: 130,
+   804→    trendScore: 80,
+   805→  },
+   806→
+   807→  // ───── Automotive (2) ─────
+   808→  {
+   809→    title: 'Dashcam 70mai A800S 4K Front Rear Dual Camera',
+   810→    description: 'Dashcam 70mai A800S 4K front + 1080p rear. ADAS, GPS, WiFi. Original Xiaomi ecosystem.',
+   811→    category: 'Automotive',
+   812→    price: 449.00,
+   813→    originalPrice: 599.00,
+   814→    commissionRate: 5,
+   815→    sales: 4200,
+   816→    rating: 4.7,
+   817→    reviewCount: 3400,
+   818→    stock: 180,
+   819→    trendScore: 84,
+   820→  },
+   821→  {
+   822→    title: 'Car Phone Holder Magnetic Dashboard 360° Rotation',
+   823→    description: 'Phone holder magnetik dashboard, 360° rotation. 6 magnet neodymium kuat. Universal fit.',
+   824→    category: 'Automotive',
+   825→    price: 19.90,
+   826→    originalPrice: 39.90,
+   827→    commissionRate: 9,
+   828→    sales: 38600,
+   829→    rating: 4.5,
+   830→    reviewCount: 29400,
+   831→    stock: 2400,
+   832→    trendScore: 88,
+   833→  },
+   834→]
+   835→
+   836→// ─── Helpers ────────────────────────────────────────────────────
+   837→
+   838→function rand(min: number, max: number): number {
+   839→  return Math.random() * (max - min) + min
+   840→}
+   841→
+   842→function round2(n: number): number {
+   843→  return Math.round(n * 100) / 100
+   844→}
+   845→
+   846→function randInt(min: number, max: number): number {
+   847→  return Math.floor(Math.random() * (max - min + 1)) + min
+   848→}
+   849→
+   850→function pick<T>(arr: T[]): T {
+   851→  return arr[Math.floor(Math.random() * arr.length)]
+   852→}
+   853→
+   854→function randomProductId(): string {
+   855→  return `TT${Date.now().toString(36)}${randInt(100000, 999999)}`
+   856→}
+   857→
+   858→function randomOrderId(): string {
+   859→  const prefix = pick(['TT', 'TK', 'MY'])
+   860→  const digits = randInt(100000000000, 999999999999)
+   861→  return `${prefix}${digits}`
+   862→}
+   863→
+   864→function randomShortCode(): string {
+   865→  return Math.random().toString(36).substring(2, 10)
+   866→}
+   867→
+   868→function seededRandom(seed: number): number {
+   869→  const x = Math.sin(seed * 9301 + 49297) * 49297
+   870→  return x - Math.floor(x)
+   871→}
+   872→
+   873→function pickHashtags(category: TikTokProductCategory, count: number = 3): string[] {
+   874→  const pool = HASHTAG_POOL[category]
+   875→  const shuffled = [...pool].sort(() => Math.random() - 0.5)
+   876→  return shuffled.slice(0, Math.min(count, pool.length))
+   877→}
+   878→
+   879→// ─── Mock Service ───────────────────────────────────────────────
+   880→
+   881→export class TikTokMockService {
+   882→  private products: TikTokProduct[]
+   883→
+   884→  constructor() {
+   885→    this.products = this.generateProducts()
+   886→  }
+   887→
+   888→  /**
+   889→   * Convert all templates into TikTokProduct objects
+   890→   */
+   891→  private generateProducts(): TikTokProduct[] {
+   892→    return PRODUCT_TEMPLATES.map((tmpl, i) => {
+   893→      const shopName = TIKTOK_SHOP_NAMES[i % TIKTOK_SHOP_NAMES.length]
+   894→      const productId = `${randInt(7000000000000, 7999999999999)}`
+   895→      const id = `tt-${productId}`
+   896→      const commissionAmount = round2((tmpl.price * tmpl.commissionRate) / 100)
+   897→      const shopId = `${randInt(700000, 799999)}`
+   898→      const hashtags = pickHashtags(tmpl.category, 3)
+   899→
+   900→      return {
+   901→        id,
+   902→        productId,
+   903→        title: tmpl.title,
+   904→        description: tmpl.description,
+   905→        price: round2(tmpl.price),
+   906→        originalPrice: tmpl.originalPrice ? round2(tmpl.originalPrice) : undefined,
+   907→        currency: 'MYR',
+   908→        commissionRate: tmpl.commissionRate,
+   909→        commissionAmount,
+   910→        imageUrl: `https://p16-oec-va.tiktokcdn.com/product/${productId}.webp`,
+   911→        videoUrl: `https://www.tiktok.com/@${shopName.replace(/[^a-z0-9]/gi, '').toLowerCase()}/video/${randInt(7000000000000, 7999999999999)}`,
+   912→        shopName,
+   913→        shopId,
+   914→        category: tmpl.category,
+   915→        sales: tmpl.sales,
+   916→        rating: tmpl.rating,
+   917→        reviewCount: tmpl.reviewCount,
+   918→        stock: tmpl.stock,
+   919→        productLink: `https://shop.tiktok.com/view/product/${productId}`,
+   920→        deepLink: `snssdk1129://ec/product/${productId}`,
+   921→        platform: 'tiktok',
+   922→        hashtags,
+   923→        trendScore: tmpl.trendScore,
+   924→      }
+   925→    })
+   926→  }
+   927→
+   928→  /**
+   929→   * Search products by keyword, with optional category filter and sorting
+   930→   */
+   931→  async searchProducts(
+   932→    query: string,
+   933→    options?: {
+   934→      page?: number
+   935→      limit?: number
+   936→      sortField?: 'commission' | 'price' | 'sales' | 'rating' | 'trend'
+   937→      sortOrder?: 'asc' | 'desc'
+   938→      category?: TikTokProductCategory
+   939→      minPrice?: number
+   940→      maxPrice?: number
+   941→    }
+   942→  ): Promise<{ products: TikTokProduct[]; total: number }> {
+   943→    const page = options?.page || 1
+   944→    const limit = options?.limit || 20
+   945→    const sortField = options?.sortField || 'trend'
+   946→    const sortOrder = options?.sortOrder || 'desc'
+   947→
+   948→    const queryLower = query.toLowerCase().trim()
+   949→    let filtered = this.products
+   950→
+   951→    if (queryLower) {
+   952→      filtered = filtered.filter(
+   953→        (p) =>
+   954→          p.title.toLowerCase().includes(queryLower) ||
+   955→          p.description.toLowerCase().includes(queryLower) ||
+   956→          p.category.toLowerCase().includes(queryLower) ||
+   957→          p.shopName.toLowerCase().includes(queryLower) ||
+   958→          p.hashtags.some((h) => h.toLowerCase().includes(queryLower.replace('#', '')))
+   959→      )
+   960→
+   961→      // If no keyword matches, try keyword splitting, then fall back to a curated subset
+   962→      if (filtered.length === 0) {
+   963→        const keywords = queryLower.split(/\s+/).filter(Boolean)
+   964→        filtered = this.products.filter((p) =>
+   965→          keywords.some(
+   966→            (kw) =>
+   967→              p.title.toLowerCase().includes(kw) ||
+   968→              p.category.toLowerCase().includes(kw) ||
+   969→              p.description.toLowerCase().includes(kw)
+   970→          )
+   971→        )
+   972→
+   973→        if (filtered.length === 0) {
+   974→          const shuffled = [...this.products].sort(() => Math.random() - 0.5)
+   975→          filtered = shuffled.slice(0, Math.min(limit, shuffled.length)).map((p) => ({
+   976→            ...p,
+   977→            id: `tt-searched-${p.productId}`,
+   978→            title: `${query} - ${p.title}`,
+   979→          }))
+   980→        }
+   981→      }
+   982→    }
+   983→
+   984→    if (options?.category) {
+   985→      filtered = filtered.filter((p) => p.category === options.category)
+   986→    }
+   987→
+   988→    if (options?.minPrice !== undefined) {
+   989→      filtered = filtered.filter((p) => p.price >= (options.minPrice ?? 0))
+   990→    }
+   991→    if (options?.maxPrice !== undefined) {
+   992→      filtered = filtered.filter((p) => p.price <= (options.maxPrice ?? Infinity))
+   993→    }
+   994→
+   995→    filtered.sort((a, b) => {
+   996→      let aVal: number, bVal: number
+   997→      switch (sortField) {
+   998→        case 'commission':
+   999→          aVal = a.commissionRate
+  1000→          bVal = b.commissionRate
+  1001→          break
+  1002→        case 'price':
+  1003→          aVal = a.price
+  1004→          bVal = b.price
+  1005→          break
+  1006→        case 'sales':
+  1007→          aVal = a.sales
+  1008→          bVal = b.sales
+  1009→          break
+  1010→        case 'rating':
+  1011→          aVal = a.rating
+  1012→          bVal = b.rating
+  1013→          break
+  1014→        case 'trend':
+  1015→          aVal = a.trendScore
+  1016→          bVal = b.trendScore
+  1017→          break
+  1018→        default:
+  1019→          aVal = a.trendScore
+  1020→          bVal = b.trendScore
+  1021→      }
+  1022→      return sortOrder === 'asc' ? aVal - bVal : bVal - aVal
+  1023→    })
+  1024→
+  1025→    const total = filtered.length
+  1026→    const start = (page - 1) * limit
+  1027→    const paged = filtered.slice(start, start + limit)
+  1028→
+  1029→    return { products: paged, total }
+  1030→  }
+  1031→
+  1032→  /**
+  1033→   * Get product detail by product ID
+  1034→   */
+  1035→  async getProductDetail(productId: string): Promise<TikTokProduct | null> {
+  1036→    const product = this.products.find((p) => p.productId === productId || p.id === productId)
+  1037→    if (product) return { ...product }
+  1038→
+  1039→    // Fallback: synthesize a product from a random template
+  1040→    const tmpl = pick(PRODUCT_TEMPLATES)
+  1041→    const shopName = pick(TIKTOK_SHOP_NAMES)
+  1042→    const commissionAmount = round2((tmpl.price * tmpl.commissionRate) / 100)
+  1043→    return {
+  1044→      id: `tt-${productId}`,
+  1045→      productId,
+  1046→      title: tmpl.title,
+  1047→      description: tmpl.description,
+  1048→      price: round2(tmpl.price),
+  1049→      originalPrice: tmpl.originalPrice ? round2(tmpl.originalPrice) : undefined,
+  1050→      currency: 'MYR',
+  1051→      commissionRate: tmpl.commissionRate,
+  1052→      commissionAmount,
+  1053→      imageUrl: `https://p16-oec-va.tiktokcdn.com/product/${productId}.webp`,
+  1054→      shopName,
+  1055→      shopId: `${randInt(700000, 799999)}`,
+  1056→      category: tmpl.category,
+  1057→      sales: tmpl.sales,
+  1058→      rating: tmpl.rating,
+  1059→      reviewCount: tmpl.reviewCount,
+  1060→      stock: tmpl.stock,
+  1061→      productLink: `https://shop.tiktok.com/view/product/${productId}`,
+  1062→      deepLink: `snssdk1129://ec/product/${productId}`,
+  1063→      platform: 'tiktok',
+  1064→      hashtags: pickHashtags(tmpl.category, 3),
+  1065→      trendScore: tmpl.trendScore,
+  1066→    }
+  1067→  }
+  1068→
+  1069→  /**
+  1070→   * Generate a mock TikTok affiliate link
+  1071→   */
+  1072→  async generateAffiliateLink(params: {
+  1073→    productId?: string
+  1074→    productUrl?: string
+  1075→    subId?: string
+  1076→  }): Promise<TikTokAffiliateLink> {
+  1077→    const shortCode = randomShortCode()
+  1078→    const productId = params.productId || randomProductId()
+  1079→    const subId = params.subId || ''
+  1080→    const trackingId = `ttra${randInt(10000000, 99999999)}`
+  1081→    const expiresAt = new Date(Date.now() + 7 * 86400 * 1000).toISOString()
+  1082→
+  1083→    return {
+  1084→      shortUrl: `https://shop.tiktok.com/r/${shortCode}`,
+  1085→      longUrl: `https://shop.tiktok.com/view/product/${productId}?aff_platform=tiktok&aff_trace_key=${shortCode}&sub_id=${subId}`,
+  1086→      deepLink: `snssdk1129://ec/product/${productId}?aff_id=${trackingId}&aff_sub=${subId}`,
+  1087→      generateUrl: `https://shop.tiktok.com/affiliate/link?product_id=${productId}&aff_id=${trackingId}`,
+  1088→      trackingId,
+  1089→      expiresAt,
+  1090→    }
+  1091→  }
+  1092→
+  1093→  /**
+  1094→   * Get mock commission orders
+  1095→   */
+  1096→  async getCommissionOrders(params?: {
+  1097→    page?: number
+  1098→    limit?: number
+  1099→    startTime?: number
+  1100→    endTime?: number
+  1101→    commissionStatus?: TikTokCommissionStatus
+  1102→  }): Promise<{ orders: TikTokCommissionOrder[]; total: number }> {
+  1103→    const page = params?.page || 1
+  1104→    const limit = params?.limit || 50
+  1105→    const statuses: TikTokCommissionStatus[] = [
+  1106→      'pending',
+  1107→      'confirmed',
+  1108→      'shipped',
+  1109→      'delivered',
+  1110→      'paid',
+  1111→      'rejected',
+  1112→      'refunded',
+  1113→    ]
+  1114→    const orderStatuses = ['AWAITING_SHIPMENT', 'IN_TRANSIT', 'DELIVERED', 'COMPLETED', 'CANCELLED']
+  1115→
+  1116→    const orderCount = randInt(20, 120)
+  1117→    const orders: TikTokCommissionOrder[] = []
+  1118→
+  1119→    for (let i = 0; i < orderCount; i++) {
+  1120→      const seed = i + (params?.startTime || 0)
+  1121→      const tmpl = PRODUCT_TEMPLATES[seed % PRODUCT_TEMPLATES.length]
+  1122→      const unitPrice = round2(tmpl.price)
+  1123→      const quantity = randInt(1, 4)
+  1124→      const orderAmount = round2(unitPrice * quantity)
+  1125→      const commissionRate = tmpl.commissionRate
+  1126→      const commissionAmount = round2((orderAmount * commissionRate) / 100)
+  1127→      const status = statuses[Math.floor(seededRandom(seed * 7) * statuses.length)]
+  1128→      const daysAgo = Math.floor(seededRandom(seed * 13) * 60)
+  1129→      const orderTime = Math.floor(Date.now() / 1000) - daysAgo * 86400
+  1130→      const clickTime = orderTime - randInt(300, 86400)
+  1131→
+  1132→      if (params?.commissionStatus && status !== params.commissionStatus) continue
+  1133→      if (params?.startTime && orderTime < params.startTime) continue
+  1134→      if (params?.endTime && orderTime > params.endTime) continue
+  1135→
+  1136→      orders.push({
+  1137→        orderId: randomOrderId(),
+  1138→        orderCreateTime: orderTime,
+  1139→        productId: `${randInt(7000000000000, 7999999999999)}`,
+  1140→        productTitle: tmpl.title,
+  1141→        productImage: `https://p16-oec-va.tiktokcdn.com/product/seed${seed}.webp`,
+  1142→        quantity,
+  1143→        unitPrice,
+  1144→        orderAmount,
+  1145→        commissionRate,
+  1146→        commissionAmount,
+  1147→        commissionStatus: status,
+  1148→        orderStatus: pick(orderStatuses),
+  1149→        settleTime:
+  1150→          status === 'paid' ? orderTime + randInt(86400 * 14, 86400 * 45) : undefined,
+  1151→        clickTime,
+  1152→        customerRegion: pick(['MY-01', 'MY-14', 'MY-10', 'MY-03', 'MY-04', 'MY-07']),
+  1153→        subId: Math.random() > 0.6 ? `sub_${randInt(100, 999)}` : undefined,
+  1154→      })
+  1155→    }
+  1156→
+  1157→    const total = orders.length
+  1158→    const start = (page - 1) * limit
+  1159→    const paged = orders.slice(start, start + limit)
+  1160→    return { orders: paged, total }
+  1161→  }
+  1162→
+  1163→  /**
+  1164→   * Get mock commission summary
+  1165→   */
+  1166→  async getCommissionSummary(_params?: {
+  1167→    startTime?: number
+  1168→    endTime?: number
+  1169→  }): Promise<TikTokCommissionSummary> {
+  1170→    return {
+  1171→      totalCommission: round2(rand(1500, 6500)),
+  1172→      pendingCommission: round2(rand(200, 1200)),
+  1173→      confirmedCommission: round2(rand(800, 3200)),
+  1174→      paidCommission: round2(rand(400, 2500)),
+  1175→      rejectedCommission: round2(rand(40, 350)),
+  1176→      totalOrders: randInt(150, 1100),
+  1177→      conversionRate: round2(rand(5, 15)),
+  1178→      clickCount: randInt(3000, 25000),
+  1179→    }
+  1180→  }
+  1181→
+  1182→  /**
+  1183→   * Test mock connection
+  1184→   */
+  1185→  async testConnection(): Promise<{ success: boolean; message: string; region: string }> {
+  1186→    return {
+  1187→      success: true,
+  1188→      message: 'Connected to TikTok Shop mock data service (real API not configured)',
+  1189→      region: 'MY',
+  1190→    }
+  1191→  }
+  1192→
+  1193→  /**
+  1194→   * Get mock affiliate profile
+  1195→   */
+  1196→  async getAffiliateProfile(): Promise<TikTokAffiliateProfile> {
+  1197→    return {
+  1198→      affiliateId: 'MY-TT-AFF-20240001',
+  1199→      name: 'TheViralFinds MY',
+  1200→      email: 'affiliate@theviralfinds.my',
+  1201→      status: 'active',
+  1202→      commissionRate: 10.0,
+  1203→      totalEarnings: round2(rand(3500, 12000)),
+  1204→      joinDate: '2024-02-01',
+  1205→      region: 'MY',
+  1206→      followerCount: randInt(12000, 85000),
+  1207→      shopConnected: true,
+  1208→    }
+  1209→  }
+  1210→
+  1211→  /**
+  1212→   * Get top trending products by trend score
+  1213→   */
+  1214→  async getTopProducts(limit?: number): Promise<TikTokProduct[]> {
+  1215→    const sorted = [...this.products].sort((a, b) => b.trendScore - a.trendScore)
+  1216→    return sorted.slice(0, limit || 10)
+  1217→  }
+  1218→
+  1219→  /**
+  1220→   * Get product categories
+  1221→   */
+  1222→  async getCategories(): Promise<TikTokCategory[]> {
+  1223→    return TIKTOK_CATEGORIES
+  1224→  }
+  1225→
+  1226→  /**
+  1227→   * Get raw mock product list (for testing/debugging)
+  1228→   */
+  1229→  getAllProducts(): TikTokProduct[] {
+  1230→    return [...this.products]
+  1231→  }
+  1232→}
+  1233→
+  1234→// ─── Singleton ──────────────────────────────────────────────────
+  1235→
+  1236→let _mockInstance: TikTokMockService | null = null
+  1237→
+  1238→export function getTikTokMockService(): TikTokMockService {
+  1239→  if (!_mockInstance) {
+  1240→    _mockInstance = new TikTokMockService()
+  1241→  }
+  1242→  return _mockInstance
+  1243→}
+  1244→

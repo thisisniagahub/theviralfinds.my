@@ -19,6 +19,27 @@ export type PageId =
   | 'referrals'
   | 'notifications'
   | 'settings'
+  // Fasa 2 — Multi-platform expansion
+  | 'tiktok'
+  | 'lazada'
+  | 'live'
+  | 'compare'
+  | 'unified'
+  | 'matcher'
+  // Fasa 3 — AI Superpowers
+  | 'recommender'
+  | 'thumbnails'
+  | 'alerts'
+  | 'abtesting'
+  | 'audience'
+  | 'hashtags'
+  | 'calendar'
+  // Fasa 4 — Monetize & Scale
+  | 'pricing'
+  | 'marketplace'
+  | 'team'
+  | 'whitelabel'
+  | 'apikeys'
 
 export type AuthView = 'login' | 'register'
 

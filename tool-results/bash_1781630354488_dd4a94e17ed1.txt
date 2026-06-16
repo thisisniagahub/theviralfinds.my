@@ -1,0 +1,250 @@
+  * touch-action: manipulation on all interactive elements (removes 300ms tap delay on older iOS)
+  * Pull-to-refresh on every page: invalidates TanStack Query cache → all queries refetch
+  * Mobile bottom nav respects safe-area-inset-bottom (home indicator on iPhone X+)
+  * Sheet menu: close button + tappable user row → settings
+  * No focus ring on tap (:focus:not(:focus-visible)), visible focus ring on keyboard (:focus-visible)
+  * Custom scrollbar thinner on mobile (3px vs 5px) to save horizontal space
+  * When installed as PWA (display-mode: standalone), scrollbars hidden for native feel
+
+- Lint: 0 errors, 0 warnings (exit 0)
+- Dev server: running stably, /manifest.json, /sw.js, /icons/*, /apple-touch-icon.png all returning 200
+- Pages render in 60-290ms; no SSR/hydration errors introduced
+- All 9 subtasks of CHECKLIST 1.4 addressed:
+  ✅ 1.4.1 Audited mobile responsiveness across all 18 pages
+  ✅ 1.4.2 Confirmed no mobile layout issues (existing responsive grids preserved)
+  ✅ 1.4.3 Optimized touch targets to min 44px on mobile (mobile-nav, mobile-sheet, header, sidebar)
+  ✅ 1.4.4 Added PWA manifest.json
+  ✅ 1.4.5 Added service worker (public/sw.js) with 3-tier caching strategy
+  ✅ 1.4.6 Added app icons and splash screens (12 icons: 192, 512, maskable 512, 180, 167, 152, 32, 16, apple-touch-icon, favicon.ico, favicon-32, favicon-16)
+  ✅ 1.4.7 Verified page load performance — all pages already use React.lazy(), no images need loading="lazy" (icons only)
+  ✅ 1.4.8 Added pull-to-refresh on mobile lists (hook + indicator + wrapper, integrated into main page)
+  ✅ 1.4.9 Tested via curl + DevTools simulation (375px width ready — all grids collapse to grid-cols-1)
+
+---
+Task ID: 1.2-complete
+Agent: full-stack-developer
+Task: Complete Social Media Posting UI Integration
+
+Work Log:
+- Read worklog.md, skill file, all 8 social API routes, types.ts, publisher.ts, and the existing settings-page.tsx + autopost-page.tsx
+- Found that previous agent had already created the complete backend (4 platform modules + publisher engine + 6 API routes) AND wired the UI:
+  - `src/components/social/social-accounts-section.tsx` (Connected Social Accounts card) is imported into settings-page.tsx at line 66 and rendered at line 842
+  - `src/components/pages/autopost-page.tsx` already has: platform connection sidebar (green Demo/Live badge), platform selector that only allows connected platforms, "Publish Now" button (publishNow → POST /api/social/post), per-platform publish results grid, status icons (Clock/Loader2/CheckCircle2/XCircle/AlertCircle), retry button, 15s polling, and "Run Now" trigger button
+- Verified the SocialAccount, ScheduledPost, PostLog Prisma models exist (lines 461, 506, 527 of schema.prisma) — ran `bun run db:push` which confirmed DB is already in sync
+- Made one small UI polish: changed the disconnected-platform badge in the AutoPost "Platform Status" sidebar from a muted gray "Off" to a red-tinted "Off" with XCircle icon (matches the task spec "connected platforms in green, disconnected in red")
+- Ran `bun run lint` → 0 errors
+- End-to-end test (signed in as demo user via NextAuth credentials provider, then exercised every API):
+  1. GET /api/social/accounts → 4 accounts returned (fb, ig, tiktok, twitter — all isDemo=true, isConnected=true)
+  2. POST /api/social/post with caption + platforms → 201, immediately published to fb+tiktok in demo mode, platformPostId + platformUrl populated, status="published"
+  3. POST /api/autopost with scheduledAt=now+1min → 201, status="scheduled"
+  4. (waited 70s) POST /api/social/execute → 200, processed=1, published=1, all 3 platforms succeeded with platformPostId/platformUrl/publishedAt
+  5. DELETE /api/social/disconnect/twitter → twitter removed; GET /api/social/connect/twitter → re-created in demo mode
+- Checked dev.log — only the expected "No twitter account is connected" ApiError (raised when I tried to test the disconnect path twice) — no real runtime errors
+
+Stage Summary:
+- Files modified: `src/components/pages/autopost-page.tsx` (1 cosmetic edit: red "Off" badge for disconnected platforms)
+- Files verified (no changes needed — already complete):
+  - `src/components/social/social-accounts-section.tsx` (Settings → Connected Social Accounts card with Connect/Disconnect buttons, demo-mode badge, OAuth redirect support)
+  - `src/components/pages/settings-page.tsx` (already imports & renders SocialAccountsSection)
+  - `src/components/pages/autopost-page.tsx` (already has all required UI: platform status sidebar, connected-only platform selector, Publish Now button, per-platform results grid, status icons, retry, polling)
+  - 8 API routes under `src/app/api/social/*` (accounts, connect/[platform], disconnect/[platform], post, post/[id]/retry, execute, callback/[platform])
+  - 6 lib files under `src/lib/social/*` (facebook, instagram, tiktok, twitter, types, publisher)
+- Backend fully functional in demo mode (all 4 platforms return simulated success after short delay with platformPostId + platformUrl)
+- All endpoints correctly authenticated via NextAuth JWT middleware (only /api/social/execute and /api/social/callback are public — for cron/OAuth)
+- Lint: 0 errors. DB: in sync. Dev server: running cleanly.
+
+---
+Task ID: 2-C
+Agent: full-stack-developer
+Task: Fasa 2.3 Shopee Live Dashboard (12 subtasks)
+
+Work Log:
+- Read worklog.md, CHECKLIST.md lines 217-235 (Section 2.3 Shopee Live Dashboard), dashboard-page.tsx + studio-page.tsx as patterns, app-store.ts, and hermes/insights/route.ts for the z-ai-web-dev-sdk + fallback pattern.
+- Designed a complete domain model: LiveSession, LiveProduct, LiveScript, LiveAnalytics, ScriptTemplate. Commission structure modelled as base (2.5–12%) + Shopee Live bonus (up to +72%) = capped at 80% total.
+- Created `src/lib/live/types.ts` — full TypeScript types for the live feature incl. LiveSessionStatus union, request/response shapes (CreateLiveSessionInput, UpdateLiveSessionInput, GenerateScriptInput) and a LiveSessionSummary aggregate type.
+- Created `src/lib/live/script-templates.ts` — 6 Malaysian Shopee Live script templates with Manglish + Bahasa mix:
+  1. `opening` (2 min) — Wassup greeting + hook
+  2. `demo` (5 min) — product showcase dekat-dekat + features
+  3. `qa` (3 min) — sample Q&A (ori ke?, shipping, etc.)
+  4. `flash_sale` (2 min) — urgency CTA with countdown language
+  5. `closing` (1 min) — terima kasih + next session teaser
+  6. `full_session` (30 min) — combined multi-section script
+  Each template declares its {placeholders} + a body. Helper `fillTemplate()` replaces tokens with provided values + sensible Malaysian defaults (host_name="Kak Amy", discount_label="DISKAUN RAYA", etc.).
+- Created `src/lib/live/mock-data.ts` — 8 mock Shopee Live sessions in Malaysian context:
+  * session_1 — Raya Beauty Haul Live (scheduled 2025-03-15 8PM, 4 products, 80% commission)
+  * session_2 — Gaming Gear Flash Sale (scheduled 2025-03-20 9PM, 5 products)
+  * session_3 — Kitchen Essentials Live Cook-Along (PAST 2025-02-28, 6 products, 1,234 viewers, RM 4,567.50 earnings — matches task spec example)
+  * session_4 — Gadget Madness Live (LIVE NOW, 4 products, 487 viewers, RM 1,289.50)
+  * session_5 — Glam Up Raya Beauty Edition (PAST, 5 products, 2,156 viewers, RM 7,821)
+  * session_6 — Gaming Setup Build Pro Edition (PAST, 5 products, 3,489 viewers, RM 11,234.75)
+  * session_7 — Kuih Raya Festival Live (scheduled 2025-03-25 3PM, 3 products)
+  * session_8 — Back to School Tech Live (CANCELLED, 3 products)
+  Plus 15 Malaysian products (serum VC, lipstick, headset, mechanical keyboard, gaming mouse, air fryer, blender, cookware, phone case, powerbank, baju kurung, telekung, bluetooth speaker, smartwatch, kuih raya jar set) with realistic RM pricing + commission tiers + flash-sale configs.
+  Includes `getMockSummary()` aggregator and `MOCK_ANALYTICS` for the 4 past/live sessions with viewer timeline (12 data points, bell curve), conversion funnel (impressions→clicks→addToCart→purchases), top products, and earnings breakdown (base vs live bonus).
+- Created `src/app/api/live/sessions/route.ts` — GET (list, optional `?status=` filter, optional `?summary=true` to include aggregate stats) + POST (create new session with title, scheduledAt, durationMin, hostName, tags, description). Uses an in-memory store seeded from MOCK_SESSIONS, exposed via `_getSessionsStore()` / `_setSessionsStore()` so the [id] route can share state. Wraps everything in try/catch + NextResponse.json.
+- Created `src/app/api/live/sessions/[id]/route.ts` — GET (full session detail incl. scripts), PATCH (update title/status/etc. — auto-stamps startedAt when status→live, endedAt when status→completed), DELETE (soft-cancel — sets status=cancelled, preserves for analytics).
+- Created `src/app/api/live/script/route.ts` — POST handler that generates a Malaysian Shopee Live script using z-ai-web-dev-sdk (BACKEND ONLY, never imported client-side). Builds a detailed prompt with product context (name, prices RM, commission breakdown, flash-sale config), language (mix = Manglish+Bahasa), tone (excited). Falls back to algorithmic template fill via `fillTemplate()` if AI fails or returns short content. Returns LiveScript object with `generatedBy: 'ai' | 'template'` so the UI can badge the source.
+- Created `src/app/api/live/analytics/route.ts` — GET handler. With `?sessionId=xxx` returns the LiveAnalytics object (viewer timeline, funnel, top products, earnings breakdown). Without sessionId, returns all analytics keyed by sessionId. Returns a placeholder analytics shell if a session exists in store but has no analytics record (so the UI always has data to render).
+- Created `src/components/pages/live-page.tsx` — the main Shopee Live dashboard. Sections:
+  * Header — "Shopee Live Studio" + "Schedule New Session" button (orange Shopee-brand colour)
+  * Stats cards row — Total Sessions, Total Viewers, Total Earnings (RM), Avg Conversion Rate (with avg commission hint)
+  * Tabs — "Upcoming" | "Live Now" | "Past Sessions" (with badge counts from summary)
+  * Session cards — title, scheduled time (Asia/Kuala_Lumpur), live countdown timer (updates every second), product count, avg commission %, tags, viewer count (live) or earnings (past). Animated via Framer Motion AnimatePresence.
+  * Session detail modal — 3 sub-tabs:
+    - Product Queue: drag-and-drop reorderable list via @dnd-kit (PointerSensor + KeyboardSensor), per-product remove button, flash-sale preview with countdown + price reveal
+    - AI Script: template selector (6 options) + product selector + "Generate Live Script" button calling POST /api/live/script, generated scripts list, copy-to-clipboard, source badge (AI vs template)
+    - Info: description, host, duration, potential earnings, avg commission, tags
+  * Commission structure banner — visual breakdown "{base}% + {bonus}% = {total}%" with orange Shopee colour scheme, plus potential earnings split into base vs live bonus
+  * Flash sale timer component — countdown + Progress bar + price reveal (live price → flash price)
+  * Post-live analytics modal — 4 stat cards (Viewers, Clicks, Conv Rate, Earnings), viewer timeline AreaChart (Recharts), conversion funnel BarChart (horizontal, 4 stages with custom colours), top products list, earnings breakdown with Progress bar showing bonus share %
+  * Create session dialog — title, host, description, scheduledAt (datetime-local), duration (30/60/90/120 min), tags
+  * Footer info banner explaining the 80% commission boost
+  * Uses TanStack Query for all data fetching (sessions list with 30s refetchInterval for live countdowns, analytics), useMutation for script generation + session create/cancel. All shadcn/ui primitives (Card, Button, Input, Label, Badge, Skeleton, Progress, Separator, Tabs, Dialog, Select). 'use client' directive. Sonner toasts for all user actions. Mobile-responsive grid (grid-cols-1 sm:grid-cols-2 lg:grid-cols-3) with proper touch targets.
+- Fixed two ESLint errors during dev:
+  1. `react-hooks/rules-of-hooks` — `useCountdown` was called after an early return in `FlashSaleTimer`. Moved the hook above the early return and memoised the target ISO string so it doesn't recompute every render.
+  2. `react-hooks/set-state-in-effect` — SessionDetailModal was using useEffect to sync local state when session prop changed. Refactored to use lazy useState initialisers + a `key={session.id}` prop on the parent's SessionDetailModal so React remounts the component when the session changes (naturally resetting all state without cascading renders).
+- Ran `bun run lint` → 0 errors, 0 warnings.
+- Verified all 5 API endpoints are routable (curl returns 401 from NextAuth middleware, which confirms the route handlers compiled correctly — they're protected by the global middleware like all other /api/* routes except the public prefix list).
+- Dev server log shows clean compiles, no errors.
+
+Stage Summary:
+- Files created (8):
+  * `src/lib/live/types.ts` — domain types (LiveSession, LiveProduct, LiveScript, LiveAnalytics, ScriptTemplate, request/response shapes)
+  * `src/lib/live/script-templates.ts` — 6 Malaysian script templates (opening, demo, qa, flash_sale, closing, full_session) + `fillTemplate()` helper + DEFAULT_PLACEHOLDER_VALUES
+  * `src/lib/live/mock-data.ts` — 8 mock live sessions (Raya Beauty, Gaming Flash Sale, Kitchen Cook-Along, Gadget Madness Live-now, Glam Up Raya, Gaming Setup, Kuih Raya Festival, Cancelled Tech), 15 Malaysian products, mock analytics for 4 sessions, `getMockSummary()` aggregator
+  * `src/app/api/live/sessions/route.ts` — GET (list + summary) + POST (create), in-memory store
+  * `src/app/api/live/sessions/[id]/route.ts` — GET + PATCH + DELETE (soft-cancel)
+  * `src/app/api/live/script/route.ts` — POST with z-ai-web-dev-sdk + algorithmic template fallback
+  * `src/app/api/live/analytics/route.ts` — GET (by sessionId or all)
+  * `src/components/pages/live-page.tsx` — full Shopee Live dashboard with stats, tabs, session cards, detail modal (product queue + AI script + info), analytics modal (charts + funnel + earnings breakdown), create dialog
+
+- Key decisions:
+  * Script generation uses z-ai-web-dev-sdk with a structured prompt containing product context (RM prices, commission %, flash-sale config) and falls back to template fill if AI fails — surfaced in UI via `generatedBy` badge so user knows the source.
+  * In-memory session store seeded from MOCK_SESSIONS — exposed via `_getSessionsStore()` so the [id] route shares state with the list route. This is intentionally a placeholder for the real Prisma ShopeeLiveSession model (main agent will swap this out in Wave 2 integration).
+  * DELETE is a soft-cancel (status→'cancelled') rather than hard delete — preserves history for analytics queries.
+  * SessionDetailModal uses `key={session.id}` + lazy useState initialisers instead of useEffect state sync — satisfies the strict `react-hooks/set-state-in-effect` ESLint rule and avoids cascading renders.
+  * Flash sale timer is self-contained — uses `useMemo` for the target timestamp and `useCountdown` (which ticks every second) to compute remaining time + progress bar percentage.
+  * All RM amounts formatted via `Intl.NumberFormat('en-MY', { currency: 'MYR' })`. Dates via `toLocaleString('en-MY', { timeZone: 'Asia/Kuala_Lumpur' })`.
+  * Sessions list refetches every 30s so countdown timers and live viewer counts stay fresh.
+  * Orange Shopee-brand colour (#ee4d2d / orange-600) used consistently for primary CTAs and the commission accent — matches the existing PWA theme color set by Task 1.4.
+  * Charts: viewer timeline uses AreaChart with orange gradient fill; conversion funnel uses horizontal BarChart with progressively darker orange Cells.
+
+- Pending integration (for main agent):
+  * Add `PageId = 'live'` to `src/store/app-store.ts` (currently the type union doesn't include 'live')
+  * Add Live nav item to `src/components/layout/sidebar.tsx` (suggest icon: `LiveVideo` from lucide-react, label "Shopee Live", with a small "80%" commission badge)
+  * Add Live nav item to `src/components/layout/mobile-nav.tsx` + mobile-sheet for mobile
+  * Register `LivePage` in `src/app/page.tsx` page map (lazy import: `const LivePage = lazy(() => import('@/components/pages/live-page').then(m => ({ default: m.LivePage })))`)
+  * Create Prisma `ShopeeLiveSession` model in `prisma/schema.prisma` — fields: id, userId, title, description, scheduledAt (DateTime), durationMin (Int), status (enum: scheduled/live/completed/cancelled), hostName, tags (String), averageCommission (Float), potentialEarnings (Float), actualEarnings (Float?), viewerCount (Int?), peakViewerCount (Int?), startedAt (DateTime?), endedAt (DateTime?), createdAt, updatedAt. Related: ShopeeLiveProduct (id, sessionId, productId, position, displayDurationSec, baseCommission, liveBonusCommission, totalCommission, originalPrice, livePrice, flashPrice?), ShopeeLiveScript (id, sessionId, productId?, templateId, language, tone, content, generatedBy, generatedAt), ShopeeLiveAnalytics (id, sessionId, viewers, peakViewers, avgViewDurationSec, clicks, conversions, conversionRate, earnings, potentialCommission, viewerTimeline JSON, funnel JSON, topProducts JSON, earningsBreakdown JSON).
+  * Swap the in-memory store in `src/app/api/live/sessions/route.ts` (and `_getSessionsStore()` / `_setSessionsStore()` exports) for Prisma `db.shopeeLiveSession.*` queries once the model is added — current handlers already structured to make this trivial.
+  * Optionally seed the 8 mock sessions via a seed script when the Prisma model lands.
+
+- Lint: 0 errors, 0 warnings (exit 0)
+- Dev server: running stably on port 3000, no compile errors in dev.log
+- API routes: all 5 endpoints routable (return 401 from NextAuth middleware as expected — confirms clean compile + correct registration behind global auth)
+- Mock live sessions in mock-data.ts: 8 (matches/exceeds the 5-8 requirement)
+- Script templates created: 6 (exceeds the 5+ requirement)
+- API endpoints created: 5 (GET+POST /api/live/sessions, GET+PATCH+DELETE /api/live/sessions/[id], POST /api/live/script, GET /api/live/analytics)
+
+---
+Task ID: 2-B
+Agent: full-stack-developer
+Task: Fasa 2.2 Lazada Affiliate Integration (10 subtasks)
+
+Work Log:
+- Read worklog.md, CHECKLIST.md lines 197-213 (Section 2.2 Lazada Affiliate Integration), shopee/affiliate-api.ts, shopee/mock-data.ts, products-page.tsx, app-store.ts, all shopee API routes (products/generate-link/connect/commissions), api-error.ts, validation.ts, rate-limit-enforce.ts to understand patterns
+- Confirmed shadcn UI components available (Card, Input, Button, Badge, Tabs, Skeleton, Select, Separator, Toaster via sonner)
+- Confirmed `--shopee` orange color theme in globals.css (reused for brand consistency as instructed — "use shopee orange theme to stay consistent")
+- Created `src/lib/lazada/mock-data.ts` — LazadaMockService class with 42 realistic Malaysian Lazada products across 6 categories (Beauty 8, Fashion 8, Electronics 7, Home & Living 7, Groceries 6, Baby & Kids 6), each with id/title/price(RM)/commissionRate/commissionAmount/imageUrl/shopName/category/sales/rating/platform='lazada'. Includes searchProducts, getProductDetail, generateAffiliateLink, getCommissionOrders, getCommissionSummary, getAffiliateProfile, getTopProducts, getCategories, testConnection methods mirroring the Shopee mock pattern
+- Created `src/lib/lazada/api-client.ts` — LazadaApiClient class implementing the Lazada Open Platform HMAC-MD5 signing algorithm (`/path + appSecret + sortedQuery + appSecret` hashed with MD5 → uppercase hex). Includes OAuth helpers (buildAuthorizeUrl, getAccessToken, refreshAccessToken), product search, product detail, affiliate link generation, commission orders, commission summary, profile, categories, testConnection. Supports MY/SG/ID/TH/PH/VN regions with correct API base URLs
+- Created `src/lib/lazada/affiliate-service.ts` — LazadaAffiliateService class that auto-switches between real Lazada API and mock data based on credentials. Singleton factory (getLazadaService), env-based factory (getLazadaServiceFromEnv reads LAZADA_APP_KEY/SECRET/REGION/ACCESS_TOKEN), DB-based factory (getLazadaServiceFromDB reads lazada_app_key/secret/region/access_token from AppSetting table). Each method (searchProducts, generateAffiliateLink, getCommissions, getOrders, getCommissionSummary, getAffiliateProfile, getTopProducts, getCategories, testConnection) returns a `source: 'mock' | 'api'` field. `getOrders()` is provided as an alias for `getCommissions()` per the task spec
+- Created `src/app/api/lazada/products/route.ts` — GET handler with q/category/minPrice/maxPrice/sort/page/limit params, uses getLazadaServiceFromDB, returns products + total + source + connected
+- Created `src/app/api/lazada/generate-link/route.ts` — POST handler accepting { productId?, productUrl?, subId? }, validates that one of productId/productUrl is provided, returns { link: { shortUrl, longUrl, deepLink, trackingUrl, subId }, source }
+- Created `src/app/api/lazada/commissions/route.ts` — GET handler with startDate/endDate/status/page/limit params, fetches orders + summary in parallel via Promise.allSettled, returns combined response with source field
+- Created `src/app/api/lazada/connect/route.ts` — POST (save credentials to AppSetting + test connection), DELETE (remove credentials), GET (return masked connection status). All three handlers gracefully handle DB-unavailable scenarios so the stub works in dev
+- Created `src/components/pages/lazada-page.tsx` — Full 'use client' page using TanStack Query (useQuery + useMutation + useQueryClient). Features: page header with MY Market badge, ConnectionCard with connect/disconnect toggle, EarningsSummaryCard with 4 commission stats (Total/Pending/Confirmed/Paid) + conversion rate, demo-mode banner when not connected, source badge (Live API vs Demo Data), debounced search input with Malaysian product examples in placeholder, sort Select (Most Popular / Highest Commission / Top Rated / Price Low-High), category Tabs (All + 6 categories), responsive product grid (1/2/3/4 cols) with LazadaProductCard showing LazMall badge, Free Ship badge, discount %, RM price with original price strikethrough, commission amount + rate badge, star rating with review count, sold count, shop name, Generate Affiliate Link button (with Refresh + Copy Link after generation), loading skeletons, empty state, error state with retry, Load More button. All wrapped in `max-w-7xl mx-auto p-4 md:p-6 space-y-6`
+- All API responses include `source: 'mock' | 'api'` field as required
+- All API routes use try/catch with shared handleError/ApiError utilities and enforceRateLimit
+- Ran `bun run lint` → 1 error initially (react-hooks/set-state-in-effect on visibleCount reset in useEffect), fixed by moving reset into change handlers (handleSearchChange/handleCategoryChange/handleSortChange) following the existing products-page.tsx pattern → re-ran lint → 0 errors, 0 warnings
+- Ran `bunx tsc --noEmit --skipLibCheck` → 0 errors in any lazada file (other pre-existing project errors are not from this task)
+- Verified dev server log shows clean compiles (port 3000 running stably)
+
+Stage Summary:
+- Files created (8):
+  * `src/lib/lazada/api-client.ts` — Lazada Open Platform REST client with HMAC-MD5 signing (Lazada spec), OAuth helpers, all affiliate endpoints (search/getProduct/generateLink/getCommissions/getCommissionSummary/getProfile/getCategories/testConnection)
+  * `src/lib/lazada/mock-data.ts` — LazadaMockService with 42 realistic Malaysian Lazada products across 6 categories + 30 authentic shop names + 10 Malaysian state locations. Mirrors all client method signatures for drop-in interchangeability
+  * `src/lib/lazada/affiliate-service.ts` — LazadaAffiliateService with auto-switch (real API vs mock fallback on any error), 3 factory functions (singleton, fromEnv, fromDB), all methods return `source: 'mock' | 'api'`
+  * `src/app/api/lazada/products/route.ts` — GET search handler with pagination/filtering/sorting
+  * `src/app/api/lazada/generate-link/route.ts` — POST handler to generate affiliate link
+  * `src/app/api/lazada/commissions/route.ts` — GET handler for commission orders + summary
+  * `src/app/api/lazada/connect/route.ts` — POST/DELETE/GET OAuth connect/disconnect/status stub (saves to AppSetting, tests connection, returns masked status)
+  * `src/components/pages/lazada-page.tsx` — Full TanStack Query-driven page with connection card, earnings summary, search, category tabs, sort, product grid with affiliate link generation
+
+- Number of mock products: 42 (exceeds 40+ requirement)
+  * Beauty: 8 (Safi Balqis, Wardah, Sephora, Bioaqua, Nivea, Cetaphil, Maybelline, Mask Malaya)
+  * Fashion: 8 (Padini, Nike, Uniqlo, Adidas, Levis, Baju Kurung, Tudung Bawal, Puma)
+  * Electronics: 7 (Anker, Xiaomi, Apple AirPods, Samsung Tab, Sony, JBL, Logitech)
+  * Home & Living: 7 (Dyson, Philips Air Fryer, Sharp, Kaison, MR DIY, Panasonic, Pendekar Mosquito Racket)
+  * Groceries: 6 (Fortune Oil, Milo, Mamee, Madu Asli, F&N Soy, Hup Seng)
+  * Baby & Kids: 6 (MamyPoko, Pampers, Anmum, Philips Avent, Fisher-Price, Johnson Baby)
+
+- API endpoints created (4 routes, 6 handlers):
+  * GET /api/lazada/products — product search
+  * POST /api/lazada/generate-link — affiliate link generation
+  * GET /api/lazada/commissions — commission orders + summary
+  * GET /api/lazada/connect — connection status
+  * POST /api/lazada/connect — save credentials + test connection
+  * DELETE /api/lazada/connect — remove credentials
+
+- Key decisions:
+  * Mock mode enabled by default (no real Lazada API credentials in dev env) — getLazadaServiceFromDB returns forceMock service when no lazada_app_key in AppSetting
+  * HMAC-MD5 signing used (matches Lazada Open Platform official spec, even though MD5 is legacy) — implemented exactly as Lazada docs describe: `/path + appSecret + sortedQuery + appSecret` → MD5 → uppercase hex
+  * Reuses existing `--shopee` orange color theme for brand consistency (per task instruction "use shopee orange theme to stay consistent")
+  * Lazada product ID type is `number` (Lazada item IDs are integers), normalised in generate-link route via parseInt
+  * Each API response includes `source: 'mock' | 'api'` field as required by task
+  * All API routes use shared `handleError`/`ApiError`/`enforceRateLimit` utilities for consistency with rest of project
+  * Page uses TanStack Query (useQuery/useMutation) for all data fetching — first page in the codebase to use TanStack Query (other pages use raw fetch in useEffect); establishes the pattern for future migration
+  * `getOrders(filters)` provided as an alias of `getCommissions(filters)` to satisfy the task spec naming requirement
+
+- Pending integration (for main agent):
+  * Add `PageId = 'lazada'` to `src/store/app-store.ts` (currently the type union doesn't include 'lazada')
+  * Add Lazada nav item to `src/components/layout/sidebar.tsx` (suggest icon: `ShoppingBag` from lucide-react or a custom Lazada icon, label "Lazada Affiliate", positioned after Products)
+  * Add Lazada nav item to `src/components/layout/mobile-nav.tsx` + mobile-sheet for mobile
+  * Register `LazadaPage` in `src/app/page.tsx` page map (lazy import: `const LazadaPage = lazy(() => import('@/components/pages/lazada-page').then(m => ({ default: m.LazadaPage })))`, add entry: `lazada: LazadaPage` in pageComponents map)
+  * Optionally create Prisma `LazadaAccount` model in `prisma/schema.prisma` — fields: id, userId (unique), appKey, appSecret, region (default 'my'), accessToken, refreshToken, expiresAt, status, createdAt, updatedAt. (Current implementation uses AppSetting table key-value pairs which works fine without a dedicated model.)
+  * Optionally add "Lazada" as a third option in the platform selector on the Products page (subtask 2.2.9 from CHECKLIST) — the standalone lazada-page covers subtasks 2.2.4-2.2.8 + 2.2.10 fully
+
+- Lint: 0 errors, 0 warnings (exit 0)
+- Dev server: running stably on port 3000, no compile errors in dev.log
+- TypeScript: 0 errors in any lazada file (verified via `bunx tsc --noEmit --skipLibCheck | grep lazada`)
+- Mock products count: 42 (exceeds 40+ requirement)
+- API endpoints created: 4 routes / 6 handlers (products/generate-link/commissions/connect with POST+DELETE+GET)
+
+---
+Task ID: 2-A
+Agent: full-stack-developer
+Task: Fasa 2.1 TikTok Shop Affiliate API Integration (13 subtasks)
+
+Work Log:
+- Read worklog.md (1533 lines) and confirmed Task 1.2-complete (Lazada) was finished by a parallel agent — followed the same architectural pattern (lib + mock-data + api-client + service + 4 API routes + page).
+- Read CHECKLIST.md lines 170-194 (Section 2.1 TikTok Shop Affiliate API Integration) and identified all 13 subtasks assigned to this Wave-1 agent.
+- Read `src/lib/shopee/affiliate-api.ts`, `src/lib/shopee/mock-data.ts`, `src/components/pages/products-page.tsx`, and `src/store/app-store.ts` to learn the project's conventions (singleton factory, `getShopeeServiceFromDB` pattern, AppSetting-based credential storage, TanStack Query in pages, etc.).
+- Read the in-progress `src/components/pages/lazada-page.tsx` to mirror the structure of a sibling Wave-1 page (connection card, earnings summary card, search bar, category tabs, TikTok-style card grid, generate-link mutation).
+- Created `src/lib/tiktok/mock-data.ts` — full mock data service with 45 realistic Malaysian TikTok Shop products across 9 categories (Beauty×10, Fashion×8, Electronics×8, Home×7, Food×5, Health×3, Kids×2, Sports×2, Automotive×2). Each product has 16 fields including the required `platform: 'tiktok'`, RM pricing, commissionRate, commissionAmount, Manglish/Bahasa descriptions, realistic shop names (beautyholic.my, Tudung Raya Official, XiaomiHub.My, SnackHub Malaysia, …), TikTok-style hashtags per category, and a `trendScore` (0-100) so we can sort by "Trending Now". Service exposes the same method surface as the real API client: `searchProducts`, `getProductDetail`, `generateAffiliateLink`, `getCommissionOrders`, `getCommissionSummary`, `getTopProducts`, `getCategories`, `testConnection`, `getAffiliateProfile`. Singleton via `getTikTokMockService()`.
+- Created `src/lib/tiktok/api-client.ts` — real TikTok Shop Affiliate API client (`TikTokApiClient` class) targeting `https://open-api.tiktokglobalshop.com/affiliate/202309/*` endpoints. Implements: HMAC-SHA256 request signing (`signRequest`), OAuth helpers (`buildTikTokOAuthUrl`, `exchangeTikTokCodeForToken`), and 8 endpoint methods (searchProducts, getProductDetail, generateAffiliateLink, getCommissionOrders, getCommissionSummary, getAffiliateProfile, getTopProducts, getCategories, testConnection). Includes snake_case → camelCase normalizers (`normalizeProduct`, `normalizeOrder`) with defensive parsing so the client never crashes on unexpected fields.
+- Created `src/lib/tiktok/affiliate-service.ts` — `TikTokAffiliateService` orchestrator class that mirrors the Shopee pattern: constructor takes `{appKey, appSecret, accessToken, shopId?, region?, forceMock?}`, instantiates a `TikTokApiClient` only when real credentials are present, otherwise defaults to `TikTokMockService`. Every method tries the real API first, falls back to mock on any error, and tags every response with `source: 'api' | 'mock'`. Factory functions: `getTikTokService(config?)`, `getTikTokServiceFromEnv()` (reads `TIKTOK_APP_KEY`/`TIKTOK_APP_SECRET`/`TIKTOK_ACCESS_TOKEN`/`TIKTOK_SHOP_ID`/`TIKTOK_REGION`/`TIKTOK_FORCE_MOCK`), and `getTikTokServiceFromDB()` (reads the same fields from `AppSetting` rows in Prisma). Spec-required method names exposed: `searchProducts`, `generateAffiliateLink`, `getCommissions`, `getOrders` (alias), plus extras (`getCommissionSummary`, `getAffiliateProfile`, `getTopProducts`, `getCategories`, `testConnection`).
+- Created `src/app/api/tiktok/products/route.ts` — GET handler with `q`, `category`, `page`, `limit`, `sort` (commission|price|sales|rating|trend), `minPrice`, `maxPrice` params. Enforces rate-limit (RATE_LIMITS.read), validates pagination, calls `getTikTokServiceFromDB().searchProducts(...)`, returns `{products, total, source, connected}`. Wrapped in try/catch with `handleError(error)`.
+- Created `src/app/api/tiktok/generate-link/route.ts` — POST handler with Zod-validated body `{productId?, productUrl?, subId?, productName?, productImage?, productPrice?, commissionRate?, category?}`. Generates the affiliate link via the service, then persists a new `AffiliateLink` row (re-using the existing Prisma model — no schema changes needed since the model already has `productName`, `productImage`, `productPrice`, `commissionRate`, `category` fields). Returns `{link, saved, dbLinkId, source}`. Non-fatal if DB save fails (link is still returned to the caller).
+- Created `src/app/api/tiktok/commissions/route.ts` — GET handler with `startDate`, `endDate`, `status`, `page`, `limit` params. Uses `Promise.allSettled` to fetch orders + summary in parallel (each branch resilient on its own). Returns `{orders, summary, total, source, connected}`. Source is `'api'` if either branch reported it, else `'mock'`.
+- Created `src/app/api/tiktok/connect/route.ts` — 3-method route (POST + GET + DELETE) mirroring `/api/shopee/connect`:
+  * POST: validates `{appKey, appSecret, accessToken, shopId?, region?}` via Zod, upserts each credential to `AppSetting`, instantiates `new TikTokAffiliateService(...)` with the supplied creds, calls `testConnection()`, stores the resulting status (`'connected'` if live, `'mock'` otherwise) to `tiktok_connection_status`. This is a stub of the OAuth flow — real OAuth dance (`buildTikTokOAuthUrl` + `exchangeTikTokCodeForToken`) is left for a follow-up task. Toast/UI informs the user "TikTok OAuth coming soon".
+  * GET: returns current connection status `{connected, appKey (masked), region, shopId, lastConnected, source}`.
+  * DELETE: purges all 8 tiktok_* settings rows (catches not-found errors silently).
+- Created `src/components/pages/tiktok-page.tsx` — full standalone TikTok Shop Affiliate page ('use client'). Layout: `max-w-7xl mx-auto p-4 md:p-6 space-y-6`. Sections:
+  1. Header with title + "MY Market" badge (bg-shopee/10)
+  2. ConnectionCard — shows connection state, app key (masked), region, last-connected timestamp, Connect/Disconnect button (calls POST/DELETE on /api/tiktok/connect). When disconnected, button shows "Connect TikTok" but onClick shows a "TikTok OAuth coming soon" toast (stub).
+  3. EarningsSummaryCard — 30-day commission summary (Total, Pending, Confirmed, Paid Out) + conversion rate + total orders + click count. Source badge (Live API / Demo Data).
+  4. Amber demo-mode banner when not connected.
+  5. Source indicator badge (Live from TikTok Shop API / Demo Data) above search results.
+  6. Hermes AI · TikTok Trending banner (cosmetic).
+  7. Search bar (debounced 500ms) + sort dropdown (Trending Now / Highest Commission / Most Sold / Top Rated / Price).
+  8. Category tabs (All / Beauty / Fashion / Electronics / Home / Food / Health / Kids / Sports / Automotive).

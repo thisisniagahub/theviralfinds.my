@@ -230,6 +230,21 @@ export const studioCaptionSchema = z.object({
   duration: z.number().int().min(5).max(600).optional(),
 })
 
+/** POST /api/ai/thumbnail */
+export const aiThumbnailSchema = z.object({
+  productName: z.string().min(1, 'Product name is required').max(300),
+  price: z.number().nonnegative('Price must be non-negative'),
+  commissionRate: z.number().nonnegative('Commission rate must be non-negative').max(100),
+  template: z.enum([
+    'flash_sale', 'product_demo', 'comparison',
+    'unboxing', 'tutorial', 'testimonial',
+  ]),
+  platform: z.enum([
+    'tiktok', 'instagram_square', 'instagram_story', 'facebook', 'youtube',
+  ]),
+  customText: z.string().max(200).optional(),
+})
+
 /** POST /api/campaigns */
 export const createCampaignSchema = z.object({
   name: z.string().min(1, 'Campaign name is required').max(200),
