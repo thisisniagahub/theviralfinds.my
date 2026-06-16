@@ -1,0 +1,1051 @@
+     1→import { db } from '@/lib/db'
+     2→import { NextResponse } from 'next/server'
+     3→import { randomBytes } from 'crypto'
+     4→
+     5→function generateShortCode(): string {
+     6→  return randomBytes(4).toString('hex')
+     7→}
+     8→
+     9→function randomDate(start: Date, end: Date): Date {
+    10→  return new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()))
+    11→}
+    12→
+    13→export async function POST() {
+    14→  try {
+    15→    // Clear existing data (in reverse dependency order)
+    16→    await db.hermesMessage.deleteMany()
+    17→    await db.hermesConversation.deleteMany()
+    18→    await db.conversion.deleteMany()
+    19→    await db.clickRecord.deleteMany()
+    20→    await db.affiliateLink.deleteMany()
+    21→    await db.campaign.deleteMany()
+    22→    await db.payout.deleteMany()
+    23→    await db.notification.deleteMany()
+    24→    await db.achievement.deleteMany()
+    25→    await db.leaderboardEntry.deleteMany()
+    26→    await db.hermesInsight.deleteMany()
+    27→    await db.hermesTask.deleteMany()
+    28→    await db.hermesSkill.deleteMany()
+    29→    await db.hermesConnection.deleteMany()
+    30→    await db.agentMemory.deleteMany()
+    31→    await db.earningGoal.deleteMany()
+    32→    await db.referral.deleteMany()
+    33→    await db.user.deleteMany()
+    34→
+    35→    // ─── Create Users ─────────────────────────────────────────────
+    36→    const users = await Promise.all([
+    37→      db.user.create({
+    38→        data: {
+    39→          email: 'admin@theviralfinds.my',
+    40→          name: 'Admin User',
+    41→          role: 'admin',
+    42→          shopeeAffId: 'SHP_AFF_001',
+    43→          avatarUrl: null,
+    44→          isActive: true,
+    45→          lastLoginAt: new Date(),
+    46→        },
+    47→      }),
+    48→      db.user.create({
+    49→        data: {
+    50→          email: 'affiliate@theviralfinds.my',
+    51→          name: 'Ahmad Razak',
+    52→          role: 'affiliate',
+    53→          shopeeAffId: 'SHP_AFF_002',
+    54→          isActive: true,
+    55→          lastLoginAt: new Date(Date.now() - 1000 * 60 * 60),
+    56→        },
+    57→      }),
+    58→      db.user.create({
+    59→        data: {
+    60→          email: 'viewer@theviralfinds.my',
+    61→          name: 'Siti Nurhaliza',
+    62→          role: 'viewer',
+    63→          shopeeAffId: 'SHP_AFF_003',
+    64→          isActive: true,
+    65→          lastLoginAt: new Date(Date.now() - 1000 * 60 * 60 * 24),
+    66→        },
+    67→      }),
+    68→    ])
+    69→
+    70→    // ─── Create Campaigns ─────────────────────────────────────────
+    71→    const campaigns = await Promise.all([
+    72→      db.campaign.create({
+    73→        data: {
+    74→          name: '9.9 Super Shopping Day',
+    75→          description: 'Major sale event campaign for September 9th',
+    76→          status: 'active',
+    77→          budget: 500,
+    78→          spent: 234.5,
+    79→          startDate: new Date('2025-08-01'),
+    80→          endDate: new Date('2025-09-15'),
+    81→        },
+    82→      }),
+    83→      db.campaign.create({
+    84→        data: {
+    85→          name: 'Back to School',
+    86→          description: 'Back to school essentials promotion',
+    87→          status: 'active',
+    88→          budget: 300,
+    89→          spent: 156.75,
+    90→          startDate: new Date('2025-07-15'),
+    91→          endDate: new Date('2025-09-01'),
+    92→        },
+    93→      }),
+    94→      db.campaign.create({
+    95→        data: {
+    96→          name: 'Summer Tech Deals',
+    97→          description: 'Summer electronics and gadget promotion',
+    98→          status: 'completed',
+    99→          budget: 400,
+   100→          spent: 387.2,
+   101→          startDate: new Date('2025-05-01'),
+   102→          endDate: new Date('2025-07-31'),
+   103→        },
+   104→      }),
+   105→    ])
+   106→
+   107→    // ─── Create Affiliate Links ───────────────────────────────────
+   108→    const linkData = [
+   109→      {
+   110→        name: 'Wireless Earbuds Pro',
+   111→        productUrl: 'https://shopee.com.my/wireless-earbuds-pro',
+   112→        affiliateUrl: 'https://shopee.com.my/aff/wireless-earbuds-pro',
+   113→        productId: 'SHP_PROD_001',
+   114→        productName: 'Wireless Earbuds Pro X1',
+   115→        productImage: null,
+   116→        productPrice: 89.9,
+   117→        commission: 4.5,
+   118→        commissionRate: 5,
+   119→        category: 'electronics',
+   120→        clicks: 3200,
+   121→        conversions: 280,
+   122→        earnings: 1260.0,
+   123→        ctr: 8.75,
+   124→        status: 'active' as const,
+   125→        campaignId: campaigns[0].id,
+   126→        userId: users[0].id,
+   127→      },
+   128→      {
+   129→        name: 'RGB Gaming Mouse',
+   130→        productUrl: 'https://shopee.com.my/rgb-gaming-mouse',
+   131→        affiliateUrl: 'https://shopee.com.my/aff/rgb-gaming-mouse',
+   132→        productId: 'SHP_PROD_002',
+   133→        productName: 'RGB Gaming Mouse G7',
+   134→        productImage: null,
+   135→        productPrice: 59.9,
+   136→        commission: 3.0,
+   137→        commissionRate: 5,
+   138→        category: 'electronics',
+   139→        clicks: 2100,
+   140→        conversions: 195,
+   141→        earnings: 585.0,
+   142→        ctr: 9.29,
+   143→        status: 'active' as const,
+   144→        campaignId: campaigns[0].id,
+   145→        userId: users[0].id,
+   146→      },
+   147→      {
+   148→        name: 'Phone Case Ultra Slim',
+   149→        productUrl: 'https://shopee.com.my/phone-case-ultra',
+   150→        affiliateUrl: 'https://shopee.com.my/aff/phone-case-ultra',
+   151→        productId: 'SHP_PROD_003',
+   152→        productName: 'Ultra Slim Phone Case',
+   153→        productImage: null,
+   154→        productPrice: 25.0,
+   155→        commission: 1.5,
+   156→        commissionRate: 6,
+   157→        category: 'accessories',
+   158→        clicks: 1500,
+   159→        conversions: 142,
+   160→        earnings: 213.0,
+   161→        ctr: 9.47,
+   162→        status: 'active' as const,
+   163→        campaignId: campaigns[1].id,
+   164→        userId: users[1].id,
+   165→      },
+   166→      {
+   167→        name: 'USB-C Hub 7-in-1',
+   168→        productUrl: 'https://shopee.com.my/usbc-hub-7in1',
+   169→        affiliateUrl: 'https://shopee.com.my/aff/usbc-hub-7in1',
+   170→        productId: 'SHP_PROD_004',
+   171→        productName: 'USB-C Hub 7-in-1 Adapter',
+   172→        productImage: null,
+   173→        productPrice: 45.0,
+   174→        commission: 2.25,
+   175→        commissionRate: 5,
+   176→        category: 'electronics',
+   177→        clicks: 1800,
+   178→        conversions: 160,
+   179→        earnings: 360.0,
+   180→        ctr: 8.89,
+   181→        status: 'active' as const,
+   182→        campaignId: campaigns[1].id,
+   183→        userId: users[0].id,
+   184→      },
+   185→      {
+   186→        name: 'Fitness Tracker Band',
+   187→        productUrl: 'https://shopee.com.my/fitness-tracker',
+   188→        affiliateUrl: 'https://shopee.com.my/aff/fitness-tracker',
+   189→        productId: 'SHP_PROD_005',
+   190→        productName: 'Smart Fitness Tracker V3',
+   191→        productImage: null,
+   192→        productPrice: 79.9,
+   193→        commission: 4.0,
+   194→        commissionRate: 5,
+   195→        category: 'health',
+   196→        clicks: 1200,
+   197→        conversions: 115,
+   198→        earnings: 460.0,
+   199→        ctr: 9.58,
+   200→        status: 'active' as const,
+   201→        userId: users[1].id,
+   202→      },
+   203→      {
+   204→        name: 'LED Desk Lamp',
+   205→        productUrl: 'https://shopee.com.my/led-desk-lamp',
+   206→        affiliateUrl: 'https://shopee.com.my/aff/led-desk-lamp',
+   207→        productId: 'SHP_PROD_006',
+   208→        productName: 'Smart LED Desk Lamp',
+   209→        productImage: null,
+   210→        productPrice: 35.0,
+   211→        commission: 2.1,
+   212→        commissionRate: 6,
+   213→        category: 'home',
+   214→        clicks: 900,
+   215→        conversions: 72,
+   216→        earnings: 151.2,
+   217→        ctr: 8.0,
+   218→        status: 'active' as const,
+   219→        campaignId: campaigns[2].id,
+   220→        userId: users[0].id,
+   221→      },
+   222→      {
+   223→        name: 'Portable Blender',
+   224→        productUrl: 'https://shopee.com.my/portable-blender',
+   225→        affiliateUrl: 'https://shopee.com.my/aff/portable-blender',
+   226→        productId: 'SHP_PROD_007',
+   227→        productName: 'Mini Portable Blender',
+   228→        productImage: null,
+   229→        productPrice: 29.9,
+   230→        commission: 1.8,
+   231→        commissionRate: 6,
+   232→        category: 'home',
+   233→        clicks: 750,
+   234→        conversions: 58,
+   235→        earnings: 104.4,
+   236→        ctr: 7.73,
+   237→        status: 'paused' as const,
+   238→        userId: users[1].id,
+   239→      },
+   240→      {
+   241→        name: 'Mechanical Keyboard',
+   242→        productUrl: 'https://shopee.com.my/mechanical-keyboard',
+   243→        affiliateUrl: 'https://shopee.com.my/aff/mechanical-keyboard',
+   244→        productId: 'SHP_PROD_008',
+   245→        productName: 'Mechanical Gaming Keyboard',
+   246→        productImage: null,
+   247→        productPrice: 129.0,
+   248→        commission: 6.45,
+   249→        commissionRate: 5,
+   250→        category: 'electronics',
+   251→        clicks: 650,
+   252→        conversions: 52,
+   253→        earnings: 335.4,
+   254→        ctr: 8.0,
+   255→        status: 'active' as const,
+   256→        campaignId: campaigns[0].id,
+   257→        userId: users[0].id,
+   258→      },
+   259→      {
+   260→        name: 'Yoga Mat Premium',
+   261→        productUrl: 'https://shopee.com.my/yoga-mat',
+   262→        affiliateUrl: 'https://shopee.com.my/aff/yoga-mat',
+   263→        productId: 'SHP_PROD_009',
+   264→        productName: 'Premium Non-slip Yoga Mat',
+   265→        productImage: null,
+   266→        productPrice: 49.9,
+   267→        commission: 3.0,
+   268→        commissionRate: 6,
+   269→        category: 'sports',
+   270→        clicks: 500,
+   271→        conversions: 38,
+   272→        earnings: 114.0,
+   273→        ctr: 7.6,
+   274→        status: 'expired' as const,
+   275→        userId: users[1].id,
+   276→        expiresAt: new Date('2025-06-30'),
+   277→      },
+   278→      {
+   279→        name: 'Skincare Set Bundle',
+   280→        productUrl: 'https://shopee.com.my/skincare-set',
+   281→        affiliateUrl: 'https://shopee.com.my/aff/skincare-set',
+   282→        productId: 'SHP_PROD_010',
+   283→        productName: 'Complete Skincare Bundle',
+   284→        productImage: null,
+   285→        productPrice: 69.9,
+   286→        commission: 5.59,
+   287→        commissionRate: 8,
+   288→        category: 'beauty',
+   289→        clicks: 1100,
+   290→        conversions: 99,
+   291→        earnings: 553.41,
+   292→        ctr: 9.0,
+   293→        status: 'active' as const,
+   294→        campaignId: campaigns[1].id,
+   295→        userId: users[0].id,
+   296→      },
+   297→      {
+   298→        name: 'Wireless Charger Pad',
+   299→        productUrl: 'https://shopee.com.my/wireless-charger',
+   300→        affiliateUrl: 'https://shopee.com.my/aff/wireless-charger',
+   301→        productId: 'SHP_PROD_011',
+   302→        productName: 'Fast Wireless Charger Pad',
+   303→        productImage: null,
+   304→        productPrice: 39.9,
+   305→        commission: 2.0,
+   306→        commissionRate: 5,
+   307→        category: 'electronics',
+   308→        clicks: 447,
+   309→        conversions: 33,
+   310→        earnings: 66.0,
+   311→        ctr: 7.38,
+   312→        status: 'active' as const,
+   313→        userId: users[1].id,
+   314→      },
+   315→      {
+   316→        name: 'Running Shoes',
+   317→        productUrl: 'https://shopee.com.my/running-shoes',
+   318→        affiliateUrl: 'https://shopee.com.my/aff/running-shoes',
+   319→        productId: 'SHP_PROD_012',
+   320→        productName: 'Lightweight Running Shoes',
+   321→        productImage: null,
+   322→        productPrice: 99.0,
+   323→        commission: 5.94,
+   324→        commissionRate: 6,
+   325→        category: 'sports',
+   326→        clicks: 700,
+   327→        conversions: 48,
+   328→        earnings: 285.12,
+   329→        ctr: 6.86,
+   330→        status: 'active' as const,
+   331→        userId: users[0].id,
+   332→      },
+   333→    ]
+   334→
+   335→    const links = []
+   336→    for (const ld of linkData) {
+   337→      const shortCode = generateShortCode()
+   338→      const link = await db.affiliateLink.create({
+   339→        data: { ...ld, shortCode, tags: ld.category },
+   340→      })
+   341→      links.push(link)
+   342→    }
+   343→
+   344→    // ─── Create Click Records ─────────────────────────────────────
+   345→    const countries = ['MY', 'SG', 'ID', 'TH', 'PH', 'VN']
+   346→    const devices = ['mobile', 'desktop', 'tablet']
+   347→    const browsers = ['Chrome', 'Safari', 'Firefox', 'Edge']
+   348→    const osOptions = ['Android', 'iOS', 'Windows', 'macOS']
+   349→
+   350→    const clickBatch = []
+   351→    for (const link of links) {
+   352→      const clickCount = Math.min(link.clicks, 200) // Limit demo clicks per link
+   353→      for (let i = 0; i < clickCount; i++) {
+   354→        const converted = Math.random() < (link.conversions / link.clicks)
+   355→        clickBatch.push({
+   356→          linkId: link.id,
+   357→          userId: Math.random() > 0.5 ? users[0].id : users[1].id,
+   358→          ip: `192.168.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`,
+   359→          country: countries[Math.floor(Math.random() * countries.length)],
+   360→          referer: ['google.com', 'facebook.com', 'instagram.com', 'tiktok.com', 'direct'][Math.floor(Math.random() * 5)],
+   361→          device: devices[Math.floor(Math.random() * devices.length)],
+   362→          browser: browsers[Math.floor(Math.random() * browsers.length)],
+   363→          os: osOptions[Math.floor(Math.random() * osOptions.length)],
+   364→          converted,
+   365→          createdAt: randomDate(new Date('2025-01-01'), new Date()),
+   366→        })
+   367→      }
+   368→    }
+   369→
+   370→    // Create clicks in batches
+   371→    const BATCH_SIZE = 500
+   372→    for (let i = 0; i < clickBatch.length; i += BATCH_SIZE) {
+   373→      const batch = clickBatch.slice(i, i + BATCH_SIZE)
+   374→      await db.clickRecord.createMany({ data: batch })
+   375→    }
+   376→
+   377→    // ─── Create Conversions ───────────────────────────────────────
+   378→    const conversionStatuses = ['pending', 'confirmed', 'rejected', 'paid'] as const
+   379→    for (const link of links) {
+   380→      const convCount = Math.min(link.conversions, 50)
+   381→      for (let i = 0; i < convCount; i++) {
+   382→        const amount = link.productPrice
+   383→          ? Number(link.productPrice) * (0.8 + Math.random() * 0.4)
+   384→          : 50 + Math.random() * 100
+   385→        const commission = amount * (Number(link.commissionRate) / 100)
+   386→        await db.conversion.create({
+   387→          data: {
+   388→            linkId: link.id,
+   389→            orderId: `ORD-${Date.now()}-${i}`,
+   390→            amount: Math.round(amount * 100) / 100,
+   391→            commission: Math.round(commission * 100) / 100,
+   392→            status: conversionStatuses[Math.floor(Math.random() * conversionStatuses.length)],
+   393→            createdAt: randomDate(new Date('2025-01-01'), new Date()),
+   394→          },
+   395→        })
+   396→      }
+   397→    }
+   398→
+   399→    // ─── Create Payouts ───────────────────────────────────────────
+   400→    await db.payout.createMany({
+   401→      data: [
+   402→        {
+   403→          userId: users[0].id,
+   404→          method: 'bank_transfer',
+   405→          amount: 1250.0,
+   406→          status: 'completed',
+   407→          bankName: 'Maybank',
+   408→          accountNo: '****4521',
+   409→          accountName: 'TheViralFinds MY',
+   410→          requestedAt: new Date('2025-02-01'),
+   411→          processedAt: new Date('2025-02-03'),
+   412→          note: 'Monthly payout - February 2025',
+   413→        },
+   414→        {
+   415→          userId: users[0].id,
+   416→          method: 'bank_transfer',
+   417→          amount: 890.0,
+   418→          status: 'processing',
+   419→          bankName: 'Maybank',
+   420→          accountNo: '****4521',
+   421→          accountName: 'TheViralFinds MY',
+   422→          requestedAt: new Date('2025-03-01'),
+   423→          note: 'Monthly payout - March 2025',
+   424→        },
+   425→        {
+   426→          userId: users[1].id,
+   427→          method: 'bank_transfer',
+   428→          amount: 650.0,
+   429→          status: 'completed',
+   430→          bankName: 'CIMB',
+   431→          accountNo: '****8832',
+   432→          accountName: 'Ahmad Razak',
+   433→          requestedAt: new Date('2025-02-01'),
+   434→          processedAt: new Date('2025-02-04'),
+   435→          note: 'Monthly payout - February 2025',
+   436→        },
+   437→      ],
+   438→    })
+   439→
+   440→    // ─── Create Notifications ─────────────────────────────────────
+   441→    await db.notification.createMany({
+   442→      data: [
+   443→        {
+   444→          type: 'conversion',
+   445→          title: 'New Conversion!',
+   446→          description: 'Wireless Earbuds Pro just earned you RM 4.50 commission',
+   447→          read: false,
+   448→          createdAt: new Date(Date.now() - 1000 * 60 * 5),
+   449→        },
+   450→        {
+   451→          type: 'alert',
+   452→          title: 'Low Conversion Rate Alert',
+   453→          description: 'Your Yoga Mat Premium link has a conversion rate below 5%',
+   454→          read: false,
+   455→          createdAt: new Date(Date.now() - 1000 * 60 * 30),
+   456→        },
+   457→        {
+   458→          type: 'system',
+   459→          title: 'Campaign Ending Soon',
+   460→          description: 'Back to School campaign ends in 3 days',
+   461→          read: false,
+   462→          createdAt: new Date(Date.now() - 1000 * 60 * 60),
+   463→        },
+   464→        {
+   465→          type: 'achievement',
+   466→          title: 'Achievement Unlocked!',
+   467→          description: 'You reached 500 total conversions! 🎉',
+   468→          read: true,
+   469→          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24),
+   470→        },
+   471→        {
+   472→          type: 'payout',
+   473→          title: 'Payout Processed',
+   474→          description: 'RM 1,250.00 has been transferred to your Maybank account',
+   475→          read: true,
+   476→          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 48),
+   477→        },
+   478→        {
+   479→          type: 'insight',
+   480→          title: 'Hermes Insight',
+   481→          description: 'Electronics category showing 25% increase in conversion rate this week',
+   482→          read: false,
+   483→          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 4),
+   484→        },
+   485→        {
+   486→          type: 'conversion',
+   487→          title: 'Bulk Conversions!',
+   488→          description: '5 new conversions from USB-C Hub 7-in-1 in the last hour',
+   489→          read: false,
+   490→          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 6),
+   491→        },
+   492→        {
+   493→          type: 'system',
+   494→          title: 'New Feature Available',
+   495→          description: 'Hermes AI Agent is now available for affiliate optimization',
+   496→          read: true,
+   497→          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 72),
+   498→        },
+   499→      ],
+   500→    })
+   501→
+   502→    // ─── Create Achievements ──────────────────────────────────────
+   503→    await db.achievement.createMany({
+   504→      data: [
+   505→        {
+   506→          userId: users[0].id,
+   507→          type: 'milestone',
+   508→          title: 'First 100 Clicks',
+   509→          description: 'Reached 100 total clicks on your affiliate links',
+   510→          icon: '🎯',
+   511→          earnedAt: new Date('2025-01-15'),
+   512→        },
+   513→        {
+   514→          userId: users[0].id,
+   515→          type: 'milestone',
+   516→          title: 'Conversion Master',
+   517→          description: 'Achieved 500 total conversions',
+   518→          icon: '🏆',
+   519→          earnedAt: new Date('2025-02-20'),
+   520→        },
+   521→        {
+   522→          userId: users[0].id,
+   523→          type: 'earning',
+   524→          title: 'RM 1,000 Earner',
+   525→          description: 'Earned over RM 1,000 in total commissions',
+   526→          icon: '💰',
+   527→          earnedAt: new Date('2025-03-01'),
+   528→        },
+   529→        {
+   530→          userId: users[1].id,
+   531→          type: 'milestone',
+   532→          title: 'Quick Starter',
+   533→          description: 'Got first 50 clicks within a week',
+   534→          icon: '⚡',
+   535→          earnedAt: new Date('2025-01-10'),
+   536→        },
+   537→        {
+   538→          userId: users[0].id,
+   539→          type: 'streak',
+   540→          title: '7-Day Streak',
+   541→          description: 'Had at least one conversion every day for 7 days',
+   542→          icon: '🔥',
+   543→          earnedAt: new Date('2025-03-10'),
+   544→        },
+   545→      ],
+   546→    })
+   547→
+   548→    // ─── Create Leaderboard Entries ───────────────────────────────
+   549→    await db.leaderboardEntry.createMany({
+   550→      data: [
+   551→        {
+   552→          userId: users[0].id,
+   553→          userName: 'Admin User',
+   554→          totalEarnings: 4291.5,
+   555→          totalClicks: 12847,
+   556→          totalConversions: 892,
+   557→          period: '2025-03',
+   558→          rank: 1,
+   559→        },
+   560→        {
+   561→          userId: users[1].id,
+   562→          userName: 'Ahmad Razak',
+   563→          totalEarnings: 2180.75,
+   564→          totalClicks: 6540,
+   565→          totalConversions: 455,
+   566→          period: '2025-03',
+   567→          rank: 2,
+   568→        },
+   569→        {
+   570→          userId: users[2].id,
+   571→          userName: 'Siti Nurhaliza',
+   572→          totalEarnings: 890.0,
+   573→          totalClicks: 3200,
+   574→          totalConversions: 180,
+   575→          period: '2025-03',
+   576→          rank: 3,
+   577→        },
+   578→        {
+   579→          userName: 'Lim Wei Chong',
+   580→          totalEarnings: 654.25,
+   581→          totalClicks: 2800,
+   582→          totalConversions: 140,
+   583→          period: '2025-03',
+   584→          rank: 4,
+   585→        },
+   586→        {
+   587→          userName: 'Priya Sharma',
+   588→          totalEarnings: 432.0,
+   589→          totalClicks: 1950,
+   590→          totalConversions: 95,
+   591→          period: '2025-03',
+   592→          rank: 5,
+   593→        },
+   594→      ],
+   595→    })
+   596→
+   597→    // ─── Create Hermes Connection ─────────────────────────────────
+   598→    const hermesConnection = await db.hermesConnection.create({
+   599→      data: {
+   600→        name: 'Default Hermes Connection',
+   601→        endpoint: 'https://api.z-ai.com',
+   602→        model: 'hermes-3',
+   603→        isActive: true,
+   604→        status: 'connected',
+   605→        lastConnected: new Date(),
+   606→      },
+   607→    })
+   608→
+   609→    // ─── Create Hermes Conversations & Messages ───────────────────
+   610→    const conversation1 = await db.hermesConversation.create({
+   611→      data: {
+   612→        connectionId: hermesConnection.id,
+   613→        title: 'Product Research for Electronics',
+   614→        messageCount: 4,
+   615→        isActive: true,
+   616→      },
+   617→    })
+   618→
+   619→    await db.hermesMessage.createMany({
+   620→      data: [
+   621→        {
+   622→          conversationId: conversation1.id,
+   623→          role: 'user',
+   624→          content: 'What are the best selling electronics on Shopee Malaysia right now?',
+   625→          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24),
+   626→        },
+   627→        {
+   628→          conversationId: conversation1.id,
+   629→          role: 'assistant',
+   630→          content: '**Top Selling Electronics on Shopee Malaysia**\n\n1. **Wireless Earbuds** - Consistently high demand, especially under RM100\n2. **Phone Cases & Accessories** - High volume, good commission rates\n3. **USB-C Hubs & Adapters** - Growing demand with newer laptops\n4. **Smart Home Devices** - Trending upward, premium commissions\n5. **Gaming Peripherals** - Strong niche audience\n\nI recommend focusing on wireless earbuds and phone accessories for volume, with a few smart home items for higher commissions.',
+   631→          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 + 5000),
+   632→        },
+   633→        {
+   634→          conversationId: conversation1.id,
+   635→          role: 'user',
+   636→          content: 'What commission rates should I target?',
+   637→          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 23),
+   638→        },
+   639→        {
+   640→          conversationId: conversation1.id,
+   641→          role: 'assistant',
+   642→          content: '**Commission Rate Strategy**\n\n• **5-8%** - Sweet spot for electronics and accessories\n• **8-12%** - Available for fashion and beauty products\n• **3-5%** - Typical for high-ticket items (laptops, phones)\n\n**My recommendation:** Focus on products with 5%+ commission and a price point of RM 30-100. This gives you the best balance of conversion volume and per-sale earnings.',
+   643→          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 23 + 5000),
+   644→        },
+   645→      ],
+   646→    })
+   647→
+   648→    const conversation2 = await db.hermesConversation.create({
+   649→      data: {
+   650→        connectionId: hermesConnection.id,
+   651→        title: 'Campaign Optimization Tips',
+   652→        messageCount: 2,
+   653→        isActive: true,
+   654→      },
+   655→    })
+   656→
+   657→    await db.hermesMessage.createMany({
+   658→      data: [
+   659→        {
+   660→          conversationId: conversation2.id,
+   661→          role: 'user',
+   662→          content: 'How can I improve my conversion rate?',
+   663→          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2),
+   664→        },
+   665→        {
+   666→          conversationId: conversation2.id,
+   667→          role: 'assistant',
+   668→          content: "**Conversion Rate Optimization Tips**\n\n1. **Target the right audience** - Focus on Malaysian buyers aged 18-35\n2. **Use compelling CTAs** - \"Grab it before it's gone!\" works well\n3. **Leverage FOMO** - Highlight limited-time offers and stock levels\n4. **Mobile optimization** - 68% of Shopee traffic is mobile\n5. **Product reviews** - Share genuine reviews to build trust\n\nYour current conversion rate of 6.94% is above average. Keep optimizing!",
+   669→          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2 + 5000),
+   670→        },
+   671→      ],
+   672→    })
+   673→
+   674→    // ─── Create Hermes Skills ─────────────────────────────────────
+   675→    await db.hermesSkill.createMany({
+   676→      data: [
+   677→        {
+   678→          name: 'Product Analyzer',
+   679→          description: 'Analyzes product performance and suggests optimization strategies',
+   680→          category: 'analytics',
+   681→          code: 'async function analyzeProduct(productId) { /* analysis logic */ }',
+   682→          trigger: 'product_analysis_request',
+   683→          status: 'active',
+   684→          usageCount: 45,
+   685→          successRate: 92,
+   686→          version: 3,
+   687→          learnedFrom: 'user_interactions',
+   688→        },
+   689→        {
+   690→          name: 'Content Generator',
+   691→          description: 'Generates promotional content for affiliate products',
+   692→          category: 'content',
+   693→          code: 'async function generateContent(product, platform) { /* content gen logic */ }',
+   694→          trigger: 'content_generation_request',
+   695→          status: 'active',
+   696→          usageCount: 78,
+   697→          successRate: 88,
+   698→          version: 2,
+   699→          learnedFrom: 'marketing_best_practices',
+   700→        },
+   701→        {
+   702→          name: 'Link Optimizer',
+   703→          description: 'Optimizes affiliate link placement and timing',
+   704→          category: 'optimization',
+   705→          code: 'async function optimizeLink(linkId) { /* optimization logic */ }',
+   706→          trigger: 'link_optimization_request',
+   707→          status: 'active',
+   708→          usageCount: 32,
+   709→          successRate: 85,
+   710→          version: 2,
+   711→          learnedFrom: 'performance_data',
+   712→        },
+   713→        {
+   714→          name: 'Trend Detector',
+   715→          description: 'Detects emerging trends in Shopee marketplace',
+   716→          category: 'analytics',
+   717→          code: 'async function detectTrends() { /* trend detection logic */ }',
+   718→          trigger: 'trend_check',
+   719→          status: 'active',
+   720→          usageCount: 56,
+   721→          successRate: 90,
+   722→          version: 4,
+   723→          learnedFrom: 'market_data',
+   724→        },
+   725→        {
+   726→          name: 'Campaign Scheduler',
+   727→          description: 'Automatically schedules and manages campaigns',
+   728→          category: 'automation',
+   729→          code: 'async function scheduleCampaign(campaignId) { /* scheduling logic */ }',
+   730→          trigger: 'campaign_schedule',
+   731→          status: 'learning',
+   732→          usageCount: 12,
+   733→          successRate: 75,
+   734→          version: 1,
+   735→          learnedFrom: 'user_patterns',
+   736→        },
+   737→        {
+   738→          name: 'Commission Tracker',
+   739→          description: 'Tracks commission changes and alerts on rate drops',
+   740→          category: 'monitoring',
+   741→          code: 'async function trackCommissions() { /* tracking logic */ }',
+   742→          trigger: 'commission_check',
+   743→          status: 'active',
+   744→          usageCount: 120,
+   745→          successRate: 95,
+   746→          version: 5,
+   747→          learnedFrom: 'commission_history',
+   748→        },
+   749→        {
+   750→          name: 'Audience Profiler',
+   751→          description: 'Profiles audience demographics and behavior patterns',
+   752→          category: 'analytics',
+   753→          code: 'async function profileAudience() { /* profiling logic */ }',
+   754→          trigger: 'audience_analysis',
+   755→          status: 'draft',
+   756→          usageCount: 0,
+   757→          successRate: 0,
+   758→          version: 1,
+   759→        },
+   760→        {
+   761→          name: 'SEO Optimizer',
+   762→          description: 'Optimizes affiliate content for search engines',
+   763→          category: 'optimization',
+   764→          code: 'async function optimizeSEO(content) { /* SEO logic */ }',
+   765→          trigger: 'seo_request',
+   766→          status: 'archived',
+   767→          usageCount: 23,
+   768→          successRate: 70,
+   769→          version: 1,
+   770→          learnedFrom: 'seo_guidelines',
+   771→        },
+   772→      ],
+   773→    })
+   774→
+   775→    // ─── Create Hermes Tasks ──────────────────────────────────────
+   776→    await db.hermesTask.createMany({
+   777→      data: [
+   778→        {
+   779→          name: 'Daily Product Scan',
+   780→          description: 'Scan top products daily and update performance metrics',
+   781→          schedule: '0 9 * * *',
+   782→          status: 'scheduled',
+   783→          nextRunAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+   784→          runCount: 30,
+   785→          lastResult: 'Updated 45 products, 3 new trending items found',
+   786→        },
+   787→        {
+   788→          name: 'Commission Rate Monitor',
+   789→          description: 'Check for commission rate changes every 6 hours',
+   790→          schedule: '0 */6 * * *',
+   791→          status: 'scheduled',
+   792→          nextRunAt: new Date(Date.now() + 6 * 60 * 60 * 1000),
+   793→          runCount: 120,
+   794→          lastResult: '2 products had commission changes detected',
+   795→          lastRunAt: new Date(Date.now() - 4 * 60 * 60 * 1000),
+   796→        },
+   797→        {
+   798→          name: 'Weekly Performance Report',
+   799→          description: 'Generate weekly performance summary and insights',
+   800→          schedule: '0 10 * * 1',
+   801→          status: 'scheduled',
+   802→          nextRunAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+   803→          runCount: 8,
+   804→          lastResult: 'Report generated: 15% click increase, 8% conversion increase',
+   805→          lastRunAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
+   806→        },
+   807→        {
+   808→          name: 'Trend Alert Scanner',
+   809→          description: 'Scan for trending products and send alerts',
+   810→          schedule: '0 */12 * * *',
+   811→          status: 'running',
+   812→          runCount: 45,
+   813→          lastResult: '5 trending products found in electronics category',
+   814→          lastRunAt: new Date(Date.now() - 1000 * 60 * 10),
+   815→        },
+   816→        {
+   817→          name: 'Link Health Check',
+   818→          description: 'Verify all affiliate links are active and working',
+   819→          schedule: '0 8 * * *',
+   820→          status: 'scheduled',
+   821→          nextRunAt: new Date(Date.now() + 12 * 60 * 60 * 1000),
+   822→          runCount: 22,
+   823→          lastResult: 'All 24 links are active and working',
+   824→          lastRunAt: new Date(Date.now() - 12 * 60 * 60 * 1000),
+   825→        },
+   826→        {
+   827→          name: 'Content Performance Review',
+   828→          description: 'Analyze content performance and suggest improvements',
+   829→          schedule: '0 14 * * 5',
+   830→          status: 'failed',
+   831→          runCount: 6,
+   832→          lastResult: 'Error: API rate limit exceeded',
+   833→          lastRunAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+   834→        },
+   835→      ],
+   836→    })
+   837→
+   838→    // ─── Create Hermes Insights ───────────────────────────────────
+   839→    await db.hermesInsight.createMany({
+   840→      data: [
+   841→        {
+   842→          type: 'trend',
+   843→          title: 'Mobile Clicks Dominance',
+   844→          description: '68% of all clicks come from mobile devices. Consider optimizing your content for mobile-first experience.',
+   845→          severity: 'info',
+   846→          isRead: false,
+   847→        },
+   848→        {
+   849→          type: 'opportunity',
+   850→          title: 'Electronics Category Surge',
+   851→          description: 'Electronics products are seeing a 25% increase in conversion rate this month. Consider promoting more electronics items.',
+   852→          severity: 'info',
+   853→          isRead: false,
+   854→        },
+   855→        {
+   856→          type: 'alert',
+   857→          title: 'Low Conversion on Weekend Traffic',
+   858→          description: 'Weekend click volume is 40% higher but conversion rate drops by 15%. Weekend visitors may be browsing rather than buying.',
+   859→          severity: 'warning',
+   860→          isRead: false,
+   861→        },
+   862→        {
+   863→          type: 'recommendation',
+   864→          title: 'Optimize Underperforming Links',
+   865→          description: '5 links have over 100 clicks but 0 conversions. Review and update their landing pages or consider replacing them.',
+   866→          severity: 'info',
+   867→          isRead: true,
+   868→        },
+   869→        {
+   870→          type: 'trend',
+   871→          title: 'Peak Traffic Hours: 8-10 PM',
+   872→          description: 'Your audience is most active between 8-10 PM MYT. Schedule your content posts during this window for maximum engagement.',
+   873→          severity: 'info',
+   874→          isRead: false,
+   875→        },
+   876→        {
+   877→          type: 'opportunity',
+   878→          title: '9.9 Sale Preparation',
+   879→          description: 'The 9.9 Super Shopping Day is approaching. Start creating content and shortlinks now to capture early traffic.',
+   880→          severity: 'critical',
+   881→          isRead: false,
+   882→        },
+   883→        {
+   884→          type: 'alert',
+   885→          title: 'Commission Rate Drop Detected',
+   886→          description: '3 of your top products have reduced their commission rates from 5% to 3%. Look for alternative products with better rates.',
+   887→          severity: 'warning',
+   888→          isRead: true,
+   889→        },
+   890→        {
+   891→          type: 'recommendation',
+   892→          title: 'Cross-Platform Distribution',
+   893→          description: 'Diversify your link distribution across TikTok, Instagram, and Telegram for broader reach. Currently 80% of traffic comes from a single platform.',
+   894→          severity: 'info',
+   895→          isRead: false,
+   896→        },
+   897→      ],
+   898→    })
+   899→
+   900→    // ─── Create Agent Memories ────────────────────────────────────
+   901→    await db.agentMemory.createMany({
+   902→      data: [
+   903→        {
+   904→          agentId: 'hermes-main',
+   905→          sessionId: 'sess-001',
+   906→          role: 'system',
+   907→          content: 'User prefers Malaysian market focus with electronics category',
+   908→          metadata: JSON.stringify({ type: 'preference', confidence: 0.95, source: 'user_input' }),
+   909→        },
+   910→        {
+   911→          agentId: 'hermes-main',
+   912→          sessionId: 'sess-001',
+   913→          role: 'assistant',
+   914→          content: 'Recommended focusing on RM 30-100 price range products for optimal conversion',
+   915→          metadata: JSON.stringify({ type: 'insight', confidence: 0.88, source: 'data_analysis' }),
+   916→        },
+   917→        {
+   918→          agentId: 'hermes-main',
+   919→          sessionId: 'sess-002',
+   920→          role: 'system',
+   921→          content: 'Peak engagement time for this user is 8-10 PM MYT',
+   922→          metadata: JSON.stringify({ type: 'pattern', confidence: 0.92, source: 'behavior_analysis' }),
+   923→        },
+   924→        {
+   925→          agentId: 'hermes-analyzer',
+   926→          sessionId: 'sess-003',
+   927→          role: 'assistant',
+   928→          content: 'Electronics category has highest ROI at 6.2x for this affiliate',
+   929→          metadata: JSON.stringify({ type: 'metric', confidence: 0.90, source: 'performance_data' }),
+   930→        },
+   931→        {
+   932→          agentId: 'hermes-main',
+   933→          sessionId: 'sess-004',
+   934→          role: 'user',
+   935→          content: 'User wants to focus on Shopee 9.9 campaign preparation',
+   936→          metadata: JSON.stringify({ type: 'goal', confidence: 0.99, source: 'user_input' }),
+   937→        },
+   938→        {
+   939→          agentId: 'hermes-analyzer',
+   940→          sessionId: 'sess-003',
+   941→          role: 'assistant',
+   942→          content: 'Mobile traffic from Instagram converts 2.3x better than desktop traffic',
+   943→          metadata: JSON.stringify({ type: 'insight', confidence: 0.85, source: 'conversion_data' }),
+   944→        },
+   945→        {
+   946→          agentId: 'hermes-main',
+   947→          sessionId: 'sess-005',
+   948→          role: 'system',
+   949→          content: 'User has 24 active links, 3 active campaigns',
+   950→          metadata: JSON.stringify({ type: 'state', confidence: 1.0, source: 'system_check' }),
+   951→        },
+   952→        {
+   953→          agentId: 'hermes-optimizer',
+   954→          sessionId: 'sess-006',
+   955→          role: 'assistant',
+   956→          content: 'A/B test shows "Limited Time" CTA performs 35% better than "Shop Now"',
+   957→          metadata: JSON.stringify({ type: 'experiment', confidence: 0.87, source: 'ab_test' }),
+   958→        },
+   959→      ],
+   960→    })
+   961→
+   962→    // ─── Create Earning Goals ─────────────────────────────────────
+   963→    await db.earningGoal.createMany({
+   964→      data: [
+   965→        {
+   966→          name: 'Monthly Earnings Target',
+   967→          targetAmount: 5000,
+   968→          currentAmount: 2180.75,
+   969→          period: 'monthly',
+   970→          startDate: new Date('2025-03-01'),
+   971→          endDate: new Date('2025-03-31'),
+   972→          status: 'active',
+   973→        },
+   974→        {
+   975→          name: 'Quarterly Revenue Goal',
+   976→          targetAmount: 15000,
+   977→          currentAmount: 8543.0,
+   978→          period: 'yearly',
+   979→          startDate: new Date('2025-01-01'),
+   980→          endDate: new Date('2025-03-31'),
+   981→          status: 'active',
+   982→        },
+   983→        {
+   984→          name: '9.9 Campaign Target',
+   985→          targetAmount: 3000,
+   986→          currentAmount: 0,
+   987→          period: 'custom',
+   988→          startDate: new Date('2025-09-01'),
+   989→          endDate: new Date('2025-09-15'),
+   990→          status: 'active',
+   991→        },
+   992→      ],
+   993→    })
+   994→
+   995→    // ─── Create Referrals ─────────────────────────────────────────
+   996→    await db.referral.createMany({
+   997→      data: [
+   998→        {
+   999→          referrerId: users[0].id,
+  1000→          referredEmail: 'friend1@gmail.com',
+  1001→          referredName: 'Mohammad Ali',
+  1002→          status: 'active',
+  1003→          commission: 25.0,
+  1004→        },
+  1005→        {
+  1006→          referrerId: users[0].id,
+  1007→          referredEmail: 'friend2@gmail.com',
+  1008→          referredName: 'Lee Mei Ling',
+  1009→          status: 'pending',
+  1010→          commission: null,
+  1011→        },
+  1012→        {
+  1013→          referrerId: users[1].id,
+  1014→          referredEmail: 'friend3@gmail.com',
+  1015→          referredName: 'Raj Kumar',
+  1016→          status: 'active',
+  1017→          commission: 15.0,
+  1018→        },
+  1019→      ],
+  1020→    })
+  1021→
+  1022→    return NextResponse.json({
+  1023→      message: 'Database seeded successfully with demo data',
+  1024→      stats: {
+  1025→        users: users.length,
+  1026→        campaigns: campaigns.length,
+  1027→        links: links.length,
+  1028→        clicks: clickBatch.length,
+  1029→        conversions: links.reduce((sum, l) => sum + Math.min(l.conversions, 50), 0),
+  1030→        notifications: 8,
+  1031→        achievements: 5,
+  1032→        leaderboardEntries: 5,
+  1033→        hermesSkills: 8,
+  1034→        hermesTasks: 6,
+  1035→        hermesInsights: 8,
+  1036→        agentMemories: 8,
+  1037→        earningGoals: 3,
+  1038→        referrals: 3,
+  1039→        payouts: 3,
+  1040→        conversations: 2,
+  1041→      },
+  1042→    })
+  1043→  } catch (error) {
+  1044→    console.error('Seed API error:', error)
+  1045→    return NextResponse.json(
+  1046→      { error: 'Failed to seed database', details: String(error) },
+  1047→      { status: 500 }
+  1048→    )
+  1049→  }
+  1050→}
+  1051→

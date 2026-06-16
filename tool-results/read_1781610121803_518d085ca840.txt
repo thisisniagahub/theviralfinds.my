@@ -1,0 +1,588 @@
+     1→import { NextRequest, NextResponse } from 'next/server'
+     2→import ZAI from 'z-ai-web-dev-sdk'
+     3→
+     4→const TEMPLATE_DESCRIPTIONS: Record<string, string> = {
+     5→  before_after: `Before/After format: Show the "before" state (problem/pain), then reveal the "after" state (transformation). Great for beauty, skincare, home improvement products. Include dramatic reveal moment.`,
+     6→  unboxing: `Unboxing format: Build excitement from opening the package, show each item being revealed, share genuine first impressions. Great for gadgets, fashion, subscription boxes.`,
+     7→  demo: `Product Demo format: Show the product in action, demonstrate key features step by step, highlight results in real-time. Great for electronics, tools, kitchen gadgets.`,
+     8→  price_reveal: `Price Reveal format: Build suspense about the product value, show premium features first, then reveal the surprisingly affordable price. Great for deals, sales, budget finds.`,
+     9→  comparison: `Comparison format: Compare the product with a competitor or previous version, highlight advantages clearly, show side-by-side results. Great for tech, beauty, any category with clear alternatives.`,
+    10→  problem_solution: `Problem-Solution format: Start with a relatable problem, introduce the product as the solution, show it working to solve the problem. Great for home, health, lifestyle products.`,
+    11→  testimonial: `Testimonial format: Share a personal experience story, include specific benefits and results, make it feel authentic and relatable. Great for beauty, health, fashion products.`,
+    12→  top5: `Top 5 List format: Countdown from 5 to 1, briefly showcase each item, build anticipation for the #1 pick. Great for any category, especially curated collections.`,
+    13→}
+    14→
+    15→const LANGUAGE_INSTRUCTIONS: Record<string, string> = {
+    16→  english: `Write the script in standard English with a casual, friendly Malaysian tone. Use some Malaysian slang naturally (like "lah", "meh", "walao") for local flavor but keep it mostly English.`,
+    17→  bm: `Write the script in Bahasa Melayu (BM) with a casual, friendly tone suitable for social media. Mix in some English loan words naturally as Malaysians do in everyday speech.`,
+    18→  manglish: `Write the script in Manglish (Malaysian English) - a natural mix of English, Malay, and Chinese expressions. Use classic Manglish patterns like "walao eh", "confirm nice one", "very the good lah", "can or not", "steady pom pi pi". Make it feel like how a real Malaysian would talk to their friend.`,
+    19→}
+    20→
+    21→const SYSTEM_PROMPT = `You are a professional video script writer specializing in Malaysian Shopee affiliate marketing content. You create engaging, conversion-optimized short video scripts for TikTok, Instagram Reels, and YouTube Shorts.
+    22→
+    23→CRITICAL RULES:
+    24→1. Every script MUST include a disclosure: include #ad or #promosi or #shopeeaffiliate somewhere in the script
+    25→2. Scripts should feel natural and authentic - like a friend recommending something, not a sales pitch
+    26→3. Always include a clear Call-To-Action (CTA) telling viewers to click the link in bio
+    27→4. Time each scene precisely for the given duration
+    28→5. Include visual/action directions (what to show on camera) AND dialogue/voiceover text
+    29→6. Make it sound like how real Malaysians talk on social media
+    30→
+    31→OUTPUT FORMAT - Return a JSON object with this exact structure:
+    32→{
+    33→  "title": "Catchy title for this script",
+    34→  "totalDuration": "duration string like 60s",
+    35→  "scenes": [
+    36→    {
+    37→      "sceneNumber": 1,
+    38→      "timeRange": "0-5s",
+    39→      "label": "Hook",
+    40→      "visualNotes": "What to show on camera - be specific about angles, close-ups, transitions",
+    41→      "dialogue": "The exact words to say/voiceover text",
+    42→      "actionNotes": "Specific actions, gestures, or movements to perform"
+    43→    }
+    44→  ],
+    45→  "hashtags": ["#hashtag1", "#hashtag2", "#ad"],
+    46→  "tips": ["Tip for filming this script"]
+    47→}
+    48→
+    49→The scene labels should follow this pattern for a typical script:
+    50→- Hook (attention-grabbing opener)
+    51→- Problem/Context (set up the situation)
+    52→- Solution/Reveal (show the product)
+    53→- Demo/Proof (prove it works)
+    54→- Social Proof (testimonials, stats, comparisons)
+    55→- CTA (call to action with link)
+    56→
+    57→Adjust the number of scenes and timing based on the total duration. For 15s scripts, use 3 scenes. For 30s, use 4-5 scenes. For 60s, use 5-7 scenes. For 90s, use 7-9 scenes.`
+    58→
+    59→export async function POST(request: NextRequest) {
+    60→  try {
+    61→    const body = await request.json()
+    62→    const { product, template, duration, platform, language } = body
+    63→
+    64→    if (!product || !template || !duration) {
+    65→      return NextResponse.json(
+    66→        { error: 'Product name, template type, and duration are required' },
+    67→        { status: 400 }
+    68→      )
+    69→    }
+    70→
+    71→    const templateDesc = TEMPLATE_DESCRIPTIONS[template] || TEMPLATE_DESCRIPTIONS.demo
+    72→    const langInstruction = LANGUAGE_INSTRUCTIONS[language || 'english'] || LANGUAGE_INSTRUCTIONS.english
+    73→    const platformNote = platform === 'tiktok' ? 'TikTok (vertical 9:16, trending sounds, hashtags important)' :
+    74→      platform === 'reels' ? 'Instagram Reels (vertical 9:16, aesthetic, shareable)' :
+    75→      platform === 'shorts' ? 'YouTube Shorts (vertical 9:16, SEO-friendly title, thumbnails matter)' :
+    76→      'Short-form vertical video platform'
+    77→
+    78→    const userPrompt = `Create a ${duration} second video script for a Malaysian Shopee affiliate product.
+    79→
+    80→Product: ${product}
+    81→Template Format: ${template} - ${templateDesc}
+    82→Platform: ${platformNote}
+    83→Language Style: ${langInstruction}
+    84→
+    85→Remember:
+    86→- Include #ad or #promosi disclosure
+    87→- Make it feel natural and Malaysian
+    88→- Include specific visual/action directions
+    89→- Time scenes precisely for ${duration} seconds total
+    90→- End with a strong CTA to click the affiliate link
+    91→
+    92→Return ONLY the JSON object, no markdown code fences.`
+    93→
+    94→    let scriptResult: Record<string, unknown>
+    95→
+    96→    try {
+    97→      const zai = await ZAI.create()
+    98→      const completion = await zai.chat.completions.create({
+    99→        messages: [
+   100→          { role: 'system', content: SYSTEM_PROMPT },
+   101→          { role: 'user', content: userPrompt },
+   102→        ],
+   103→        thinking: { type: 'disabled' },
+   104→      })
+   105→
+   106→      const content = completion.choices?.[0]?.message?.content || ''
+   107→
+   108→      // Try to parse JSON from the response
+   109→      try {
+   110→        // Strip markdown code fences if present
+   111→        const jsonStr = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim()
+   112→        scriptResult = JSON.parse(jsonStr)
+   113→      } catch {
+   114→        // If JSON parsing fails, create a structured response from the text
+   115→        scriptResult = {
+   116→          title: `${template} Script - ${product}`,
+   117→          totalDuration: `${duration}s`,
+   118→          rawScript: content,
+   119→          scenes: parseScenesFromText(content, duration),
+   120→          hashtags: [`#${template}`, '#shopeeaffiliate', '#ad', '#promosi'],
+   121→          tips: ['Speak naturally and authentically', 'Show the product clearly', 'Include your affiliate link in bio'],
+   122→        }
+   123→      }
+   124→    } catch (aiError) {
+   125→      console.error('AI script generation error:', aiError)
+   126→      scriptResult = generateFallbackScript(product, template, duration, platform, language)
+   127→    }
+   128→
+   129→    return NextResponse.json({
+   130→      success: true,
+   131→      script: scriptResult,
+   132→      meta: {
+   133→        product,
+   134→        template,
+   135→        duration,
+   136→        platform,
+   137→        language: language || 'english',
+   138→        generatedAt: new Date().toISOString(),
+   139→      },
+   140→    })
+   141→  } catch (error) {
+   142→    console.error('Script generation error:', error)
+   143→    return NextResponse.json(
+   144→      { error: 'Failed to generate script' },
+   145→      { status: 500 }
+   146→    )
+   147→  }
+   148→}
+   149→
+   150→function parseScenesFromText(text: string, duration: number): Array<Record<string, unknown>> {
+   151→  const scenes: Array<Record<string, unknown>> = []
+   152→  const lines = text.split('\n').filter((l: string) => l.trim())
+   153→
+   154→  const sceneCount = duration <= 15 ? 3 : duration <= 30 ? 5 : duration <= 60 ? 6 : 8
+   155→  const sceneDuration = Math.floor(duration / sceneCount)
+   156→
+   157→  const labels = ['Hook', 'Problem', 'Solution', 'Demo', 'Social Proof', 'CTA', 'Bonus', 'Closing']
+   158→
+   159→  for (let i = 0; i < sceneCount; i++) {
+   160→    const start = i * sceneDuration
+   161→    const end = i === sceneCount - 1 ? duration : (i + 1) * sceneDuration
+   162→    const relevantLines = lines.slice(i * 2, i * 2 + 2).join(' ')
+   163→
+   164→    scenes.push({
+   165→      sceneNumber: i + 1,
+   166→      timeRange: `${start}-${end}s`,
+   167→      label: labels[i] || `Scene ${i + 1}`,
+   168→      visualNotes: `Show ${relevantLines.slice(0, 80) || 'product in action'}`,
+   169→      dialogue: relevantLines.slice(0, 150) || 'Voiceover text here',
+   170→      actionNotes: 'Perform action as directed',
+   171→    })
+   172→  }
+   173→
+   174→  return scenes
+   175→}
+   176→
+   177→function generateFallbackScript(
+   178→  product: string,
+   179→  template: string,
+   180→  duration: number,
+   181→  platform: string,
+   182→  language: string
+   183→): Record<string, unknown> {
+   184→  const isManglish = language === 'manglish'
+   185→  const isBM = language === 'bm'
+   186→
+   187→  const templates: Record<string, Record<string, Array<Record<string, unknown>>>> = {
+   188→    before_after: {
+   189→      scenes: [
+   190→        {
+   191→          sceneNumber: 1, timeRange: '0-5s', label: 'Hook',
+   192→          visualNotes: 'Close-up of problem area, frustrated expression, dramatic lighting',
+   193→          dialogue: isManglish ? 'Walao eh, this problem so annoying lah! Every single day also like this...' :
+   194→            isBM ? 'Argh, masalah ni sangat menyakitkan hati! Hari-hari kena deal dengan ni...' :
+   195→            'Ugh, this problem is SO annoying! I deal with this every single day...',
+   196→          actionNotes: 'Show frustrated face, point at the problem area',
+   197→        },
+   198→        {
+   199→          sceneNumber: 2, timeRange: '5-15s', label: 'Problem',
+   200→          visualNotes: 'Show the before state clearly, zoom in on the issue',
+   201→          dialogue: isManglish ? 'See lah, confirm very the susah. Like this how to go out and meet people?' :
+   202→            isBM ? 'Tengok ni, memang sangat menyusahkan. Macam mana nak keluar berjumpa orang?' :
+   203→            'Look at this - it\'s honestly embarrassing. How can I go out like this?',
+   204→          actionNotes: 'Point at the problem, shake head in disappointment',
+   205→        },
+   206→        {
+   207→          sceneNumber: 3, timeRange: '15-35s', label: 'Reveal',
+   208→          visualNotes: 'Dramatic product reveal, unbox or show product with excited expression',
+   209→          dialogue: isManglish ? 'But then I found this ${product}! Steady pom pi pi, this one confirm works one!' :
+   210→            isBM ? 'Tapi kemudian saya jumpa ${product} ni! Confirm berkesan punya!' :
+   211→            'But then I found this ${product}! I was skeptical at first, but wow...',
+   212→          actionNotes: 'Hold up product with excitement, show packaging',
+   213→        },
+   214→        {
+   215→          sceneNumber: 4, timeRange: '35-50s', label: 'After',
+   216→          visualNotes: 'Show the transformation, side-by-side before/after, glow up moment',
+   217→          dialogue: isManglish ? 'After using it, walao eh! The difference very the big lah! Cannot believe my eyes!' :
+   218→            isBM ? 'Lepas guna, wow! Beza sangat ketara! Tak percaya mata saya!' :
+   219→            'After using it... the difference is INSANE! I can\'t believe my eyes!',
+   220→          actionNotes: 'Show before/after split screen, gesture at the transformation',
+   221→        },
+   222→        {
+   223→          sceneNumber: 5, timeRange: '50-55s', label: 'Social Proof',
+   224→          visualNotes: 'Show ratings, reviews, number of sold items on screen',
+   225→          dialogue: isManglish ? 'More than 10K people already bought! 4.9 stars some more!' :
+   226→            isBM ? 'Lebih 10K orang sudah beli! Rating 4.9 bintang lagi!' :
+   227→            'Over 10,000 people have bought this! 4.9 star rating!',
+   228→          actionNotes: 'Point at phone screen showing reviews',
+   229→        },
+   230→        {
+   231→          sceneNumber: 6, timeRange: '55-60s', label: 'CTA',
+   232→          visualNotes: 'Point to link in bio, show product one more time, smile',
+   233→          dialogue: isManglish ? 'Click the link in bio lah! #ad #promosi #shopeeaffiliate' :
+   234→            isBM ? 'Klik link di bio! #ad #promosi #shopeeaffiliate' :
+   235→            'Click the link in my bio to grab yours! #ad #promosi #shopeeaffiliate',
+   236→          actionNotes: 'Point down to bio area, smile, wave',
+   237→        },
+   238→      ],
+   239→    },
+   240→    unboxing: {
+   241→      scenes: [
+   242→        {
+   243→          sceneNumber: 1, timeRange: '0-5s', label: 'Hook',
+   244→          visualNotes: 'Show sealed package, build excitement with dramatic lighting',
+   245→          dialogue: isManglish ? 'You all not gonna believe what just arrived lah!' :
+   246→            isBM ? 'Korang tak percaya apa yang baru sampai ni!' :
+   247→            'You guys are NOT gonna believe what just arrived!',
+   248→          actionNotes: 'Hold up sealed package, excited expression',
+   249→        },
+   250→        {
+   251→          sceneNumber: 2, timeRange: '5-15s', label: 'Build Up',
+   252→          visualNotes: 'Show package details, feel the weight, tease the contents',
+   253→          dialogue: isManglish ? 'This one I order from Shopee, very the excited to open!' :
+   254→            isBM ? 'Ni saya order dari Shopee, sangat tak sabar nak buka!' :
+   255→            'I ordered this from Shopee and I\'m SO excited to open it!',
+   256→          actionNotes: 'Turn package around, show shipping label',
+   257→        },
+   258→        {
+   259→          sceneNumber: 3, timeRange: '15-35s', label: 'Unboxing',
+   260→          visualNotes: 'Open package slowly, ASMR-style sounds, reveal product',
+   261→          dialogue: isManglish ? 'Okay okay, let\'s see... wah! Confirm nice one!' :
+   262→            isBM ? 'Okay jom tengok... wah! Memang cantik!' :
+   263→            'Let\'s see what\'s inside... oh WOW! This looks amazing!',
+   264→          actionNotes: 'Open box with excitement, peel off wrapping slowly',
+   265→        },
+   266→        {
+   267→          sceneNumber: 4, timeRange: '35-50s', label: 'First Impressions',
+   268→          visualNotes: 'Close-up of product details, feel texture, show accessories',
+   269→          dialogue: isManglish ? 'The quality very the solid lah! Feel already know this one original one.' :
+   270→            isBM ? 'Kualiti dia sangat solid! Rasa dah tahu ni ori punya.' :
+   271→            'The quality is SOLID! You can feel it\'s authentic the moment you touch it.',
+   272→          actionNotes: 'Examine product closely, show details to camera',
+   273→        },
+   274→        {
+   275→          sceneNumber: 5, timeRange: '50-55s', label: 'Value',
+   276→          visualNotes: 'Show price on screen, compare with retail price',
+   277→          dialogue: isManglish ? 'Best part? The price very the worth it lah!' :
+   278→            isBM ? 'Paling best? Harga dia memang berbaloi!' :
+   279→            'Best part? The price is an absolute steal!',
+   280→          actionNotes: 'Show price tag or Shopee listing',
+   281→        },
+   282→        {
+   283→          sceneNumber: 6, timeRange: '55-60s', label: 'CTA',
+   284→          visualNotes: 'Show link in bio, product one final look',
+   285→          dialogue: isManglish ? 'Link in bio, grab yours now! #ad #promosi #shopeeaffiliate' :
+   286→            isBM ? 'Link di bio, dapatkan sekarang! #ad #promosi #shopeeaffiliate' :
+   287→            'Link in bio - grab yours now! #ad #promosi #shopeeaffiliate',
+   288→          actionNotes: 'Point to bio, show product, smile',
+   289→        },
+   290→      ],
+   291→    },
+   292→    demo: {
+   293→      scenes: [
+   294→        {
+   295→          sceneNumber: 1, timeRange: '0-5s', label: 'Hook',
+   296→          visualNotes: 'Product in action immediately, show the end result first',
+   297→          dialogue: isManglish ? 'Wait wait wait, you all see this or not?!' :
+   298→            isBM ? 'Tunggu tengok ni! Korang nampak tak?!' :
+   299→            'Wait... did you just see that?!',
+   300→          actionNotes: 'Show product doing its thing, dramatic reaction',
+   301→        },
+   302→        {
+   303→          sceneNumber: 2, timeRange: '5-15s', label: 'Setup',
+   304→          visualNotes: 'Show what you\'re about to demo, set the stage',
+   305→          dialogue: isManglish ? 'Let me show you how this ${product} works, confirm blow your mind!' :
+   306→            isBM ? 'Jom saya tunjuk macam mana ${product} ni berfungsi!' :
+   307→            'Let me show you exactly how this ${product} works!',
+   308→          actionNotes: 'Set up the demo area, position the product',
+   309→        },
+   310→        {
+   311→          sceneNumber: 3, timeRange: '15-40s', label: 'Demo',
+   312→          visualNotes: 'Step-by-step demonstration, close-ups of key features',
+   313→          dialogue: isManglish ? 'First you do like this... then like that... see? Very easy one!' :
+   314→            isBM ? 'Pertama buat macam ni... lepas tu macam tu... tengok? Mudah je!' :
+   315→            'First you do this... then this... see? It\'s that easy!',
+   316→          actionNotes: 'Demonstrate each feature slowly and clearly',
+   317→        },
+   318→        {
+   319→          sceneNumber: 4, timeRange: '40-50s', label: 'Results',
+   320→          visualNotes: 'Show the result, zoom in on quality/outcome',
+   321→          dialogue: isManglish ? 'Wah lau eh, the result very the power! Like professional like that!' :
+   322→            isBM ? 'Wah, hasil dia sangat power! Macam pro je!' :
+   323→            'The result is incredible! It looks absolutely professional!',
+   324→          actionNotes: 'Show end result proudly, compare with before',
+   325→        },
+   326→        {
+   327→          sceneNumber: 5, timeRange: '50-60s', label: 'CTA',
+   328→          visualNotes: 'Hold product, point to link in bio',
+   329→          dialogue: isManglish ? 'Want to try? Link in bio lah! #ad #promosi #shopeeaffiliate' :
+   330→            isBM ? 'Nak cuba? Link di bio! #ad #promosi #shopeeaffiliate' :
+   331→            'Want to try it yourself? Link in my bio! #ad #promosi #shopeeaffiliate',
+   332→          actionNotes: 'Point to bio, smile confidently',
+   333→        },
+   334→      ],
+   335→    },
+   336→    price_reveal: {
+   337→      scenes: [
+   338→        {
+   339→          sceneNumber: 1, timeRange: '0-5s', label: 'Hook',
+   340→          visualNotes: 'Show product without revealing price, mysterious vibe',
+   341→          dialogue: isManglish ? 'Guess how much this one? You all confirm cannot guess lah!' :
+   342→            isBM ? 'Teka berapa harga ni? Confirm tak boleh teka punya!' :
+   343→            'Guess how much this costs? You will NEVER guess!',
+   344→          actionNotes: 'Hold product, playful mysterious expression',
+   345→        },
+   346→        {
+   347→          sceneNumber: 2, timeRange: '5-20s', label: 'Value Build',
+   348→          visualNotes: 'Show premium features, high-quality close-ups',
+   349→          dialogue: isManglish ? 'Look at the quality, the packaging, the everything... feels like premium brand right?' :
+   350→            isBM ? 'Tengok kualiti dia, packaging dia... rasa macam brand premium kan?' :
+   351→            'Look at the quality, the packaging, everything about it... feels like a premium brand right?',
+   352→          actionNotes: 'Show premium features one by one',
+   353→        },
+   354→        {
+   355→          sceneNumber: 3, timeRange: '20-35s', label: 'Comparison',
+   356→          visualNotes: 'Show similar products at higher prices, side by side',
+   357→          dialogue: isManglish ? 'Other brands selling this type for RM100+ leh... but this one...' :
+   358→            isBM ? 'Brand lain jual macam ni RM100+ tau... tapi yang ni...' :
+   359→            'Other brands sell something like this for RM100+... but this one...',
+   360→          actionNotes: 'Show price comparisons on phone screen',
+   361→        },
+   362→        {
+   363→          sceneNumber: 4, timeRange: '35-45s', label: 'Reveal',
+   364→          visualNotes: 'DRAMATIC price reveal, zoom in on price, shocked reaction',
+   365→          dialogue: isManglish ? 'ONLY RMXX.XX!!! Walao eh, confirm steal lah this one!' :
+   366→            isBM ? 'HANYA RMXX.XX!!! Memang murah gila!' :
+   367→            'ONLY RMXX.XX!!! This is an absolute STEAL!',
+   368→          actionNotes: 'Cover price with hand, then reveal dramatically',
+   369→        },
+   370→        {
+   371→          sceneNumber: 5, timeRange: '45-60s', label: 'CTA',
+   372→          visualNotes: 'Show link in bio, flash sale countdown if applicable',
+   373→          dialogue: isManglish ? 'Quick grab now before sold out! Link in bio! #ad #promosi #shopeeaffiliate' :
+   374→            isBM ? 'Cepat grab sebelum habis! Link di bio! #ad #promosi #shopeeaffiliate' :
+   375→            'Grab it NOW before it sells out! Link in bio! #ad #promosi #shopeeaffiliate',
+   376→          actionNotes: 'Urgent expression, point to bio, show countdown',
+   377→        },
+   378→      ],
+   379→    },
+   380→    comparison: {
+   381→      scenes: [
+   382→        {
+   383→          sceneNumber: 1, timeRange: '0-5s', label: 'Hook',
+   384→          visualNotes: 'Two products side by side, versus screen format',
+   385→          dialogue: isManglish ? 'Which one better ah? Let\'s find out lah!' :
+   386→            isBM ? 'Mana satu lagi bagus? Jom kita tengok!' :
+   387→            'Which one is actually better? Let\'s find out!',
+   388→          actionNotes: 'Hold one product in each hand, VS gesture',
+   389→        },
+   390→        {
+   391→          sceneNumber: 2, timeRange: '5-20s', label: 'Product A',
+   392→          visualNotes: 'Show first product features and performance',
+   393→          dialogue: isManglish ? 'This one quite not bad lah, but... something missing leh.' :
+   394→            isBM ? 'Yang ni tak lah buruk sangat, tapi... ada yang kurang.' :
+   395→            'This one is pretty good, but... something\'s missing.',
+   396→          actionNotes: 'Test first product, show pros and cons',
+   397→        },
+   398→        {
+   399→          sceneNumber: 3, timeRange: '20-40s', label: 'Product B',
+   400→          visualNotes: 'Show second product features and performance',
+   401→          dialogue: isManglish ? 'But THIS one, wah! Everything also better! The quality, the price, the everything!' :
+   402→            isBM ? 'Tapi YANG NI, wah! Semua lagi bagus! Kualiti, harga, semua!' :
+   403→            'But THIS one... WOW! Everything is better! The quality, the price, everything!',
+   404→          actionNotes: 'Test second product with impressed reactions',
+   405→        },
+   406→        {
+   407→          sceneNumber: 4, timeRange: '40-50s', label: 'Verdict',
+   408→          visualNotes: 'Side by side comparison chart on screen',
+   409→          dialogue: isManglish ? 'Confirm product B the winner lah! Look at the comparison!' :
+   410→            isBM ? 'Confirm produk B yang menang! Tengok perbandingan dia!' :
+   411→            'Product B is the clear winner! Just look at the comparison!',
+   412→          actionNotes: 'Point at comparison chart on screen',
+   413→        },
+   414→        {
+   415→          sceneNumber: 5, timeRange: '50-60s', label: 'CTA',
+   416→          visualNotes: 'Show winning product with link in bio',
+   417→          dialogue: isManglish ? 'Get the winner at link in bio! #ad #promosi #shopeeaffiliate' :
+   418→            isBM ? 'Dapatkan pemenang di link bio! #ad #promosi #shopeeaffiliate' :
+   419→            'Get the winner at the link in my bio! #ad #promosi #shopeeaffiliate',
+   420→          actionNotes: 'Hold winning product, point to bio',
+   421→        },
+   422→      ],
+   423→    },
+   424→    problem_solution: {
+   425→      scenes: [
+   426→        {
+   427→          sceneNumber: 1, timeRange: '0-5s', label: 'Hook',
+   428→          visualNotes: 'Show the problem happening, relatable frustration',
+   429→          dialogue: isManglish ? 'This one confirm all Malaysian face one right?!' :
+   430→            isBM ? 'Ni confirm semua orang Malaysia pernah kena kan?!' :
+   431→            'Every Malaysian has dealt with this right?!',
+   432→          actionNotes: 'Show frustrated reaction to the problem',
+   433→        },
+   434→        {
+   435→          sceneNumber: 2, timeRange: '5-15s', label: 'Problem',
+   436→          visualNotes: 'Exaggerate the problem, show how annoying it is',
+   437→          dialogue: isManglish ? 'Every time like this, very the mafan lah! Cannot tahan already!' :
+   438→            isBM ? 'Setiap kali macam ni, sangat menyusahkan! Tak boleh tahan dah!' :
+   439→            'This happens every time and it\'s SO frustrating! I can\'t take it anymore!',
+   440→          actionNotes: 'Demonstrate the problem clearly, frustrated gestures',
+   441→        },
+   442→        {
+   443→          sceneNumber: 3, timeRange: '15-25s', label: 'Solution',
+   444→          visualNotes: 'Product reveal as the answer, hopeful expression',
+   445→          dialogue: isManglish ? 'But then I found this ${product}! Problem solved just like that!' :
+   446→            isBM ? 'Tapi lepas tu saya jumpa ${product} ni! Masalah selesai!' :
+   447→            'Then I found this ${product}! Problem SOLVED!',
+   448→          actionNotes: 'Hold up product like a hero, triumphant expression',
+   449→        },
+   450→        {
+   451→          sceneNumber: 4, timeRange: '25-45s', label: 'Proof',
+   452→          visualNotes: 'Show the product solving the problem, before/after',
+   453→          dialogue: isManglish ? 'See? One two three, done already! So easy even my mak also can use!' :
+   454→            isBM ? 'Tengok? Satu dua tiga, siap! Senang sangat mak pun boleh guna!' :
+   455→            'See? One two three, done! So easy even my mom can use it!',
+   456→          actionNotes: 'Demonstrate the solution step by step',
+   457→        },
+   458→        {
+   459→          sceneNumber: 5, timeRange: '45-55s', label: 'Social Proof',
+   460→          visualNotes: 'Show reviews, number sold, ratings',
+   461→          dialogue: isManglish ? '10K+ people also think the same! 4.9 stars rating some more!' :
+   462→            isBM ? '10K+ orang rasa sama! Rating 4.9 bintang lagi!' :
+   463→            '10K+ people agree! 4.9 star rating!',
+   464→          actionNotes: 'Scroll through reviews on phone',
+   465→        },
+   466→        {
+   467→          sceneNumber: 6, timeRange: '55-60s', label: 'CTA',
+   468→          visualNotes: 'Product showcase with link in bio overlay',
+   469→          dialogue: isManglish ? 'Fix your problem today! Link in bio! #ad #promosi #shopeeaffiliate' :
+   470→            isBM ? 'Selesaikan masalah anda hari ini! Link di bio! #ad #promosi #shopeeaffiliate' :
+   471→            'Fix your problem today! Link in bio! #ad #promosi #shopeeaffiliate',
+   472→          actionNotes: 'Point to bio, confident smile',
+   473→        },
+   474→      ],
+   475→    },
+   476→    testimonial: {
+   477→      scenes: [
+   478→        {
+   479→          sceneNumber: 1, timeRange: '0-5s', label: 'Hook',
+   480→          visualNotes: 'Honest, sincere face, talking directly to camera',
+   481→          dialogue: isManglish ? 'Real talk ah, I don\'t usually do reviews but this one I must share.' :
+   482→            isBM ? 'Cakap jujur, saya tak biasa buat review tapi yang ni kena share.' :
+   483→            'Real talk - I don\'t usually do reviews but I HAVE to share this.',
+   484→          actionNotes: 'Lean in close to camera, sincere expression',
+   485→        },
+   486→        {
+   487→          sceneNumber: 2, timeRange: '5-15s', label: 'Backstory',
+   488→          visualNotes: 'Show the struggle, authentic situation',
+   489→          dialogue: isManglish ? 'Before this I tried so many products already, all also cannot work properly.' :
+   490→            isBM ? 'Sebelum ni saya dah try banyak produk, semua tak jalan.' :
+   491→            'Before this I tried SO many products and none of them worked properly.',
+   492→          actionNotes: 'Shake head, show previous failed products',
+   493→        },
+   494→        {
+   495→          sceneNumber: 3, timeRange: '15-35s', label: 'Experience',
+   496→          visualNotes: 'Show using the product, genuine reactions',
+   497→          dialogue: isManglish ? 'But this ${product}, walao eh, after 1 week already can see the difference!' :
+   498→            isBM ? 'Tapi ${product} ni, wah, lepas 1 minggu dah nampak beza!' :
+   499→            'But this ${product}... wow, after just 1 week I could see the difference!',
+   500→          actionNotes: 'Show the product being used, genuine surprise',
+   501→        },
+   502→        {
+   503→          sceneNumber: 4, timeRange: '35-50s', label: 'Results',
+   504→          visualNotes: 'Show the actual results, be specific with numbers/changes',
+   505→          dialogue: isManglish ? 'My friends all asking what I use, confirm effective one this!' :
+   506→            isBM ? 'Kawan-kawan semua tanya saya guna apa, confirm berkesan!' :
+   507→            'All my friends are asking what I\'m using - it\'s THAT effective!',
+   508→          actionNotes: 'Show results, point to improvements',
+   509→        },
+   510→        {
+   511→          sceneNumber: 5, timeRange: '50-60s', label: 'CTA',
+   512→          visualNotes: 'Hold product, honest recommendation face',
+   513→          dialogue: isManglish ? 'Highly recommend lah, link in bio! #ad #promosi #shopeeaffiliate' :
+   514→            isBM ? 'Sangat recommend, link di bio! #ad #promosi #shopeeaffiliate' :
+   515→            'Highly recommend! Link in bio! #ad #promosi #shopeeaffiliate',
+   516→          actionNotes: 'Honest nod, point to bio',
+   517→        },
+   518→      ],
+   519→    },
+   520→    top5: {
+   521→      scenes: [
+   522→        {
+   523→          sceneNumber: 1, timeRange: '0-5s', label: 'Hook',
+   524→          visualNotes: 'Number 5 graphic, quick product flash',
+   525→          dialogue: isManglish ? 'Top 5 best ${product} on Shopee! Number 5 already very good!' :
+   526→            isBM ? 'Top 5 ${product} terbaik di Shopee! Nombor 5 pun dah bagus!' :
+   527→            'Top 5 best ${product} on Shopee! Number 5 is already amazing!',
+   528→          actionNotes: 'Show #5 graphic, flash the product',
+   529→        },
+   530→        {
+   531→          sceneNumber: 2, timeRange: '5-20s', label: '#5 & #4',
+   532→          visualNotes: 'Quick cuts between products 5 and 4, key feature callouts',
+   533→          dialogue: isManglish ? 'Number 5 quite not bad, number 4 even better! But wait...' :
+   534→            isBM ? 'Nombor 5 tak lah buruk, nombor 4 lagi bagus! Tapi tunggu...' :
+   535→            'Number 5 is decent, number 4 is even better! But wait...',
+   536→          actionNotes: 'Quick showcase of each product',
+   537→        },
+   538→        {
+   539→          sceneNumber: 3, timeRange: '20-40s', label: '#3 & #2',
+   540→          visualNotes: 'More detailed look at products 3 and 2, show features',
+   541→          dialogue: isManglish ? 'Number 3 very the solid! Number 2 almost win already! But...' :
+   542→            isBM ? 'Nombor 3 sangat solid! Nombor 2 hampir menang! Tapi...' :
+   543→            'Number 3 is incredible! Number 2 almost takes the crown! But...',
+   544→          actionNotes: 'Show features of each, build suspense',
+   545→        },
+   546→        {
+   547→          sceneNumber: 4, timeRange: '40-50s', label: '#1 Reveal',
+   548→          visualNotes: 'DRUMROLL effect, dramatic #1 reveal, close-up of the winner',
+   549→          dialogue: isManglish ? 'NUMBER ONE is... THIS ONE LAH! Confirm the best one!' :
+   550→            isBM ? 'NOMBOR SATU ialah... YANG NI! Confirm paling best!' :
+   551→            'NUMBER ONE is... THIS! The absolute BEST!',
+   552→          actionNotes: 'Dramatic reveal, hold up product with excitement',
+   553→        },
+   554→        {
+   555→          sceneNumber: 5, timeRange: '50-60s', label: 'CTA',
+   556→          visualNotes: 'Show all 5 products, link in bio for the #1',
+   557→          dialogue: isManglish ? 'Get the #1 pick at link in bio! #ad #promosi #shopeeaffiliate' :
+   558→            isBM ? 'Dapatkan pilihan #1 di link bio! #ad #promosi #shopeeaffiliate' :
+   559→            'Get the #1 pick at the link in my bio! #ad #promosi #shopeeaffiliate',
+   560→          actionNotes: 'Show top product, point to bio',
+   561→        },
+   562→      ],
+   563→    },
+   564→  }
+   565→
+   566→  const templateScenes = templates[template]?.scenes || templates.demo.scenes
+   567→  const scenes = templateScenes.map(scene => ({
+   568→    ...scene,
+   569→    dialogue: (scene.dialogue as string).replace(/\$\{product\}/g, product),
+   570→    visualNotes: (scene.visualNotes as string).replace(/\$\{product\}/g, product),
+   571→  }))
+   572→
+   573→  return {
+   574→    title: `${template.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} - ${product}`,
+   575→    totalDuration: `${duration}s`,
+   576→    scenes,
+   577→    hashtags: [`#${template}`, '#shopeeaffiliate', '#ad', '#promosi', `#${product.replace(/\s+/g, '')}`],
+   578→    tips: [
+   579→      'Speak naturally and authentically - viewers can tell if you\'re being fake',
+   580→      'Show the product clearly in good lighting',
+   581→      'Include your affiliate link in your bio and mention it in the CTA',
+   582→      platform === 'tiktok' ? 'Use trending sounds and hashtags on TikTok' :
+   583→      platform === 'reels' ? 'Use aesthetic transitions for Reels' :
+   584→      'Use a catchy title with keywords for YouTube Shorts',
+   585→    ],
+   586→  }
+   587→}
+   588→
