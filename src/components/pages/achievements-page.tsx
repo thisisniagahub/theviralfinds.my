@@ -18,6 +18,8 @@ import {
   TrendingUp,
   Crown,
   Gift,
+  Sparkles,
+  ChevronDown,
 } from 'lucide-react'
 import {
   Card,
@@ -27,9 +29,19 @@ import {
   CardDescription,
 } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
+import { EmptyState } from '@/components/ui/empty-state'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -210,6 +222,7 @@ const staggerContainer = {
 
 export function AchievementsPage() {
   const [activeTab, setActiveTab] = useState<string>('all')
+  const [examplesOpen, setExamplesOpen] = useState(false)
 
   const earnedCount = achievements.filter((a) => a.earned).length
   const totalCount = achievements.length
@@ -218,6 +231,33 @@ export function AchievementsPage() {
     activeTab === 'all'
       ? achievements
       : achievements.filter((a) => a.category === activeTab)
+
+  // Pick the "next achievement to unlock" — locked one with the highest progress %.
+  const lockedAchievements = achievements.filter((a) => !a.earned && a.maxProgress)
+  const nextAchievement = lockedAchievements
+    .map((a) => ({
+      achievement: a,
+      pct: a.progress! / a.maxProgress!,
+    }))
+    .sort((a, b) => b.pct - a.pct)[0]?.achievement
+
+  const scrollToNextAchievement = () => {
+    if (!nextAchievement) return
+    const el = document.getElementById(`achievement-${nextAchievement.id}`)
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      // Brief highlight pulse.
+      el.classList.add('ring-2', 'ring-shopee', 'ring-offset-2', 'ring-offset-background')
+      window.setTimeout(() => {
+        el.classList.remove(
+          'ring-2',
+          'ring-shopee',
+          'ring-offset-2',
+          'ring-offset-background',
+        )
+      }, 1800)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -261,6 +301,85 @@ export function AchievementsPage() {
         </Card>
       </motion.div>
 
+      {/* Featured: Next Achievement to Unlock — uses the locked EmptyState illustration */}
+      {nextAchievement && (
+        <motion.div {...fadeIn}>
+          <Card className="border-hermes/20 bg-gradient-to-br from-hermes/[0.04] via-transparent to-shopee/[0.04]">
+            <CardContent className="p-4 sm:p-6">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-[auto_1fr] md:items-center">
+                {/* EmptyState (unwrapped, compact) on the left */}
+                <div className="mx-auto md:mx-0 max-w-xs">
+                  <EmptyState
+                    illustration="locked"
+                    title="Unlock this achievement"
+                    description="Complete the requirement below to earn this badge and RM 10 bonus credit."
+                    cta={{
+                      label: 'View requirement',
+                      icon: ChevronDown,
+                      onClick: scrollToNextAchievement,
+                    }}
+                    exampleAction={{
+                      label: 'See unlocked examples',
+                      onClick: () => setExamplesOpen(true),
+                    }}
+                    compact
+                    unwrapped
+                  />
+                </div>
+
+                {/* Next achievement preview on the right */}
+                <div className="rounded-lg border bg-background/60 p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-hermes/10 text-hermes">
+                      <Lock className="size-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-sm font-semibold leading-tight">
+                          {nextAchievement.title}
+                        </h3>
+                        <Badge variant="outline" className="text-[10px] capitalize">
+                          {categoryConfig[nextAchievement.category].label}
+                        </Badge>
+                      </div>
+                      <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
+                        {nextAchievement.description}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">
+                        {nextAchievement.progress!.toLocaleString()} /{' '}
+                        {nextAchievement.maxProgress!.toLocaleString()}
+                      </span>
+                      <span className="font-medium text-hermes">
+                        {Math.round(
+                          (nextAchievement.progress! / nextAchievement.maxProgress!) * 100,
+                        )}
+                        %
+                      </span>
+                    </div>
+                    <Progress
+                      value={
+                        (nextAchievement.progress! / nextAchievement.maxProgress!) * 100
+                      }
+                      className="h-2"
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      <Target className="inline size-3 mr-1 -translate-y-0.5" />
+                      Earn <span className="font-medium text-shopee">RM 10</span>{' '}
+                      bonus credit + badge when you reach{' '}
+                      {nextAchievement.maxProgress!.toLocaleString()}.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
       {/* Category Tabs */}
       <motion.div {...fadeIn}>
         <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -287,7 +406,12 @@ export function AchievementsPage() {
                   : 0
 
                 return (
-                  <motion.div key={achievement.id} variants={fadeIn}>
+                  <motion.div
+                    key={achievement.id}
+                    variants={fadeIn}
+                    id={`achievement-${achievement.id}`}
+                    className="transition-shadow duration-300"
+                  >
                     <Card
                       className={cn(
                         'card-hover relative overflow-hidden',
@@ -362,6 +486,66 @@ export function AchievementsPage() {
           </TabsContent>
         </Tabs>
       </motion.div>
+
+      {/* "See unlocked examples" dialog — shown via the EmptyState exampleAction */}
+      <Dialog open={examplesOpen} onOpenChange={setExamplesOpen}>
+        <DialogContent className="sm:max-w-[560px]">
+          <DialogHeader>
+            <div className="mb-2 flex size-10 items-center justify-center rounded-full bg-shopee/10">
+              <Sparkles className="size-5 text-shopee" />
+            </div>
+            <DialogTitle>Unlocked achievement examples</DialogTitle>
+            <DialogDescription>
+              Here are some badges other Malaysian affiliates have already
+              earned. Each one came with bonus credit and a profile badge.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            {achievements
+              .filter((a) => a.earned)
+              .slice(0, 6)
+              .map((a) => (
+                <div
+                  key={a.id}
+                  className="flex items-start gap-2 rounded-md border bg-muted/30 p-3"
+                >
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-shopee/10 text-shopee">
+                    <a.icon className="size-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className="truncate text-sm font-semibold">{a.title}</p>
+                      <Star className="size-3 shrink-0 fill-shopee text-shopee" />
+                    </div>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground line-clamp-2">
+                      {a.description}
+                    </p>
+                    <p className="mt-1 text-[10px] text-shopee">
+                      Earned {a.earnedDate} · +RM 10 credit
+                    </p>
+                  </div>
+                </div>
+              ))}
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setExamplesOpen(false)}>
+              Close
+            </Button>
+            <Button
+              className="bg-shopee hover:bg-shopee-dark text-white gap-2"
+              onClick={() => {
+                setExamplesOpen(false)
+                scrollToNextAchievement()
+              }}
+            >
+              <Target className="size-4" />
+              Show my next goal
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

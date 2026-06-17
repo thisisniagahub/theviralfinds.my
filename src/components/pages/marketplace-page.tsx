@@ -89,6 +89,7 @@ import {
   type PurchaseResponse,
   type SellerDashboard,
 } from '@/lib/marketplace/types'
+import { EmptyState } from '@/components/ui/empty-state'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -494,7 +495,22 @@ export function MarketplacePage() {
                   </CardContent>
                 </Card>
               ) : listings.length === 0 ? (
-                <EmptyState onReset={resetFilters} />
+                <EmptyState
+                  illustration="no-results"
+                  title="No templates match your filters"
+                  description="Try adjusting your search or browse popular categories instead."
+                  cta={{
+                    label: 'Clear all filters',
+                    onClick: resetFilters,
+                  }}
+                  exampleAction={{
+                    label: 'Browse trending templates',
+                    onClick: () => {
+                      resetFilters()
+                      setFilters((f) => ({ ...f, sort: 'popular' as ListingSort }))
+                    },
+                  }}
+                />
               ) : (
                 <motion.div
                   layout
@@ -928,29 +944,6 @@ function ListingCardSkeleton() {
         <Skeleton className="h-3 w-1/2" />
         <Skeleton className="h-3 w-2/3" />
         <Skeleton className="h-8 w-full" />
-      </CardContent>
-    </Card>
-  )
-}
-
-// ─── Empty State ────────────────────────────────────────────────────────────
-
-function EmptyState({ onReset }: { onReset: () => void }) {
-  return (
-    <Card>
-      <CardContent className="p-12 text-center space-y-3">
-        <div className="mx-auto w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-          <Search className="h-8 w-8 text-muted-foreground" />
-        </div>
-        <h3 className="font-semibold text-lg">No templates found</h3>
-        <p className="text-sm text-muted-foreground max-w-md mx-auto">
-          Try adjusting your filters or search query. Maybe broaden the price range
-          or remove some category filters.
-        </p>
-        <Button onClick={onReset} variant="outline">
-          <X className="h-4 w-4 mr-2" />
-          Clear all filters
-        </Button>
       </CardContent>
     </Card>
   )

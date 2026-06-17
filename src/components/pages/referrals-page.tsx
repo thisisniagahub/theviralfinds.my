@@ -16,6 +16,8 @@ import {
   ArrowRight,
   Mail,
   User,
+  Sparkles,
+  TrendingUp,
 } from 'lucide-react'
 import {
   Card,
@@ -46,6 +48,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { EmptyState } from '@/components/ui/empty-state'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -96,11 +99,23 @@ const staggerContainer = {
 export function ReferralsPage() {
   const [copied, setCopied] = useState(false)
   const [inviteOpen, setInviteOpen] = useState(false)
+  const [successStoryOpen, setSuccessStoryOpen] = useState(false)
   const [inviteName, setInviteName] = useState('')
   const [inviteEmail, setInviteEmail] = useState('')
   const [referrals, setReferrals] = useState<Referral[]>(mockReferrals)
 
   const referralLink = 'https://shopee.com/r/theviralfindsMY?ref=aff2025'
+
+  // "Invite friends" CTA — copies the referral link and provides a hint.
+  const handleInviteFriends = async () => {
+    try {
+      await navigator.clipboard.writeText(referralLink)
+    } catch {
+      // Fallback — clipboard may be blocked; user can still copy from the link card.
+    }
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
   const totalReferrals = referrals.length
   const activeReferrals = referrals.filter((r) => r.status === 'active').length
@@ -230,7 +245,25 @@ export function ReferralsPage() {
       </motion.div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Referral List Table */}
+        {/* Referral List Table — or empty state when no referrals yet */}
+        {referrals.length === 0 ? (
+          <motion.div {...fadeIn} className="lg:col-span-2">
+            <EmptyState
+              illustration="no-data"
+              title="No referrals yet"
+              description="Invite friends to TheViralFindsMY and earn 20% of their subscription for 12 months."
+              cta={{
+                label: copied ? 'Link copied!' : 'Invite friends',
+                icon: copied ? Check : UserPlus,
+                onClick: handleInviteFriends,
+              }}
+              exampleAction={{
+                label: 'See success story',
+                onClick: () => setSuccessStoryOpen(true),
+              }}
+            />
+          </motion.div>
+        ) : (
         <motion.div {...fadeIn} className="lg:col-span-2">
           <Card className="card-hover">
             <CardHeader className="flex flex-row items-center justify-between">
@@ -331,6 +364,7 @@ export function ReferralsPage() {
             </CardContent>
           </Card>
         </motion.div>
+        )}
 
         {/* How It Works */}
         <motion.div {...fadeIn}>
@@ -371,6 +405,86 @@ export function ReferralsPage() {
           </Card>
         </motion.div>
       </div>
+
+      {/* Success story dialog — shown via "See success story" exampleAction */}
+      <Dialog open={successStoryOpen} onOpenChange={setSuccessStoryOpen}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <div className="mb-2 flex size-10 items-center justify-center rounded-full bg-hermes/10">
+              <Sparkles className="size-5 text-hermes" />
+            </div>
+            <DialogTitle>Referral success story</DialogTitle>
+            <DialogDescription>
+              Here&apos;s what a typical referral journey looks like once your
+              friends start earning.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Hero stat */}
+            <div className="rounded-lg border bg-gradient-to-br from-shopee/10 to-hermes/10 p-4 text-center">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Total earned from 5 referrals
+              </p>
+              <p className="mt-1 text-3xl font-bold text-shopee">
+                RM 1,025.70
+              </p>
+              <p className="mt-1 flex items-center justify-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
+                <TrendingUp className="size-3" />
+                +18% vs. last month
+              </p>
+            </div>
+
+            {/* Mock referral list */}
+            <div className="space-y-2">
+              {[
+                { name: 'Amirul Hakim', status: 'active', commission: 450.0, months: 4 },
+                { name: 'Siti Nurhaliza', status: 'active', commission: 320.5, months: 3 },
+                { name: 'Priya Devi', status: 'active', commission: 180.0, months: 2 },
+                { name: 'Kevyn Tan', status: 'pending', commission: 0, months: 0 },
+              ].map((r) => (
+                <div
+                  key={r.name}
+                  className="flex items-center justify-between gap-2 rounded-md border bg-muted/30 px-3 py-2"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-shopee/15 text-xs font-semibold text-shopee">
+                      {r.name.charAt(0)}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{r.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {r.status === 'pending'
+                          ? 'Invited — not joined yet'
+                          : `Active for ${r.months} month${r.months === 1 ? '' : 's'}`}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="shrink-0 text-sm font-semibold text-shopee">
+                    {formatRM(r.commission)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setSuccessStoryOpen(false)}>
+              Close
+            </Button>
+            <Button
+              className="bg-shopee hover:bg-shopee-dark text-white gap-2"
+              onClick={() => {
+                setSuccessStoryOpen(false)
+                handleInviteFriends()
+              }}
+            >
+              <UserPlus className="size-4" />
+              Invite my first friend
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

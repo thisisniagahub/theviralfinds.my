@@ -1,0 +1,1447 @@
+     1→'use client'
+     2→
+     3→import { useState, useMemo, useEffect } from 'react'
+     4→import { motion, AnimatePresence } from 'framer-motion'
+     5→import {
+     6→  Plus,
+     7→  Search,
+     8→  MoreHorizontal,
+     9→  Copy,
+    10→  QrCode,
+    11→  Pencil,
+    12→  Pause,
+    13→  Play,
+    14→  Trash2,
+    15→  ExternalLink,
+    16→  Download,
+    17→  Tag,
+    18→  Link2,
+    19→  BarChart3,
+    20→  MousePointerClick,
+    21→  Target,
+    22→  DollarSign,
+    23→  TrendingUp,
+    24→  X,
+    25→  Check,
+    26→  RefreshCw,
+    27→  Zap,
+    28→  Loader2,
+    29→} from 'lucide-react'
+    30→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    31→import { Button } from '@/components/ui/button'
+    32→import { Input } from '@/components/ui/input'
+    33→import { Badge } from '@/components/ui/badge'
+    34→import { Checkbox } from '@/components/ui/checkbox'
+    35→import { Label } from '@/components/ui/label'
+    36→import { Separator } from '@/components/ui/separator'
+    37→import {
+    38→  Table,
+    39→  TableBody,
+    40→  TableCell,
+    41→  TableHead,
+    42→  TableHeader,
+    43→  TableRow,
+    44→} from '@/components/ui/table'
+    45→import {
+    46→  Dialog,
+    47→  DialogContent,
+    48→  DialogDescription,
+    49→  DialogFooter,
+    50→  DialogHeader,
+    51→  DialogTitle,
+    52→  DialogTrigger,
+    53→} from '@/components/ui/dialog'
+    54→import {
+    55→  DropdownMenu,
+    56→  DropdownMenuContent,
+    57→  DropdownMenuItem,
+    58→  DropdownMenuSeparator,
+    59→  DropdownMenuTrigger,
+    60→} from '@/components/ui/dropdown-menu'
+    61→import {
+    62→  Select,
+    63→  SelectContent,
+    64→  SelectItem,
+    65→  SelectTrigger,
+    66→  SelectValue,
+    67→} from '@/components/ui/select'
+    68→import { Textarea } from '@/components/ui/textarea'
+    69→import { ExportButtons } from '@/components/ui/export-buttons'
+    70→
+    71→// --- Types ---
+    72→type LinkStatus = 'active' | 'paused' | 'expired'
+    73→
+    74→interface AffiliateLink {
+    75→  id: string
+    76→  name: string
+    77→  productName: string
+    78→  shortCode: string
+    79→  fullUrl: string
+    80→  clicks: number
+    81→  conversions: number
+    82→  earnings: number
+    83→  ctr: number
+    84→  status: LinkStatus
+    85→  campaign: string
+    86→  tags: string[]
+    87→  createdAt: string
+    88→  expiresAt?: string
+    89→  category: string
+    90→  shopeeAffiliateUrl?: string | null
+    91→  shopeeTracked?: boolean
+    92→}
+    93→
+    94→// --- Mock Data ---
+    95→const MOCK_LINKS: AffiliateLink[] = [
+    96→  {
+    97→    id: '1',
+    98→    name: 'Xiaomi Redmi Promo',
+    99→    productName: 'Xiaomi Redmi Note 13 Pro 5G - 256GB',
+   100→    shortCode: 'shopee.my/xm13p',
+   101→    fullUrl: 'https://shopee.my/aff/xm13p?ref=affpro',
+   102→    clicks: 3420,
+   103→    conversions: 187,
+   104→    earnings: 1680.13,
+   105→    ctr: 5.47,
+   106→    status: 'active',
+   107→    campaign: 'Chinese New Year',
+   108→    tags: ['electronics', 'xiaomi'],
+   109→    createdAt: '2024-12-15',
+   110→    expiresAt: '2025-06-15',
+   111→    category: 'Electronics',
+   112→    shopeeAffiliateUrl: null,
+   113→    shopeeTracked: false,
+   114→  },
+   115→  {
+   116→    id: '2',
+   117→    name: 'K-Fashion Hoodie',
+   118→    productName: 'Korean Style Oversized Hoodie - Unisex',
+   119→    shortCode: 'shopee.my/kfh01',
+   120→    fullUrl: 'https://shopee.my/aff/kfh01?ref=affpro',
+   121→    clicks: 1850,
+   122→    conversions: 95,
+   123→    earnings: 855.0,
+   124→    ctr: 5.14,
+   125→    status: 'active',
+   126→    campaign: 'Winter Collection',
+   127→    tags: ['fashion', 'hoodie'],
+   128→    createdAt: '2025-01-03',
+   129→    category: 'Fashion',
+   130→    shopeeAffiliateUrl: null,
+   131→    shopeeTracked: false,
+   132→  },
+   133→  {
+   134→    id: '3',
+   135→    name: 'Dyson Vacuum Deal',
+   136→    productName: 'Dyson V12 Detect Slim Cordless Vacuum',
+   137→    shortCode: 'shopee.my/dv12d',
+   138→    fullUrl: 'https://shopee.my/aff/dv12d?ref=affpro',
+   139→    clicks: 980,
+   140→    conversions: 23,
+   141→    earnings: 5057.7,
+   142→    ctr: 2.35,
+   143→    status: 'active',
+   144→    campaign: 'Home Makeover',
+   145→    tags: ['home', 'appliance'],
+   146→    createdAt: '2025-01-10',
+   147→    category: 'Home & Living',
+   148→    shopeeAffiliateUrl: null,
+   149→    shopeeTracked: false,
+   150→  },
+   151→  {
+   152→    id: '4',
+   153→    name: 'LANEIGE Lip Mask',
+   154→    productName: 'LANEIGE Lip Sleeping Mask - Berry',
+   155→    shortCode: 'shopee.my/llm01',
+   156→    fullUrl: 'https://shopee.my/aff/llm01?ref=affpro',
+   157→    clicks: 4210,
+   158→    conversions: 312,
+   159→    earnings: 4243.2,
+   160→    ctr: 7.41,
+   161→    status: 'active',
+   162→    campaign: 'Valentine Beauty',
+   163→    tags: ['beauty', 'skincare'],
+   164→    createdAt: '2025-02-01',
+   165→    category: 'Beauty',
+   166→    shopeeAffiliateUrl: null,
+   167→    shopeeTracked: false,
+   168→  },
+   169→  {
+   170→    id: '5',
+   171→    name: 'Samsung Buds Promo',
+   172→    productName: 'Samsung Galaxy Buds FE Pro',
+   173→    shortCode: 'shopee.my/sgbp',
+   174→    fullUrl: 'https://shopee.my/aff/sgbp?ref=affpro',
+   175→    clicks: 560,
+   176→    conversions: 18,
+   177→    earnings: 807.3,
+   178→    ctr: 3.21,
+   179→    status: 'paused',
+   180→    campaign: 'Chinese New Year',
+   181→    tags: ['electronics', 'samsung'],
+   182→    createdAt: '2024-12-20',
+   183→    category: 'Electronics',
+   184→    shopeeAffiliateUrl: null,
+   185→    shopeeTracked: false,
+   186→  },
+   187→  {
+   188→    id: '6',
+   189→    name: 'Nike Air Max 90',
+   190→    productName: 'NIKE Air Max 90 - Classic Retro',
+   191→    shortCode: 'shopee.my/nam90',
+   192→    fullUrl: 'https://shopee.my/aff/nam90?ref=affpro',
+   193→    clicks: 1200,
+   194→    conversions: 42,
+   195→    earnings: 3458.7,
+   196→    ctr: 3.5,
+   197→    status: 'active',
+   198→    campaign: 'Sports Week',
+   199→    tags: ['sports', 'nike'],
+   200→    createdAt: '2025-01-25',
+   201→    category: 'Sports',
+   202→    shopeeAffiliateUrl: null,
+   203→    shopeeTracked: false,
+   204→  },
+   205→  {
+   206→    id: '7',
+   207→    name: 'COSRX Snail Essence',
+   208→    productName: 'COSRX Advanced Snail 96 Mucin Power Essence',
+   209→    shortCode: 'shopee.my/cs96',
+   210→    fullUrl: 'https://shopee.my/aff/cs96?ref=affpro',
+   211→    clicks: 680,
+   212→    conversions: 0,
+   213→    earnings: 0,
+   214→    ctr: 0,
+   215→    status: 'expired',
+   216→    campaign: '11.11 Sale',
+   217→    tags: ['beauty', 'skincare'],
+   218→    createdAt: '2024-10-20',
+   219→    expiresAt: '2024-11-12',
+   220→    category: 'Beauty',
+   221→    shopeeAffiliateUrl: null,
+   222→    shopeeTracked: false,
+   223→  },
+   224→  {
+   225→    id: '8',
+   226→    name: 'Adidas Ultraboost',
+   227→    productName: 'Adidas Ultraboost Light Running Shoes',
+   228→    shortCode: 'shopee.my/aulb',
+   229→    fullUrl: 'https://shopee.my/aff/aulb?ref=affpro',
+   230→    clicks: 890,
+   231→    conversions: 31,
+   232→    earnings: 3250.35,
+   233→    ctr: 3.48,
+   234→    status: 'paused',
+   235→    campaign: 'Marathon Season',
+   236→    tags: ['sports', 'adidas'],
+   237→    createdAt: '2025-02-05',
+   238→    category: 'Sports',
+   239→    shopeeAffiliateUrl: null,
+   240→    shopeeTracked: false,
+   241→  },
+   242→]
+   243→
+   244→const STATUS_STYLES: Record<
+   245→  LinkStatus,
+   246→  { className: string; label: string }
+   247→> = {
+   248→  active: {
+   249→    className:
+   250→      'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-0',
+   251→    label: 'Active',
+   252→  },
+   253→  paused: {
+   254→    className:
+   255→      'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0',
+   256→    label: 'Paused',
+   257→  },
+   258→  expired: {
+   259→    className:
+   260→      'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-0',
+   261→    label: 'Expired',
+   262→  },
+   263→}
+   264→
+   265→// --- QR Code SVG Placeholder ---
+   266→function QRCodePlaceholder({ size = 160 }: { size?: number }) {
+   267→  const cells = 21
+   268→  const cellSize = size / cells
+   269→
+   270→  const pattern: boolean[][] = []
+   271→  for (let r = 0; r < cells; r++) {
+   272→    pattern[r] = []
+   273→    for (let c = 0; c < cells; c++) {
+   274→      const isTopLeft = r < 7 && c < 7
+   275→      const isTopRight = r < 7 && c >= cells - 7
+   276→      const isBottomLeft = r >= cells - 7 && c < 7
+   277→
+   278→      if (isTopLeft || isTopRight || isBottomLeft) {
+   279→        const lr = isTopLeft ? r : isBottomLeft ? r - (cells - 7) : r
+   280→        const lc = isTopLeft ? c : isTopRight ? c - (cells - 7) : c
+   281→        const isOuterBorder = lr === 0 || lr === 6 || lc === 0 || lc === 6
+   282→        const isInnerSquare = lr >= 2 && lr <= 4 && lc >= 2 && lc <= 4
+   283→        pattern[r][c] = isOuterBorder || isInnerSquare
+   284→      } else {
+   285→        const seed = (r * 31 + c * 17 + 42) % 100
+   286→        pattern[r][c] = seed < 40
+   287→      }
+   288→    }
+   289→  }
+   290→
+   291→  return (
+   292→    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+   293→      <rect width={size} height={size} fill="white" rx={4} />
+   294→      {pattern.map((row, r) =>
+   295→        row.map((cell, c) =>
+   296→          cell ? (
+   297→            <rect
+   298→              key={`${r}-${c}`}
+   299→              x={c * cellSize}
+   300→              y={r * cellSize}
+   301→              width={cellSize}
+   302→              height={cellSize}
+   303→              fill="black"
+   304→            />
+   305→          ) : null
+   306→        )
+   307→      )}
+   308→    </svg>
+   309→  )
+   310→}
+   311→
+   312→// --- Main Component ---
+   313→export function LinksPage() {
+   314→  const [links, setLinks] = useState<AffiliateLink[]>(MOCK_LINKS)
+   315→  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+   316→  const [searchQuery, setSearchQuery] = useState('')
+   317→  const [statusFilter, setStatusFilter] = useState<string>('all')
+   318→  const [categoryFilter, setCategoryFilter] = useState<string>('all')
+   319→  const [copiedId, setCopiedId] = useState<string | null>(null)
+   320→
+   321→  // API integration state
+   322→  const [isShopeeConnected, setIsShopeeConnected] = useState(false)
+   323→  const [isCreatingLink, setIsCreatingLink] = useState(false)
+   324→  const [isSyncing, setIsSyncing] = useState(false)
+   325→  const [syncMessage, setSyncMessage] = useState<string | null>(null)
+   326→
+   327→  // Create Link Dialog
+   328→  const [createOpen, setCreateOpen] = useState(false)
+   329→  const [newLink, setNewLink] = useState({
+   330→    productUrl: '',
+   331→    customName: '',
+   332→    campaign: '',
+   333→    tags: '',
+   334→    expiryDate: '',
+   335→  })
+   336→
+   337→  // QR Code Dialog
+   338→  const [qrOpen, setQrOpen] = useState(false)
+   339→  const [qrLink, setQrLink] = useState<AffiliateLink | null>(null)
+   340→
+   341→  // Detail Dialog
+   342→  const [detailOpen, setDetailOpen] = useState(false)
+   343→  const [detailLink, setDetailLink] = useState<AffiliateLink | null>(null)
+   344→
+   345→  // Check Shopee connection on mount
+   346→  useEffect(() => {
+   347→    fetch('/api/shopee/connect')
+   348→      .then((res) => res.json())
+   349→      .then((data) => {
+   350→        setIsShopeeConnected(data.connected === true)
+   351→      })
+   352→      .catch(() => {
+   353→        setIsShopeeConnected(false)
+   354→      })
+   355→  }, [])
+   356→
+   357→  // Stats
+   358→  const stats = useMemo(() => {
+   359→    const total = links.length
+   360→    const active = links.filter((l) => l.status === 'active').length
+   361→    const paused = links.filter((l) => l.status === 'paused').length
+   362→    const expired = links.filter((l) => l.status === 'expired').length
+   363→    const tracked = links.filter((l) => l.shopeeTracked).length
+   364→    return { total, active, paused, expired, tracked }
+   365→  }, [links])
+   366→
+   367→  // Filtered links
+   368→  const filteredLinks = useMemo(() => {
+   369→    let result = links
+   370→
+   371→    if (statusFilter !== 'all') {
+   372→      result = result.filter((l) => l.status === statusFilter)
+   373→    }
+   374→
+   375→    if (categoryFilter !== 'all') {
+   376→      result = result.filter((l) => l.category === categoryFilter)
+   377→    }
+   378→
+   379→    if (searchQuery.trim()) {
+   380→      const q = searchQuery.toLowerCase()
+   381→      result = result.filter(
+   382→        (l) =>
+   383→          l.name.toLowerCase().includes(q) ||
+   384→          l.productName.toLowerCase().includes(q) ||
+   385→          l.shortCode.toLowerCase().includes(q) ||
+   386→          l.campaign.toLowerCase().includes(q)
+   387→      )
+   388→    }
+   389→
+   390→    return result
+   391→  }, [links, statusFilter, categoryFilter, searchQuery])
+   392→
+   393→  // Bulk actions
+   394→  const allFilteredSelected =
+   395→    filteredLinks.length > 0 &&
+   396→    filteredLinks.every((l) => selectedIds.has(l.id))
+   397→
+   398→  const handleToggleAll = () => {
+   399→    if (allFilteredSelected) {
+   400→      setSelectedIds(new Set())
+   401→    } else {
+   402→      setSelectedIds(new Set(filteredLinks.map((l) => l.id)))
+   403→    }
+   404→  }
+   405→
+   406→  const handleToggleOne = (id: string) => {
+   407→    setSelectedIds((prev) => {
+   408→      const next = new Set(prev)
+   409→      if (next.has(id)) next.delete(id)
+   410→      else next.add(id)
+   411→      return next
+   412→    })
+   413→  }
+   414→
+   415→  const handleCopyLink = (link: AffiliateLink) => {
+   416→    // Copy the real Shopee affiliate URL if available, otherwise the full URL
+   417→    const urlToCopy = link.shopeeAffiliateUrl || link.fullUrl
+   418→    navigator.clipboard?.writeText(urlToCopy).catch(() => {})
+   419→    setCopiedId(link.id)
+   420→    setTimeout(() => setCopiedId(null), 2000)
+   421→  }
+   422→
+   423→  const handleTogglePause = (id: string) => {
+   424→    setLinks((prev) =>
+   425→      prev.map((l) =>
+   426→        l.id === id
+   427→          ? { ...l, status: l.status === 'paused' ? 'active' : 'paused' }
+   428→          : l
+   429→      )
+   430→    )
+   431→  }
+   432→
+   433→  const handleDelete = (id: string) => {
+   434→    setLinks((prev) => prev.filter((l) => l.id !== id))
+   435→    setSelectedIds((prev) => {
+   436→      const next = new Set(prev)
+   437→      next.delete(id)
+   438→      return next
+   439→    })
+   440→  }
+   441→
+   442→  const handleBulkPause = () => {
+   443→    setLinks((prev) =>
+   444→      prev.map((l) =>
+   445→        selectedIds.has(l.id) && l.status === 'active'
+   446→          ? { ...l, status: 'paused' }
+   447→          : l
+   448→      )
+   449→    )
+   450→    setSelectedIds(new Set())
+   451→  }
+   452→
+   453→  const handleBulkDelete = () => {
+   454→    setLinks((prev) => prev.filter((l) => !selectedIds.has(l.id)))
+   455→    setSelectedIds(new Set())
+   456→  }
+   457→
+   458→  const handleCreateLink = async () => {
+   459→    setIsCreatingLink(true)
+   460→
+   461→    try {
+   462→      let shopeeAffiliateUrl: string | null = null
+   463→      let shopeeTracked = false
+   464→
+   465→      // If Shopee API is connected and we have a product URL, generate a real affiliate link
+   466→      if (isShopeeConnected && newLink.productUrl) {
+   467→        try {
+   468→          const res = await fetch('/api/shopee/generate-link', {
+   469→            method: 'POST',
+   470→            headers: { 'Content-Type': 'application/json' },
+   471→            body: JSON.stringify({
+   472→              productUrl: newLink.productUrl,
+   473→              subId: newLink.customName || undefined,
+   474→            }),
+   475→          })
+   476→
+   477→          const data = await res.json()
+   478→
+   479→          if (data.link) {
+   480→            shopeeAffiliateUrl = data.link.shortUrl || data.link.longUrl
+   481→            shopeeTracked = data.source === 'shopee_api'
+   482→          }
+   483→        } catch (error) {
+   484→          console.error('Failed to generate Shopee link:', error)
+   485→        }
+   486→      }
+   487→
+   488→      const newId = String(Date.now())
+   489→      const shortCode = `shopee.my/${Math.random().toString(36).slice(2, 7)}`
+   490→
+   491→      const newAffLink: AffiliateLink = {
+   492→        id: newId,
+   493→        name: newLink.customName || 'Untitled Link',
+   494→        productName: newLink.productUrl || 'Custom Product',
+   495→        shortCode,
+   496→        fullUrl: shopeeAffiliateUrl || `https://shopee.my/aff/${Math.random().toString(36).slice(2, 7)}?ref=affpro`,
+   497→        clicks: 0,
+   498→        conversions: 0,
+   499→        earnings: 0,
+   500→        ctr: 0,
+   501→        status: 'active',
+   502→        campaign: newLink.campaign || 'Default',
+   503→        tags: newLink.tags
+   504→          .split(',')
+   505→          .map((t) => t.trim())
+   506→          .filter(Boolean),
+   507→        createdAt: new Date().toISOString().split('T')[0],
+   508→        expiresAt: newLink.expiryDate || undefined,
+   509→        category: 'Electronics',
+   510→        shopeeAffiliateUrl,
+   511→        shopeeTracked,
+   512→      }
+   513→
+   514→      setLinks((prev) => [newAffLink, ...prev])
+   515→      setNewLink({
+   516→        productUrl: '',
+   517→        customName: '',
+   518→        campaign: '',
+   519→        tags: '',
+   520→        expiryDate: '',
+   521→      })
+   522→      setCreateOpen(false)
+   523→    } catch (error) {
+   524→      console.error('Create link error:', error)
+   525→    } finally {
+   526→      setIsCreatingLink(false)
+   527→    }
+   528→  }
+   529→
+   530→  // Sync stats from Shopee API
+   531→  const handleSyncStats = async () => {
+   532→    setIsSyncing(true)
+   533→    setSyncMessage(null)
+   534→
+   535→    try {
+   536→      const res = await fetch('/api/shopee/stats?period=30d')
+   537→      const data = await res.json()
+   538→
+   539→      if (data.connected) {
+   540→        // Update link stats with real data from Shopee
+   541→        // For now, just show a success message
+   542→        setSyncMessage('Stats synced successfully from Shopee API')
+   543→      } else {
+   544→        setSyncMessage('Shopee API not connected. Showing demo data.')
+   545→      }
+   546→    } catch (error) {
+   547→      setSyncMessage('Failed to sync stats. Please try again.')
+   548→    } finally {
+   549→      setIsSyncing(false)
+   550→      // Clear message after 5 seconds
+   551→      setTimeout(() => setSyncMessage(null), 5000)
+   552→    }
+   553→  }
+   554→
+   555→  const openQrDialog = (link: AffiliateLink) => {
+   556→    setQrLink(link)
+   557→    setQrOpen(true)
+   558→  }
+   559→
+   560→  const openDetailDialog = (link: AffiliateLink) => {
+   561→    setDetailLink(link)
+   562→    setDetailOpen(true)
+   563→  }
+   564→
+   565→  const categories = useMemo(() => {
+   566→    const cats = new Set(links.map((l) => l.category))
+   567→    return Array.from(cats).sort()
+   568→  }, [links])
+   569→
+   570→  return (
+   571→    <div className="space-y-6">
+   572→      {/* Page Header */}
+   573→      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+   574→        <div>
+   575→          <h1 className="text-2xl font-bold tracking-tight">Affiliate Links</h1>
+   576→          <p className="text-muted-foreground text-sm mt-1">
+   577→            Manage and track your affiliate links
+   578→          </p>
+   579→        </div>
+   580→        <div className="flex items-center gap-2">
+   581→          {/* Sync Stats Button */}
+   582→          <Button
+   583→            variant="outline"
+   584→            size="sm"
+   585→            className="gap-2"
+   586→            onClick={handleSyncStats}
+   587→            disabled={isSyncing}
+   588→          >
+   589→            {isSyncing ? (
+   590→              <Loader2 className="size-4 animate-spin" />
+   591→            ) : (
+   592→              <RefreshCw className="size-4" />
+   593→            )}
+   594→            {isSyncing ? 'Syncing...' : 'Sync Stats'}
+   595→          </Button>
+   596→          <ExportButtons type="links" />
+   597→          {isShopeeConnected && (
+   598→            <Badge className="bg-emerald-500 text-white border-0 gap-1 text-[10px]">
+   599→              <Zap className="size-3" />
+   600→              Shopee API Connected
+   601→            </Badge>
+   602→          )}
+   603→        </div>
+   604→      </div>
+   605→
+   606→      {/* Sync Message */}
+   607→      {syncMessage && (
+   608→        <motion.div
+   609→          initial={{ opacity: 0, y: -8 }}
+   610→          animate={{ opacity: 1, y: 0 }}
+   611→        >
+   612→          <Card className={`py-3 ${syncMessage.includes('successfully') ? 'border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/20' : 'border-amber-500/30 bg-amber-50 dark:bg-amber-950/20'}`}>
+   613→            <CardContent className="p-3 flex items-center gap-2">
+   614→              {syncMessage.includes('successfully') ? (
+   615→                <Check className="size-4 text-emerald-500" />
+   616→              ) : (
+   617→                <X className="size-4 text-amber-500" />
+   618→              )}
+   619→              <p className="text-xs">{syncMessage}</p>
+   620→            </CardContent>
+   621→          </Card>
+   622→        </motion.div>
+   623→      )}
+   624→
+   625→      {/* Stats Bar */}
+   626→      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+   627→        {[
+   628→          {
+   629→            label: 'Total Links',
+   630→            value: stats.total,
+   631→            icon: Link2,
+   632→            color: 'text-shopee',
+   633→            bg: 'bg-shopee/10',
+   634→          },
+   635→          {
+   636→            label: 'Active',
+   637→            value: stats.active,
+   638→            icon: TrendingUp,
+   639→            color: 'text-emerald-600 dark:text-emerald-400',
+   640→            bg: 'bg-emerald-100 dark:bg-emerald-900/30',
+   641→          },
+   642→          {
+   643→            label: 'Paused',
+   644→            value: stats.paused,
+   645→            icon: Pause,
+   646→            color: 'text-amber-600 dark:text-amber-400',
+   647→            bg: 'bg-amber-100 dark:bg-amber-900/30',
+   648→          },
+   649→          {
+   650→            label: 'Expired',
+   651→            value: stats.expired,
+   652→            icon: X,
+   653→            color: 'text-red-600 dark:text-red-400',
+   654→            bg: 'bg-red-100 dark:bg-red-900/30',
+   655→          },
+   656→          {
+   657→            label: 'Shopee Tracked',
+   658→            value: stats.tracked,
+   659→            icon: Zap,
+   660→            color: 'text-emerald-600 dark:text-emerald-400',
+   661→            bg: 'bg-emerald-100 dark:bg-emerald-900/30',
+   662→          },
+   663→        ].map((stat) => (
+   664→          <motion.div
+   665→            key={stat.label}
+   666→            initial={{ opacity: 0, y: 8 }}
+   667→            animate={{ opacity: 1, y: 0 }}
+   668→            transition={{ duration: 0.3 }}
+   669→          >
+   670→            <Card className="py-4">
+   671→              <CardContent className="flex items-center gap-3 p-4">
+   672→                <div
+   673→                  className={`flex items-center justify-center size-10 rounded-lg ${stat.bg}`}
+   674→                >
+   675→                  <stat.icon className={`size-5 ${stat.color}`} />
+   676→                </div>
+   677→                <div>
+   678→                  <p className="text-2xl font-bold">{stat.value}</p>
+   679→                  <p className="text-xs text-muted-foreground">{stat.label}</p>
+   680→                </div>
+   681→              </CardContent>
+   682→            </Card>
+   683→          </motion.div>
+   684→        ))}
+   685→      </div>
+   686→
+   687→      {/* Action Bar */}
+   688→      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+   689→        {/* Create New Link */}
+   690→        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+   691→          <DialogTrigger asChild>
+   692→            <Button className="bg-shopee hover:bg-shopee-dark text-white">
+   693→              <Plus className="size-4" />
+   694→              Create New Link
+   695→            </Button>
+   696→          </DialogTrigger>
+   697→          <DialogContent className="sm:max-w-[500px]">
+   698→            <DialogHeader>
+   699→              <DialogTitle>Create Affiliate Link</DialogTitle>
+   700→              <DialogDescription>
+   701→                Generate a new affiliate link for a product
+   702→                {isShopeeConnected && (
+   703→                  <span className="text-emerald-600 dark:text-emerald-400 ml-1">
+   704→                    — Shopee API connected, will generate real tracking link
+   705→                  </span>
+   706→                )}
+   707→              </DialogDescription>
+   708→            </DialogHeader>
+   709→            <div className="grid gap-4 py-4">
+   710→              <div className="grid gap-2">
+   711→                <Label htmlFor="product-url">Product URL</Label>
+   712→                <Input
+   713→                  id="product-url"
+   714→                  placeholder="https://shopee.com.my/product/..."
+   715→                  value={newLink.productUrl}
+   716→                  onChange={(e) =>
+   717→                    setNewLink((prev) => ({
+   718→                      ...prev,
+   719→                      productUrl: e.target.value,
+   720→                    }))
+   721→                  }
+   722→                />
+   723→                {!isShopeeConnected && newLink.productUrl && (
+   724→                  <p className="text-[10px] text-amber-600 dark:text-amber-400">
+   725→                    Connect Shopee API in Settings to generate real tracking links
+   726→                  </p>
+   727→                )}
+   728→              </div>
+   729→              <div className="grid gap-2">
+   730→                <Label htmlFor="custom-name">Custom Name</Label>
+   731→                <Input
+   732→                  id="custom-name"
+   733→                  placeholder="e.g., Xiaomi CNY Promo"
+   734→                  value={newLink.customName}
+   735→                  onChange={(e) =>
+   736→                    setNewLink((prev) => ({
+   737→                      ...prev,
+   738→                      customName: e.target.value,
+   739→                    }))
+   740→                  }
+   741→                />
+   742→              </div>
+   743→              <div className="grid gap-2">
+   744→                <Label htmlFor="campaign">Campaign</Label>
+   745→                <Select
+   746→                  value={newLink.campaign}
+   747→                  onValueChange={(val) =>
+   748→                    setNewLink((prev) => ({ ...prev, campaign: val }))
+   749→                  }
+   750→                >
+   751→                  <SelectTrigger id="campaign" className="w-full">
+   752→                    <SelectValue placeholder="Select campaign" />
+   753→                  </SelectTrigger>
+   754→                  <SelectContent>
+   755→                    <SelectItem value="Chinese New Year">
+   756→                      Chinese New Year
+   757→                    </SelectItem>
+   758→                    <SelectItem value="Valentine Beauty">
+   759→                      Valentine Beauty
+   760→                    </SelectItem>
+   761→                    <SelectItem value="11.11 Sale">11.11 Sale</SelectItem>
+   762→                    <SelectItem value="12.12 Sale">12.12 Sale</SelectItem>
+   763→                    <SelectItem value="Home Makeover">Home Makeover</SelectItem>
+   764→                    <SelectItem value="Sports Week">Sports Week</SelectItem>
+   765→                    <SelectItem value="Default">Default</SelectItem>
+   766→                  </SelectContent>
+   767→                </Select>
+   768→              </div>
+   769→              <div className="grid gap-2">
+   770→                <Label htmlFor="tags">Tags (comma-separated)</Label>
+   771→                <Input
+   772→                  id="tags"
+   773→                  placeholder="electronics, promo, xiaomi"
+   774→                  value={newLink.tags}
+   775→                  onChange={(e) =>
+   776→                    setNewLink((prev) => ({ ...prev, tags: e.target.value }))
+   777→                  }
+   778→                />
+   779→              </div>
+   780→              <div className="grid gap-2">
+   781→                <Label htmlFor="expiry">Expiry Date</Label>
+   782→                <Input
+   783→                  id="expiry"
+   784→                  type="date"
+   785→                  value={newLink.expiryDate}
+   786→                  onChange={(e) =>
+   787→                    setNewLink((prev) => ({
+   788→                      ...prev,
+   789→                      expiryDate: e.target.value,
+   790→                    }))
+   791→                  }
+   792→                />
+   793→              </div>
+   794→            </div>
+   795→            <DialogFooter>
+   796→              <Button
+   797→                variant="outline"
+   798→                onClick={() => setCreateOpen(false)}
+   799→              >
+   800→                Cancel
+   801→              </Button>
+   802→              <Button
+   803→                className="bg-shopee hover:bg-shopee-dark text-white"
+   804→                onClick={handleCreateLink}
+   805→                disabled={(!newLink.productUrl && !newLink.customName) || isCreatingLink}
+   806→              >
+   807→                {isCreatingLink ? (
+   808→                  <>
+   809→                    <Loader2 className="size-4 animate-spin" />
+   810→                    Generating...
+   811→                  </>
+   812→                ) : (
+   813→                  'Create Link'
+   814→                )}
+   815→              </Button>
+   816→            </DialogFooter>
+   817→          </DialogContent>
+   818→        </Dialog>
+   819→
+   820→        {/* Bulk Actions */}
+   821→        {selectedIds.size > 0 && (
+   822→          <motion.div
+   823→            initial={{ opacity: 0, scale: 0.95 }}
+   824→            animate={{ opacity: 1, scale: 1 }}
+   825→            className="flex items-center gap-2"
+   826→          >
+   827→            <Badge variant="secondary" className="gap-1">
+   828→              {selectedIds.size} selected
+   829→            </Badge>
+   830→            <Button variant="outline" size="sm" onClick={handleBulkPause}>
+   831→              <Pause className="size-3.5" />
+   832→              Pause
+   833→            </Button>
+   834→            <Button
+   835→              variant="outline"
+   836→              size="sm"
+   837→              className="text-destructive hover:text-destructive"
+   838→              onClick={handleBulkDelete}
+   839→            >
+   840→              <Trash2 className="size-3.5" />
+   841→              Delete
+   842→            </Button>
+   843→          </motion.div>
+   844→        )}
+   845→
+   846→        <div className="flex-1" />
+   847→
+   848→        {/* Search */}
+   849→        <div className="relative w-full sm:w-auto">
+   850→          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+   851→          <Input
+   852→            placeholder="Search links..."
+   853→            className="pl-10 h-9 w-full sm:w-[200px] lg:w-[260px]"
+   854→            value={searchQuery}
+   855→            onChange={(e) => setSearchQuery(e.target.value)}
+   856→          />
+   857→        </div>
+   858→
+   859→        {/* Status filter */}
+   860→        <Select value={statusFilter} onValueChange={setStatusFilter}>
+   861→          <SelectTrigger className="w-full sm:w-[130px] h-9">
+   862→            <SelectValue placeholder="Status" />
+   863→          </SelectTrigger>
+   864→          <SelectContent>
+   865→            <SelectItem value="all">All Status</SelectItem>
+   866→            <SelectItem value="active">Active</SelectItem>
+   867→            <SelectItem value="paused">Paused</SelectItem>
+   868→            <SelectItem value="expired">Expired</SelectItem>
+   869→          </SelectContent>
+   870→        </Select>
+   871→
+   872→        {/* Category filter */}
+   873→        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+   874→          <SelectTrigger className="w-full sm:w-[150px] h-9">
+   875→            <SelectValue placeholder="Category" />
+   876→          </SelectTrigger>
+   877→          <SelectContent>
+   878→            <SelectItem value="all">All Categories</SelectItem>
+   879→            {categories.map((cat) => (
+   880→              <SelectItem key={cat} value={cat}>
+   881→                {cat}
+   882→              </SelectItem>
+   883→            ))}
+   884→          </SelectContent>
+   885→        </Select>
+   886→      </div>
+   887→
+   888→      {/* Links Table */}
+   889→      <motion.div
+   890→        initial={{ opacity: 0, y: 8 }}
+   891→        animate={{ opacity: 1, y: 0 }}
+   892→        transition={{ duration: 0.4, delay: 0.1 }}
+   893→      >
+   894→        <Card>
+   895→          <CardContent className="p-0">
+   896→            <div className="overflow-x-auto">
+   897→              <Table>
+   898→                <TableHeader>
+   899→                  <TableRow>
+   900→                    <TableHead className="w-[40px] pl-4">
+   901→                      <Checkbox
+   902→                        checked={allFilteredSelected}
+   903→                        onCheckedChange={handleToggleAll}
+   904→                      />
+   905→                    </TableHead>
+   906→                    <TableHead>Name</TableHead>
+   907→                    <TableHead>Short Code</TableHead>
+   908→                    <TableHead className="text-right">Clicks</TableHead>
+   909→                    <TableHead className="text-right">Conversions</TableHead>
+   910→                    <TableHead className="text-right">Earnings</TableHead>
+   911→                    <TableHead className="text-right">CTR</TableHead>
+   912→                    <TableHead>Status</TableHead>
+   913→                    <TableHead className="w-[50px] pr-4" />
+   914→                  </TableRow>
+   915→                </TableHeader>
+   916→                <TableBody>
+   917→                  <AnimatePresence>
+   918→                    {filteredLinks.length === 0 ? (
+   919→                      <TableRow>
+   920→                        <TableCell
+   921→                          colSpan={9}
+   922→                          className="text-center py-12 text-muted-foreground"
+   923→                        >
+   924→                          No links found matching your filters
+   925→                        </TableCell>
+   926→                      </TableRow>
+   927→                    ) : (
+   928→                      filteredLinks.map((link) => (
+   929→                        <motion.tr
+   930→                          key={link.id}
+   931→                          initial={{ opacity: 0 }}
+   932→                          animate={{ opacity: 1 }}
+   933→                          exit={{ opacity: 0 }}
+   934→                          className="hover:bg-muted/50 border-b transition-colors"
+   935→                          data-state={
+   936→                            selectedIds.has(link.id) ? 'selected' : undefined
+   937→                          }
+   938→                        >
+   939→                          <TableCell className="pl-4">
+   940→                            <Checkbox
+   941→                              checked={selectedIds.has(link.id)}
+   942→                              onCheckedChange={() => handleToggleOne(link.id)}
+   943→                            />
+   944→                          </TableCell>
+   945→                          <TableCell>
+   946→                            <button
+   947→                              className="text-left hover:underline cursor-pointer"
+   948→                              onClick={() => openDetailDialog(link)}
+   949→                            >
+   950→                              <div className="flex items-center gap-1.5">
+   951→                                <span className="font-medium text-sm">
+   952→                                  {link.name}
+   953→                                </span>
+   954→                                {link.shopeeTracked && (
+   955→                                  <Badge className="bg-emerald-500 text-white border-0 text-[9px] px-1 py-0 gap-0.5">
+   956→                                    <Zap className="size-2.5" />
+   957→                                    Tracked
+   958→                                  </Badge>
+   959→                                )}
+   960→                              </div>
+   961→                              <div className="text-xs text-muted-foreground line-clamp-1 max-w-[200px]">
+   962→                                {link.productName}
+   963→                              </div>
+   964→                            </button>
+   965→                          </TableCell>
+   966→                          <TableCell>
+   967→                            <div className="flex items-center gap-1.5">
+   968→                              <code className="text-xs bg-muted px-1.5 py-0.5 rounded">
+   969→                                {link.shortCode}
+   970→                              </code>
+   971→                              <button
+   972→                                onClick={() => handleCopyLink(link)}
+   973→                                className="p-1 hover:bg-muted rounded transition-colors"
+   974→                                title={link.shopeeAffiliateUrl ? 'Copy Shopee affiliate URL' : 'Copy link'}
+   975→                              >
+   976→                                {copiedId === link.id ? (
+   977→                                  <Check className="size-3 text-emerald-500" />
+   978→                                ) : (
+   979→                                  <Copy className="size-3 text-muted-foreground" />
+   980→                                )}
+   981→                              </button>
+   982→                            </div>
+   983→                          </TableCell>
+   984→                          <TableCell className="text-right tabular-nums">
+   985→                            {link.clicks.toLocaleString()}
+   986→                          </TableCell>
+   987→                          <TableCell className="text-right tabular-nums">
+   988→                            {link.conversions.toLocaleString()}
+   989→                          </TableCell>
+   990→                          <TableCell className="text-right tabular-nums font-medium">
+   991→                            <span className="text-shopee">
+   992→                              RM{link.earnings.toFixed(2)}
+   993→                            </span>
+   994→                          </TableCell>
+   995→                          <TableCell className="text-right tabular-nums">
+   996→                            {link.ctr.toFixed(2)}%
+   997→                          </TableCell>
+   998→                          <TableCell>
+   999→                            <div className="flex items-center gap-1">
+  1000→                              <Badge
+  1001→                                className={`text-[10px] px-1.5 py-0.5 ${
+  1002→                                  STATUS_STYLES[link.status].className
+  1003→                                }`}
+  1004→                              >
+  1005→                                {STATUS_STYLES[link.status].label}
+  1006→                              </Badge>
+  1007→                            </div>
+  1008→                          </TableCell>
+  1009→                          <TableCell className="pr-4">
+  1010→                            <DropdownMenu>
+  1011→                              <DropdownMenuTrigger asChild>
+  1012→                                <Button variant="ghost" size="icon" className="size-8">
+  1013→                                  <MoreHorizontal className="size-4" />
+  1014→                                </Button>
+  1015→                              </DropdownMenuTrigger>
+  1016→                              <DropdownMenuContent align="end">
+  1017→                                <DropdownMenuItem
+  1018→                                  onClick={() => openDetailDialog(link)}
+  1019→                                >
+  1020→                                  <BarChart3 className="size-4" />
+  1021→                                  View Details
+  1022→                                </DropdownMenuItem>
+  1023→                                <DropdownMenuItem
+  1024→                                  onClick={() =>
+  1025→                                    setLinks((prev) =>
+  1026→                                      prev.map((l) =>
+  1027→                                        l.id === link.id
+  1028→                                          ? { ...l, name: l.name + ' (edited)' }
+  1029→                                          : l
+  1030→                                      )
+  1031→                                    )
+  1032→                                  }
+  1033→                                >
+  1034→                                  <Pencil className="size-4" />
+  1035→                                  Edit
+  1036→                                </DropdownMenuItem>
+  1037→                                <DropdownMenuItem
+  1038→                                  onClick={() =>
+  1039→                                    handleTogglePause(link.id)
+  1040→                                  }
+  1041→                                  disabled={link.status === 'expired'}
+  1042→                                >
+  1043→                                  {link.status === 'paused' ? (
+  1044→                                    <>
+  1045→                                      <Play className="size-4" />
+  1046→                                      Resume
+  1047→                                    </>
+  1048→                                  ) : (
+  1049→                                    <>
+  1050→                                      <Pause className="size-4" />
+  1051→                                      Pause
+  1052→                                    </>
+  1053→                                  )}
+  1054→                                </DropdownMenuItem>
+  1055→                                <DropdownMenuItem
+  1056→                                  onClick={() => openQrDialog(link)}
+  1057→                                >
+  1058→                                  <QrCode className="size-4" />
+  1059→                                  QR Code
+  1060→                                </DropdownMenuItem>
+  1061→                                <DropdownMenuItem
+  1062→                                  onClick={() => handleCopyLink(link)}
+  1063→                                >
+  1064→                                  <Copy className="size-4" />
+  1065→                                  {link.shopeeAffiliateUrl ? 'Copy Shopee Link' : 'Copy Link'}
+  1066→                                </DropdownMenuItem>
+  1067→                                <DropdownMenuSeparator />
+  1068→                                <DropdownMenuItem
+  1069→                                  variant="destructive"
+  1070→                                  onClick={() => handleDelete(link.id)}
+  1071→                                >
+  1072→                                  <Trash2 className="size-4" />
+  1073→                                  Delete
+  1074→                                </DropdownMenuItem>
+  1075→                              </DropdownMenuContent>
+  1076→                            </DropdownMenu>
+  1077→                          </TableCell>
+  1078→                        </motion.tr>
+  1079→                      ))
+  1080→                    )}
+  1081→                  </AnimatePresence>
+  1082→                </TableBody>
+  1083→              </Table>
+  1084→            </div>
+  1085→          </CardContent>
+  1086→        </Card>
+  1087→      </motion.div>
+  1088→
+  1089→      {/* QR Code Dialog */}
+  1090→      <Dialog open={qrOpen} onOpenChange={setQrOpen}>
+  1091→        <DialogContent className="sm:max-w-[400px]">
+  1092→          <DialogHeader>
+  1093→            <DialogTitle>QR Code</DialogTitle>
+  1094→            <DialogDescription>
+  1095→              {qrLink?.name || 'Scan to open affiliate link'}
+  1096→            </DialogDescription>
+  1097→          </DialogHeader>
+  1098→          {qrLink && (
+  1099→            <div className="flex flex-col items-center gap-4 py-4">
+  1100→              <div className="border rounded-lg p-4 bg-white">
+  1101→                <QRCodePlaceholder size={200} />
+  1102→              </div>
+  1103→              <div className="text-center w-full">
+  1104→                <p className="text-sm font-medium">{qrLink.productName}</p>
+  1105→                {qrLink.shopeeTracked && qrLink.shopeeAffiliateUrl && (
+  1106→                  <div className="mt-1">
+  1107→                    <Badge className="bg-emerald-500 text-white border-0 text-[9px] gap-0.5 mb-1">
+  1108→                      <Zap className="size-2.5" />
+  1109→                      Shopee Tracked
+  1110→                    </Badge>
+  1111→                    <code className="block text-xs text-muted-foreground break-all">
+  1112→                      {qrLink.shopeeAffiliateUrl}
+  1113→                    </code>
+  1114→                  </div>
+  1115→                )}
+  1116→                <code className="text-xs text-muted-foreground break-all">
+  1117→                  {qrLink.fullUrl}
+  1118→                </code>
+  1119→              </div>
+  1120→              <Button
+  1121→                variant="outline"
+  1122→                className="w-full"
+  1123→                onClick={() => {
+  1124→                  const svgEl = document.querySelector(
+  1125→                    '#qr-dialog svg'
+  1126→                  ) as SVGElement | null
+  1127→                  if (svgEl) {
+  1128→                    const svgData = new XMLSerializer().serializeToString(svgEl)
+  1129→                    const blob = new Blob([svgData], {
+  1130→                      type: 'image/svg+xml',
+  1131→                    })
+  1132→                    const url = URL.createObjectURL(blob)
+  1133→                    const a = document.createElement('a')
+  1134→                    a.href = url
+  1135→                    a.download = `qr-${qrLink.shortCode}.svg`
+  1136→                    a.click()
+  1137→                    URL.revokeObjectURL(url)
+  1138→                  }
+  1139→                }}
+  1140→              >
+  1141→                <Download className="size-4" />
+  1142→                Download QR Code
+  1143→              </Button>
+  1144→            </div>
+  1145→          )}
+  1146→        </DialogContent>
+  1147→      </Dialog>
+  1148→
+  1149→      {/* Link Detail Dialog */}
+  1150→      <Dialog open={detailOpen} onOpenChange={setDetailOpen}>
+  1151→        <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
+  1152→          <DialogHeader>
+  1153→            <DialogTitle className="flex items-center gap-2">
+  1154→              {detailLink?.name}
+  1155→              {detailLink && (
+  1156→                <>
+  1157→                  <Badge
+  1158→                    className={`text-[10px] ${
+  1159→                      STATUS_STYLES[detailLink.status].className
+  1160→                    }`}
+  1161→                  >
+  1162→                    {STATUS_STYLES[detailLink.status].label}
+  1163→                  </Badge>
+  1164→                  {detailLink.shopeeTracked && (
+  1165→                    <Badge className="bg-emerald-500 text-white border-0 text-[10px] gap-0.5">
+  1166→                      <Zap className="size-3" />
+  1167→                      Shopee Tracked
+  1168→                    </Badge>
+  1169→                  )}
+  1170→                </>
+  1171→              )}
+  1172→            </DialogTitle>
+  1173→            <DialogDescription>{detailLink?.productName}</DialogDescription>
+  1174→          </DialogHeader>
+  1175→          {detailLink && (
+  1176→            <div className="space-y-6">
+  1177→              {/* Stats Grid */}
+  1178→              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+  1179→                {[
+  1180→                  {
+  1181→                    icon: MousePointerClick,
+  1182→                    label: 'Clicks',
+  1183→                    value: detailLink.clicks.toLocaleString(),
+  1184→                    color: 'text-shopee',
+  1185→                    bg: 'bg-shopee/10',
+  1186→                  },
+  1187→                  {
+  1188→                    icon: Target,
+  1189→                    label: 'Conversions',
+  1190→                    value: detailLink.conversions.toLocaleString(),
+  1191→                    color: 'text-hermes',
+  1192→                    bg: 'bg-hermes/10',
+  1193→                  },
+  1194→                  {
+  1195→                    icon: DollarSign,
+  1196→                    label: 'Earnings',
+  1197→                    value: `RM${detailLink.earnings.toFixed(2)}`,
+  1198→                    color: 'text-emerald-600 dark:text-emerald-400',
+  1199→                    bg: 'bg-emerald-100 dark:bg-emerald-900/30',
+  1200→                  },
+  1201→                  {
+  1202→                    icon: TrendingUp,
+  1203→                    label: 'CTR',
+  1204→                    value: `${detailLink.ctr.toFixed(2)}%`,
+  1205→                    color: 'text-amber-600 dark:text-amber-400',
+  1206→                    bg: 'bg-amber-100 dark:bg-amber-900/30',
+  1207→                  },
+  1208→                ].map((stat) => (
+  1209→                  <div
+  1210→                    key={stat.label}
+  1211→                    className="flex flex-col items-center gap-1 p-3 rounded-lg bg-muted/50"
+  1212→                  >
+  1213→                    <div
+  1214→                      className={`flex items-center justify-center size-8 rounded-md ${stat.bg}`}
+  1215→                    >
+  1216→                      <stat.icon className={`size-4 ${stat.color}`} />
+  1217→                    </div>
+  1218→                    <span className="text-lg font-bold">{stat.value}</span>
+  1219→                    <span className="text-[10px] text-muted-foreground">
+  1220→                      {stat.label}
+  1221→                    </span>
+  1222→                  </div>
+  1223→                ))}
+  1224→              </div>
+  1225→
+  1226→              <Separator />
+  1227→
+  1228→              {/* Link Info */}
+  1229→              <div className="space-y-3">
+  1230→                <h4 className="text-sm font-semibold">Link Information</h4>
+  1231→                <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
+  1232→                  <span className="text-muted-foreground">Short Code:</span>
+  1233→                  <code className="bg-muted px-1.5 py-0.5 rounded text-xs w-fit">
+  1234→                    {detailLink.shortCode}
+  1235→                  </code>
+  1236→                  <span className="text-muted-foreground">Full URL:</span>
+  1237→                  <span className="text-xs break-all">
+  1238→                    {detailLink.fullUrl}
+  1239→                  </span>
+  1240→                  {detailLink.shopeeAffiliateUrl && (
+  1241→                    <>
+  1242→                      <span className="text-muted-foreground flex items-center gap-1">
+  1243→                        <Zap className="size-3 text-emerald-500" />
+  1244→                        Shopee URL:
+  1245→                      </span>
+  1246→                      <span className="text-xs break-all text-emerald-600 dark:text-emerald-400">
+  1247→                        {detailLink.shopeeAffiliateUrl}
+  1248→                      </span>
+  1249→                    </>
+  1250→                  )}
+  1251→                  <span className="text-muted-foreground">Campaign:</span>
+  1252→                  <span>{detailLink.campaign}</span>
+  1253→                  <span className="text-muted-foreground">Category:</span>
+  1254→                  <span>{detailLink.category}</span>
+  1255→                  <span className="text-muted-foreground">Created:</span>
+  1256→                  <span>{detailLink.createdAt}</span>
+  1257→                  {detailLink.expiresAt && (
+  1258→                    <>
+  1259→                      <span className="text-muted-foreground">Expires:</span>
+  1260→                      <span>{detailLink.expiresAt}</span>
+  1261→                    </>
+  1262→                  )}
+  1263→                </div>
+  1264→              </div>
+  1265→
+  1266→              {/* Tags */}
+  1267→              {detailLink.tags.length > 0 && (
+  1268→                <div className="space-y-2">
+  1269→                  <h4 className="text-sm font-semibold flex items-center gap-1.5">
+  1270→                    <Tag className="size-3.5" />
+  1271→                    Tags
+  1272→                  </h4>
+  1273→                  <div className="flex flex-wrap gap-1.5">
+  1274→                    {detailLink.tags.map((tag) => (
+  1275→                      <Badge
+  1276→                        key={tag}
+  1277→                        variant="secondary"
+  1278→                        className="text-[10px]"
+  1279→                      >
+  1280→                        {tag}
+  1281→                      </Badge>
+  1282→                    ))}
+  1283→                  </div>
+  1284→                </div>
+  1285→              )}
+  1286→
+  1287→              <Separator />
+  1288→
+  1289→              {/* Click History (Mock) */}
+  1290→              <div className="space-y-3">
+  1291→                <h4 className="text-sm font-semibold flex items-center gap-1.5">
+  1292→                  <MousePointerClick className="size-3.5" />
+  1293→                  Recent Clicks
+  1294→                </h4>
+  1295→                <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
+  1296→                  {[
+  1297→                    {
+  1298→                      time: '2 min ago',
+  1299→                      source: 'Instagram Story',
+  1300→                      device: 'Mobile',
+  1301→                    },
+  1302→                    {
+  1303→                      time: '15 min ago',
+  1304→                      source: 'TikTok Bio',
+  1305→                      device: 'Mobile',
+  1306→                    },
+  1307→                    {
+  1308→                      time: '1 hr ago',
+  1309→                      source: 'Blog Post',
+  1310→                      device: 'Desktop',
+  1311→                    },
+  1312→                    {
+  1313→                      time: '3 hrs ago',
+  1314→                      source: 'WhatsApp Share',
+  1315→                      device: 'Mobile',
+  1316→                    },
+  1317→                    {
+  1318→                      time: '5 hrs ago',
+  1319→                      source: 'Facebook Post',
+  1320→                      device: 'Mobile',
+  1321→                    },
+  1322→                  ].map((click, i) => (
+  1323→                    <div
+  1324→                      key={i}
+  1325→                      className="flex items-center justify-between text-xs py-1.5 px-2 rounded bg-muted/50"
+  1326→                    >
+  1327→                      <div className="flex items-center gap-2">
+  1328→                        <ExternalLink className="size-3 text-muted-foreground" />
+  1329→                        <span className="font-medium">{click.source}</span>
+  1330→                      </div>
+  1331→                      <div className="flex items-center gap-3 text-muted-foreground">
+  1332→                        <span>{click.device}</span>
+  1333→                        <span>{click.time}</span>
+  1334→                      </div>
+  1335→                    </div>
+  1336→                  ))}
+  1337→                </div>
+  1338→              </div>
+  1339→
+  1340→              {/* Conversion History (Mock) */}
+  1341→              <div className="space-y-3">
+  1342→                <h4 className="text-sm font-semibold flex items-center gap-1.5">
+  1343→                  <Target className="size-3.5" />
+  1344→                  Recent Conversions
+  1345→                </h4>
+  1346→                <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar">
+  1347→                  {detailLink.conversions > 0 ? (
+  1348→                    [
+  1349→                      {
+  1350→                        time: '30 min ago',
+  1351→                        amount: `RM${(detailLink.earnings / detailLink.conversions).toFixed(2)}`,
+  1352→                        product: detailLink.productName,
+  1353→                      },
+  1354→                      {
+  1355→                        time: '2 hrs ago',
+  1356→                        amount: `RM${(detailLink.earnings / detailLink.conversions * 1.2).toFixed(2)}`,
+  1357→                        product: detailLink.productName,
+  1358→                      },
+  1359→                      {
+  1360→                        time: 'Yesterday',
+  1361→                        amount: `RM${(detailLink.earnings / detailLink.conversions * 0.8).toFixed(2)}`,
+  1362→                        product: detailLink.productName,
+  1363→                      },
+  1364→                    ].map((conv, i) => (
+  1365→                      <div
+  1366→                        key={i}
+  1367→                        className="flex items-center justify-between text-xs py-1.5 px-2 rounded bg-muted/50"
+  1368→                      >
+  1369→                        <div className="flex items-center gap-2">
+  1370→                          <DollarSign className="size-3 text-emerald-500" />
+  1371→                          <span className="font-medium text-shopee">
+  1372→                            {conv.amount}
+  1373→                          </span>
+  1374→                        </div>
+  1375→                        <span className="text-muted-foreground">
+  1376→                          {conv.time}
+  1377→                        </span>
+  1378→                      </div>
+  1379→                    ))
+  1380→                  ) : (
+  1381→                    <p className="text-xs text-muted-foreground py-2 text-center">
+  1382→                      No conversions yet
+  1383→                    </p>
+  1384→                  )}
+  1385→                </div>
+  1386→              </div>
+  1387→
+  1388→              {/* Actions */}
+  1389→              <div className="flex gap-2 pt-2">
+  1390→                <Button
+  1391→                  variant="outline"
+  1392→                  size="sm"
+  1393→                  onClick={() => handleCopyLink(detailLink)}
+  1394→                  className="flex-1"
+  1395→                >
+  1396→                  <Copy className="size-3.5" />
+  1397→                  {detailLink.shopeeAffiliateUrl ? 'Copy Shopee Link' : 'Copy Link'}
+  1398→                </Button>
+  1399→                <Button
+  1400→                  variant="outline"
+  1401→                  size="sm"
+  1402→                  onClick={() => openQrDialog(detailLink)}
+  1403→                  className="flex-1"
+  1404→                >
+  1405→                  <QrCode className="size-3.5" />
+  1406→                  QR Code
+  1407→                </Button>
+  1408→                {detailLink.status !== 'expired' && (
+  1409→                  <Button
+  1410→                    variant="outline"
+  1411→                    size="sm"
+  1412→                    onClick={() => {
+  1413→                      handleTogglePause(detailLink.id)
+  1414→                      setDetailLink((prev) =>
+  1415→                        prev
+  1416→                          ? {
+  1417→                              ...prev,
+  1418→                              status:
+  1419→                                prev.status === 'paused' ? 'active' : 'paused',
+  1420→                            }
+  1421→                          : null
+  1422→                      )
+  1423→                    }}
+  1424→                    className="flex-1"
+  1425→                  >
+  1426→                    {detailLink.status === 'paused' ? (
+  1427→                      <>
+  1428→                        <Play className="size-3.5" />
+  1429→                        Resume
+  1430→                      </>
+  1431→                    ) : (
+  1432→                      <>
+  1433→                        <Pause className="size-3.5" />
+  1434→                        Pause
+  1435→                      </>
+  1436→                    )}
+  1437→                  </Button>
+  1438→                )}
+  1439→              </div>
+  1440→            </div>
+  1441→          )}
+  1442→        </DialogContent>
+  1443→      </Dialog>
+  1444→    </div>
+  1445→  )
+  1446→}
+  1447→

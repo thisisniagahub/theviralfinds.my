@@ -457,3 +457,211 @@ img[loading="lazy"] {
     transition: transform 0.1s ease;
   }
 }
+
+/* ============================================================
+   P2-b — MICRO-INTERACTION POLISH
+   Brand-colored scrollbar, shimmer overlay, focus ring
+   (Appended; existing rules above are unchanged.)
+   ============================================================ */
+
+/* Brand-colored scrollbar — intentionally a *new* class name so it does
+   not override the neutral-gray `.custom-scrollbar` defined earlier.
+   Use on premium surfaces (KPI lists, leaderboard, chat transcript). */
+.brand-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.brand-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.brand-scrollbar::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--shopee) 30%, transparent);
+  border-radius: 3px;
+}
+.brand-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--shopee) 50%, transparent);
+}
+.brand-scrollbar {
+  /* Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--shopee) 30%, transparent) transparent;
+}
+@media (max-width: 768px) {
+  .brand-scrollbar::-webkit-scrollbar {
+    width: 3px;
+    height: 3px;
+  }
+}
+
+/* Shimmer overlay — a white diagonal gradient that sweeps across a colored
+   button background. Pair with `relative overflow-hidden` on the parent.
+   Works in both light and dark mode because it sits on a saturated bg. */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.shimmer-effect {
+  background-image: linear-gradient(
+    110deg,
+    transparent 0%,
+    transparent 35%,
+    rgba(255, 255, 255, 0.35) 50%,
+    transparent 65%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .shimmer-effect { animation: none; opacity: 0; }
+}
+
+/* Smooth focus ring — brand-colored outline for keyboard navigation.
+   Pair with the global :focus-visible rule above (which uses --shopee). */
+.focus-ring:focus-visible {
+  outline: 2px solid var(--shopee);
+  outline-offset: 2px;
+}
+
+/* ============================================================
+   P2-c — MOBILE UX PERFECTION
+   Bottom-nav FAB, bottom-sheet drag handle, mobile chart polish,
+   safe-area utilities for the new bottom sheet.
+   (Appended; existing rules above are unchanged.)
+   ============================================================ */
+
+/* The center FAB in the bottom nav pokes above the bar. Reserve space
+   inside the nav so the active-tab indicator and other tabs don't
+   collide with the FAB's raised position. */
+.mobile-fab-spacer {
+  position: relative;
+  z-index: 1;
+}
+
+/* Bottom sheet drag handle — feels like a native iOS/Android sheet */
+.bottom-sheet-handle {
+  cursor: grab;
+  touch-action: none; /* let framer-motion handle the drag */
+}
+.bottom-sheet-handle:active {
+  cursor: grabbing;
+}
+
+/* Mobile-optimized charts
+   -----------------------
+   On narrow viewports, recharts ResponsiveContainer can squish charts
+   to the point labels overlap. `.mobile-chart-scroll` wraps a chart in
+   a horizontal-scroll container with a min-width so the chart keeps
+   a readable shape; the user swipes horizontally to see the rest. */
+.mobile-chart-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  position: relative;
+}
+.mobile-chart-scroll::-webkit-scrollbar {
+  display: none;
+}
+.mobile-chart-scroll > * {
+  min-width: 560px; /* enough room for axis labels + bars */
+}
+@media (max-width: 480px) {
+  .mobile-chart-scroll > * {
+    min-width: 640px; /* extra room on very narrow phones */
+  }
+}
+
+/* "Swipe to see more" hint — a chevron that bounces horizontally.
+   Drop inside a `.mobile-chart-scroll` container, positioned
+   bottom-right so it doesn't cover chart data. */
+@keyframes swipe-hint-bounce {
+  0%, 100% { transform: translateX(0); opacity: 0.6; }
+  50% { transform: translateX(6px); opacity: 1; }
+}
+.swipe-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  animation: swipe-hint-bounce 1.4s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .swipe-hint { animation: none; opacity: 0.8; }
+}
+
+/* Touch-friendly recharts tooltips — larger fonts, more padding,
+   bigger hit area so tapping a data point is reliable on phones. */
+@media (max-width: 768px) {
+  .recharts-tooltip-wrapper {
+    min-width: 96px;
+    min-height: 36px;
+  }
+  .recharts-default-tooltip {
+    padding: 8px 12px !important;
+    font-size: 12px !important;
+    border-radius: 8px !important;
+  }
+  .recharts-tooltip-label,
+  .recharts-tooltip-item {
+    font-size: 12px !important;
+    line-height: 1.5 !important;
+  }
+  /* Larger invisible hit area around data points for easier tapping */
+  .recharts-symbols {
+    cursor: pointer;
+  }
+}
+
+/* Make the active dot on line charts easier to tap (visually larger
+   on touch devices without changing the actual data point size) */
+@media (hover: none) and (max-width: 768px) {
+  .recharts-active-dot circle {
+    r: 6;
+  }
+}
+
+/* Safe-area utilities used by the new bottom sheet.
+   These complement the existing safe-area classes by adding
+   `top` padding for the iOS notch / dynamic island. */
+.safe-area-top {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+/* The mobile bottom sheet should not be hidden behind the home indicator */
+.safe-area-bottom-pad {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Prevent horizontal overflow / scroll on iPhone caused by elements
+   wider than the viewport (e.g. wide tables, chart fans). */
+@media (max-width: 768px) {
+  body {
+    overflow-x: hidden;
+  }
+  /* FAB fan container should not cause horizontal scroll */
+  .fab-fan-anchor {
+    overflow: visible;
+  }
+}
+
+/* The active-tab indicator on the bottom nav uses layoutId to animate
+   between tabs. Make sure it doesn't get clipped by the nav's overflow. */
+.mobile-nav-active-indicator {
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Sheet snap-point dot indicator */
+.sheet-snap-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  transition: background-color 200ms ease, transform 200ms ease;
+}
+.sheet-snap-dot[data-active='true'] {
+  background-color: var(--shopee);
+  transform: scale(1.25);
+}

@@ -17,6 +17,8 @@ import {
   TrendingUp,
   PauseCircle,
   BarChart3,
+  Rocket,
+  Lightbulb,
 } from 'lucide-react'
 import {
   Card,
@@ -40,6 +42,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { EmptyState } from '@/components/ui/empty-state'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -143,11 +146,26 @@ const staggerContainer = {
 export function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>(mockCampaigns)
   const [createOpen, setCreateOpen] = useState(false)
+  const [exampleOpen, setExampleOpen] = useState(false)
   const [formName, setFormName] = useState('')
   const [formDesc, setFormDesc] = useState('')
   const [formBudget, setFormBudget] = useState('')
   const [formStart, setFormStart] = useState('')
   const [formEnd, setFormEnd] = useState('')
+
+  // Example mock campaign shown via the "See example campaign" exampleAction.
+  const exampleCampaign: Campaign = {
+    id: 'example',
+    name: '11.11 Mega Sale (Example)',
+    description:
+      'Biggest sale event of the year with exclusive deals on electronics and fashion. Curated top-performing products, batch-generated 24 links, scheduled social posts.',
+    status: 'active',
+    budget: 5000,
+    spent: 3250,
+    linksCount: 24,
+    startDate: '2025-11-01',
+    endDate: '2025-11-12',
+  }
 
   const totalCampaigns = campaigns.length
   const activeCount = campaigns.filter((c) => c.status === 'active').length
@@ -312,13 +330,35 @@ export function CampaignsPage() {
       </motion.div>
 
       {/* Campaign Cards Grid */}
-      <motion.div
-        variants={staggerContainer}
-        initial="initial"
-        animate="animate"
-        className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
-      >
-        {campaigns.map((campaign) => {
+      {campaigns.length === 0 ? (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+        >
+          <EmptyState
+            illustration="no-campaigns"
+            title="No campaigns yet"
+            description="Launch your first campaign to organize your affiliate promotions and track performance over time."
+            cta={{
+              label: 'Launch your first campaign',
+              icon: Rocket,
+              onClick: () => setCreateOpen(true),
+            }}
+            exampleAction={{
+              label: 'See example campaign',
+              onClick: () => setExampleOpen(true),
+            }}
+          />
+        </motion.div>
+      ) : (
+        <motion.div
+          variants={staggerContainer}
+          initial="initial"
+          animate="animate"
+          className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3"
+        >
+          {campaigns.map((campaign) => {
           const pct = Math.min(Math.round((campaign.spent / campaign.budget) * 100), 100)
           const cfg = statusConfig[campaign.status]
           return (
@@ -417,7 +457,85 @@ export function CampaignsPage() {
             </motion.div>
           )
         })}
-      </motion.div>
+        </motion.div>
+      )}
+
+      {/* Example campaign dialog (shown via "See example campaign" exampleAction) */}
+      <Dialog open={exampleOpen} onOpenChange={setExampleOpen}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <div className="mb-2 flex size-10 items-center justify-center rounded-full bg-shopee/10">
+              <Lightbulb className="size-5 text-shopee" />
+            </div>
+            <DialogTitle>Example campaign</DialogTitle>
+            <DialogDescription>
+              Here&apos;s what a well-structured affiliate campaign looks like.
+              Use it as inspiration for your first launch.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="font-semibold leading-tight">
+                  {exampleCampaign.name}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+                  {exampleCampaign.description}
+                </p>
+              </div>
+              <Badge variant="default" className="capitalize shrink-0">
+                {exampleCampaign.status}
+              </Badge>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="flex items-center gap-1 text-muted-foreground">
+                  <DollarSign className="size-3" />
+                  Budget
+                </span>
+                <span className="font-medium">
+                  {formatRM(exampleCampaign.spent)} /{' '}
+                  {formatRM(exampleCampaign.budget)}
+                </span>
+              </div>
+              <Progress
+                value={Math.round(
+                  (exampleCampaign.spent / exampleCampaign.budget) * 100,
+                )}
+                className="h-2"
+              />
+            </div>
+            <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <Link2 className="size-3" />
+                {exampleCampaign.linksCount} links
+              </span>
+              <span className="flex items-center gap-1">
+                <Calendar className="size-3" />
+                {exampleCampaign.startDate} → {exampleCampaign.endDate}
+              </span>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setExampleOpen(false)}
+            >
+              Close
+            </Button>
+            <Button
+              className="bg-shopee hover:bg-shopee-dark text-white gap-2"
+              onClick={() => {
+                setExampleOpen(false)
+                setCreateOpen(true)
+              }}
+            >
+              <Plus className="size-4" />
+              Create my campaign
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -105,10 +105,14 @@ export const authOptions: NextAuthOptions = {
           throw new Error('Incorrect password. Please try again.')
         }
 
-        await db.user.update({
-          where: { id: user.id },
-          data: { lastLoginAt: new Date() },
-        })
+        try {
+          await db.user.update({
+            where: { id: user.id },
+            data: { lastLoginAt: new Date() },
+          })
+        } catch {
+          // Non-fatal: DB may be read-only in sandboxed environments
+        }
 
         return {
           id: user.id,

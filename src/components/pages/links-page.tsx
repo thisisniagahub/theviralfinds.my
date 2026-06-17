@@ -67,6 +67,7 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { ExportButtons } from '@/components/ui/export-buttons'
+import { EmptyState } from '@/components/ui/empty-state'
 
 // --- Types ---
 type LinkStatus = 'active' | 'paused' | 'expired'
@@ -326,6 +327,8 @@ export function LinksPage() {
 
   // Create Link Dialog
   const [createOpen, setCreateOpen] = useState(false)
+  // Tutorial modal (60s video placeholder) shown via "Watch 60s tutorial" exampleAction.
+  const [tutorialOpen, setTutorialOpen] = useState(false)
   const [newLink, setNewLink] = useState({
     productUrl: '',
     customName: '',
@@ -885,17 +888,40 @@ export function LinksPage() {
         </Select>
       </div>
 
-      {/* Links Table */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.1 }}
-      >
-        <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
+      {/* Empty state — no links created yet (truly empty list) */}
+      {links.length === 0 ? (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+        >
+          <EmptyState
+            illustration="no-links"
+            title="You haven't created any links yet"
+            description="Create your first affiliate link in 30 seconds and start earning commissions on every click."
+            cta={{
+              label: 'Create your first link',
+              icon: Plus,
+              onClick: () => setCreateOpen(true),
+            }}
+            exampleAction={{
+              label: 'Watch 60s tutorial',
+              onClick: () => setTutorialOpen(true),
+            }}
+          />
+        </motion.div>
+      ) : (
+        /* Links Table */
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+        >
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
                   <TableRow>
                     <TableHead className="w-[40px] pl-4">
                       <Checkbox
@@ -1085,6 +1111,81 @@ export function LinksPage() {
           </CardContent>
         </Card>
       </motion.div>
+      )}
+
+      {/* Tutorial modal placeholder — "Watch 60s tutorial" exampleAction */}
+      <Dialog open={tutorialOpen} onOpenChange={setTutorialOpen}>
+        <DialogContent className="sm:max-w-[560px]">
+          <DialogHeader>
+            <DialogTitle>60-second tutorial</DialogTitle>
+            <DialogDescription>
+              Watch how to create your first affiliate link and start earning
+              commission in under a minute.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-gradient-to-br from-shopee/20 via-hermes/15 to-shopee/10 flex items-center justify-center">
+            {/* Play button overlay */}
+            <button
+              type="button"
+              aria-label="Play tutorial"
+              className="group flex size-16 items-center justify-center rounded-full bg-white/90 text-shopee shadow-lg transition-transform hover:scale-105"
+              onClick={() => {
+                /* Placeholder: real video would start here. */
+              }}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                className="size-7 translate-x-0.5"
+              >
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </button>
+            {/* Decorative timeline bar */}
+            <div className="absolute bottom-3 left-3 right-3 h-1 rounded-full bg-white/30 overflow-hidden">
+              <div className="h-full w-1/4 bg-shopee rounded-full" />
+            </div>
+            <div className="absolute top-3 left-3 rounded-full bg-black/50 px-2 py-0.5 text-[10px] font-medium text-white">
+              0:15 / 1:00
+            </div>
+          </div>
+          <ol className="space-y-2 text-sm text-muted-foreground">
+            <li className="flex gap-2">
+              <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-shopee/15 text-[11px] font-semibold text-shopee">
+                1
+              </span>
+              Paste any Shopee product URL.
+            </li>
+            <li className="flex gap-2">
+              <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-shopee/15 text-[11px] font-semibold text-shopee">
+                2
+              </span>
+              We generate a tracked affiliate link automatically.
+            </li>
+            <li className="flex gap-2">
+              <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-shopee/15 text-[11px] font-semibold text-shopee">
+                3
+              </span>
+              Share it anywhere — every click + conversion is logged.
+            </li>
+          </ol>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setTutorialOpen(false)}>
+              Close
+            </Button>
+            <Button
+              className="bg-shopee hover:bg-shopee-dark text-white gap-2"
+              onClick={() => {
+                setTutorialOpen(false)
+                setCreateOpen(true)
+              }}
+            >
+              <Plus className="size-4" />
+              Create my first link
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* QR Code Dialog */}
       <Dialog open={qrOpen} onOpenChange={setQrOpen}>

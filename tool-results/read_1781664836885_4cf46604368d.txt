@@ -1,0 +1,251 @@
+  2917→    - "Generate with HERMES" button: bg-hermes hover:bg-hermes-dark with shimmer effect (absolute inset-0 gradient translate-x-full → -translate-x-full on hover, 1000ms transition). Shows "HERMES is crafting…" with spinner when generating
+  2918→    - Advanced options (Collapsible): Hashtag count select (Auto/5/10/15/25), CTA style select (Urgency/Curiosity/Direct/Soft), Target audience input. CollapsibleTrigger is a ghost Button with Settings2 icon + rotating ChevronDown
+  2919→  
+  2920→  - LocalStorage persistence: variations array (max 6) saved to localStorage key 'hermes-content-variations' on every change. On mount, restores variations if present. Persists across page reloads within a session
+  2921→  - Used only existing shadcn/ui components: Card, CardContent, CardHeader, CardTitle, CardDescription, Button, Input, Label, Badge, Select (+ Content/Item/Trigger/Value), Tabs (+ List/Trigger/Content), Progress, Slider, Tooltip (+ Trigger/Content), Collapsible (+ Trigger/Content)
+  2922→  - Used lucide-react icons: FileText, Sparkles, Copy, Loader2, BookOpen, Library, Wand2, RefreshCw, Bookmark, Hash, ChevronDown, X, ArrowRight, Check, Star, TrendingUp, Zap, Music2, Instagram, Youtube, Radio, Link2, Target, MessageSquare, Eye, Heart, Share2, Lightbulb, Settings2. Custom inline SVG for TikTok icon (lucide has no brand icon)
+  2923→  - Color discipline: bg-hermes (purple) for AI/generate elements, bg-shopee (orange) for save/engagement. NO blue/indigo used as primary — only the Facebook mockup uses blue-600 for the f logo (brand-accurate). All gradients use warm purple→orange→pink palettes
+  2924→  - Framer Motion: card entrance (opacity+y), AnimatePresence mode="wait" for switching between empty/generating/result states, motion.div layoutId for variation tab underline, staggered sparkle animations in generation state, whileHover y:-3 on example cards, whileHover y:-4 on template cards
+  2925→  - Maintained existing API contract: /api/content/generate still receives {type, product, niche, platform, language, tone} — client maps the 5 UI tones to valid API tones (Manglish→casual+manglish, Hype→excited+manglish, Educational→professional+english, etc). /api/content/library POST unchanged. /api/content/templates GET still powers the "More templates" section
+  2926→  - Cleanup: removed unused imports (Clock, CardFooter, Textarea, useMemo) that I had initially over-imported
+  2927→
+  2928→Stage Summary:
+  2929→- Files modified:
+  2930→  * src/components/pages/content-page.tsx (OVERWRITTEN — was 239 lines, now ~1010 lines with full P1-e feature set)
+  2931→- Files NOT modified: prisma/schema.prisma, src/lib/validation.ts, /api/content/* routes, sidebar.tsx, page.tsx, middleware.ts — API contract preserved
+  2932→- Lint status: PASS for content-page.tsx (npx eslint src/components/pages/content-page.tsx → 0 errors, 0 warnings, clean exit). Note: 4 pre-existing errors in OTHER files (sidebar.tsx:291, dashboard-page.tsx:422, trends-page.tsx:918, use-keyboard-shortcuts.ts:89) — all out of P1-e scope, untouched by this task
+  2933→- Server status: HTTP 200 on / (dev server recompiled cleanly in ~825ms after edit, no TypeScript errors)
+  2934→- All P1-e requirements implemented:
+  2935→  ✅ A. Rich empty state — custom SVG wand+sparkles illustration, headline, subtext, "Try generating one →" scroll button, "See example" sample loader, 3 example cards with platform icons + first caption line + star ratings + hover "Use this template" overlay
+  2936→  ✅ B. Generation animation — typing effect with HERMES branding (purple gradient + blinking cursor), 5 creative status messages cycling every 500ms, progress bar (0→100% over 2.5s), 2.5s minimum hold via Promise.all, cancel button
+  2937→  ✅ C. Result card — platform preview mock (TikTok phone frame / Instagram square post / Shopee Live stream with chat bubbles / YouTube thumbnail / Facebook post), one-click copy with toast, Regenerate button creating new variations (max 3), Save to Library button with isSaved state, hashtag chips clickable, Variations tabs V1/V2/V3 with animated underline, engagement prediction (X/10 + 5 stars)
+  2938→  ✅ D. Template gallery — 6 visual cards with gradient thumbnails + platform icon badge + emoji + name + uses count + rating + "Use Template" hover overlay. Plus existing 8 API templates below for completeness
+  2939→  ✅ E. Input form — Product URL with auto-detect (Shopee/TikTok/Instagram/YouTube/Lazada) + slug→product-name extraction, platform selector with inline icons, 5 tone pill chips, length slider (50/100/200), 4-button emoji density grid, shimmer Generate button, advanced collapsible (hashtag count + CTA style + target audience)
+  2940→- Technical:
+  2941→  * LocalStorage persistence for variations (key 'hermes-content-variations', max 6 entries)
+  2942→  * All animations via Framer Motion (no CSS animation libs)
+  2943→  * Color palette: bg-hermes (purple) for AI/generate, bg-shopee (orange) for save/engagement — NO indigo/blue primary
+  2944→  * Malaysian context: Manglish sample caption ("Walao eh", "terer", "confirm grab"), Malaysian example products (Xiaomi Robot Vacuum, Tudung Bawal Premium, Instant Pot Duo), local platforms (Shopee Live), Manglish chat bubbles in live mockup ("best gila! 🔥", "grab now!")
+  2945→
+  2946→---
+  2947→Task ID: P1-b
+  2948→Agent: full-stack-developer (Interactive Onboarding Wizard)
+  2949→Task: Replace the basic 4-step popup tour with a full-screen interactive onboarding wizard featuring welcome screen, niche picker, API connection guide, first-link spotlight, and confetti celebration.
+  2950→
+  2951→Work Log:
+  2952→- Read worklog tail, POLISH.md (Section P1-b), current `src/app/page.tsx` (OnboardingTour at lines 124-236), and `src/store/app-store.ts` to understand the existing onboarding flow + auth/shopee state shape.
+  2953→- Verified available shadcn components (Dialog, Button, Input, Label, Card, Badge, Checkbox all present) and existing brand colors (`--shopee`, `--hermes`, `--profit` — no blue/indigo).
+  2954→- Installed `canvas-confetti` + `@types/canvas-confetti` via `bun add` (package was not yet in deps).
+  2955→- CREATED `src/components/onboarding/onboarding-wizard.tsx` (~1460 lines) with full premium-SaaS onboarding experience:
+  2956→  * Self-contained component: manages its own `open` state, auto-opens 800ms after mount if `tvf_onboarding_complete` is missing in localStorage (also respects legacy `tvf_tour_seen` key so existing users don't see the new wizard twice).
+  2957→  * 6 wizard steps with smooth Framer Motion slide+fade transitions (directional: forward=slide-from-right, backward=slide-from-left):
+  2958→    1. Welcome — animated Shopee-orange SVG owl mascot (custom paths, bobbing + blinking + sparkle), greeting with user's first name, branching question "Have you used Shopee Affiliate before?" (Yes → skip step 2, No → continue to API step).
+  2959→    2. Connect Shopee API — 4 numbered instruction cards on the left (Dashboard → API Settings → Generate App ID/Secret → Paste), App ID + Secret Key inputs on the right with show/hide toggle for secret, "Test Connection" button with mock 1.8s loading → success state + green badge, "I don't have API access yet" fallback card that enables demo mode (sets `shopeeDataSource: 'mock'` in app store on completion).
+  2960→    3. Pick Your Niche — 8-card emoji grid (Electronics 📱, Beauty 💄, Fashion 👗, Home 🏠, Food 🍜, Baby 👶, Sports 🏋️, Gaming 🎮), multi-select up to 3 with toast warning if user tries to exceed limit, selected cards get shopee-orange ring + check badge, stagger-in animation.
+  2961→    4. Generate First Link — spotlight effect (radial-gradient backdrop + pulsing ring + "Click here" hint badge), mock product card "Wireless Earbuds Pro X RM 89.00 (12% commission, RM 10.68/sale)", "Generate Link" button fires canvas-confetti (3 bursts with brand colors), success state shows the generated `shopee.com.my/universal-link/tvf-xxx` link in a copyable code box.
+  2962→    5. Connect Social Accounts — 4 cards (TikTok custom SVG, Instagram + YouTube via lucide, Telegram custom paper-plane SVG), Connect buttons mock-connect with toast + green "Connected" state, "Optional" badge in header, clear messaging about real OAuth being mocked.
+  2963→    6. Personalized Dashboard — "You're all set, [Name]! 🎉" with second mascot appearance, animated checklist of completed setup steps (welcome, API/demo, niches, first link, socials), selected niche chips with emojis, "What's next?" tips (Products, HERMES AI, Analytics), "Enter Dashboard" button fires final celebration confetti.
+  2964→  * Full-screen modal via shadcn Dialog with `className="w-screen h-[100dvh] max-w-none ... p-0"` and `showCloseButton={false}` (custom skip button in header).
+  2965→  * Backdrop blur via custom `DialogOverlay className="bg-black/60 backdrop-blur-md"`.
+  2966→  * Header: brand logo + "ONBOARDING" hermes-purple badge + step counter + animated progress dots (current = wide shopee bar, done = thin shopee bar, future = muted bar) + Skip (X) button.
+  2967→  * Footer: Back button (disabled on step 0), contextual hints ("Pick at least 1 niche", "Connect API or enable demo to continue", "Optional — skip if you prefer"), Next/Continue/Enter Dashboard button (disabled until step requirements met).
+  2968→  * Branching logic: step 0 Yes → jump to step 2 (skip API); step 2 back with prior Yes → jump back to step 0.
+  2969→  * Skip button (top-right) + Esc key + backdrop click all call `completeWizard(true)` → sets localStorage flag + closes + toast "Onboarding skipped".
+  2970→  * Real completion (Enter Dashboard) → `completeWizard(false)` → sets `tvf_onboarding_complete=true`, persists selected niches to `tvf_onboarding_niches`, sets `tvf_onboarding_demo_mode=true` if demo, calls `setShopeeConnected(true)` + `setShopeeDataSource('graphql_api')` if real API connected, fires celebration confetti + success toast.
+  2971→  * All localStorage writes wrapped in try/catch (handles private mode / quota).
+  2972→  * Accessible: ARIA labels on close buttons, aria-pressed on toggle buttons, role="button"+tabIndex on demo card, sr-only-friendly markup, keyboard-operable.
+  2973→  * Mobile-first responsive: 2-col niche grid on mobile → 4-col on lg, social cards 1-col on mobile → 2-col on sm, instruction cards stack on mobile → 2-col on md.
+  2974→  * Strictly no blue/indigo: shopee orange (primary), hermes purple (AI/step badges), profit red (commission), emerald (success states), neutral grays.
+  2975→- MODIFIED `src/app/page.tsx` (311 lines, was 442):
+  2976→  * Removed entire `OnboardingTour` component + `TOUR_STEPS` constant (was lines 124-236).
+  2977→  * Removed `showTour` state, the `useEffect` that triggered it on auth, and `completeTour` callback.
+  2978→  * Removed `<AnimatePresence>{showTour && <OnboardingTour .../>}</AnimatePresence>` wrapper — replaced with `<OnboardingWizard />` (self-managing).
+  2979→  * Cleaned imports: removed `Sparkles, ChevronLeft, ChevronRight, X` from lucide (only used by old tour); removed `AnimatePresence` from framer-motion import (only used by old tour wrapper); kept `motion` (still used by mobile FAB).
+  2980→  * Added `import { OnboardingWizard } from '@/components/onboarding/onboarding-wizard'`.
+  2981→- Ran `bun run lint` on modified files: 0 errors, 0 warnings on `onboarding-wizard.tsx` and `page.tsx` (verified via `npx eslint <files>`).
+  2982→  * Note: project-wide lint has 3 pre-existing errors in OTHER files (`trends-page.tsx`, `dashboard-page.tsx`, `use-keyboard-shortcuts.ts`) — these were present before my changes and are owned by parallel agents (P1-c, P1-d, P1-f). My code introduces zero new lint problems.
+  2983→- Verified dev server compiles + serves `/` with HTTP 200 (latest `GET / 200 in 29ms` in dev.log).
+  2984→
+  2985→Stage Summary:
+  2986→- Files modified:
+  2987→  * `src/components/onboarding/onboarding-wizard.tsx` (NEW — ~1460 lines, default export `OnboardingWizard`)
+  2988→  * `src/app/page.tsx` (MODIFIED — removed ~130 lines of OnboardingTour + showTour state, added 1 import + 1 render line; net ~311 lines from 442)
+  2989→  * `package.json` + `bun.lock` (canvas-confetti + @types/canvas-confetti added)
+  2990→- All 6 wizard steps implemented with required features (welcome+branch, API connect+demo fallback, niche multi-select, first-link spotlight+confetti, social connect, personalized dashboard).
+  2991→- Mascot: custom SVG owl with ear tufts, blinking eyes, animated sparkle, Framer Motion bobbing.
+  2992→- Confetti: canvas-confetti with brand colors (#ee4d2d shopee orange, #7c3aed hermes purple, #10b981 emerald, #fbbf24 gold) — fired on first link generation + final completion.
+  2993→- Spotlight: radial-gradient backdrop + pulsing box-shadow ring + animated "Click here" hint badge.
+  2994→- Color discipline: strictly shopee/hermes/profit/emerald/neutral — NO blue/indigo.
+  2995→- Persistence: `tvf_onboarding_complete`, `tvf_onboarding_niches` (JSON string[]), `tvf_onboarding_demo_mode` (when applicable); legacy `tvf_tour_seen` still respected so existing users don't see wizard twice.
+  2996→- App store integration: on completion calls `setShopeeConnected` + `setShopeeDataSource` based on whether user connected real API or enabled demo mode.
+  2997→- Lint: 0 errors / 0 warnings on modified files. Pre-existing errors in other files (P1-c/d/f scope) untouched.
+  2998→- Server: HTTP 200 on `/` route; dev server compiles cleanly.
+  2999→
+  3000→---
+  3001→Task ID: P1-d
+  3002→Agent: full-stack-developer (Trend Spy Overhaul)
+  3003→Task: Transform Trend Spy into a powerful weapon with heat map, trending velocity tabs, competitor watch list, alert system, and rich data per product.
+  3004→
+  3005→Work Log:
+  3006→- Read worklog (last 200 lines), POLISH.md (P1-d spec), existing trends-page.tsx (210 lines), and existing /api/trends/* routes (discover/keywords/competitor) to understand current shape.
+  3007→- Confirmed Recharts available (recharts ^2.15.4 + chart.tsx wrapper), and shadcn primitives present (Tabs, Card, Badge, Button, Dialog, DropdownMenu, Switch, Input).
+  3008→- Designed comprehensive mock dataset: 24 Malaysian products across all 12 required categories (Electronics, Beauty, Fashion, Home, Food, Baby, Sports, Gaming, Auto, Books, Health, Pets). Each product carries: commissionRate, velocity %, velocityDir (up/stable/down), competition level, competitorCount, sparkline7d[], commissionHistory[7d], searchVolume7d[7d], season string, whyTrending, priceRange, monthlySearch, tab classification, anonymous competitor names ("Affiliate #2847" etc).
+  3009→- Built HeatMapCell subcomponent: color-coded by velocity (red/orange = hot, amber/yellow = warm, slate = cool), 4×3 desktop / 3-col sm / 2×6 mobile grid, click → filters products, active ring highlight, legend with color swatches.
+  3010→- Built Competitor Watch section: amber gradient card at top, 5 products with most competitors (>=3 threshold), each with emoji + name + "N competitors promoting" + 3 anonymous badges + Watch toggle button.
+  3011→- Replaced old 3 tabs (Trending/Keywords/Competitors) with new velocity-based tabs: Trending Now (>50% velocity), About to Blow Up (20-50%, low competition), Steady Earners (high commission, stable). Each tab has icon + accent color + description in filter bar.
+  3012→- Built rich ProductCard: emoji thumbnail + bold green commission + velocity arrow (↑/→/↓ color-coded) + 7-day Sparkline (Recharts LineChart, 36px) + competition badge (🟢🟡🔴) + price range + monthly searches + Watch button + Bell icon. Framer Motion stagger entrance.
+  3013→- Built alert system: Bell icon on each card opens DropdownMenu with 3 alert options (commission increase / daily digest / spike push). Each click creates AlertItem, fires toast. "Manage Alerts" button in header (with count badge) opens modal listing all alerts with Switch toggle + delete button.
+  3014→- Built ProductDetailDialog: header with 3 badges (competition/velocity/commission), "Why it's trending" amber callout, seasonal indicator (Target icon), commission rate history LineChart (emerald, 7-day), search volume BarChart (amber, 7-day), competition analysis text (dynamic by level), anonymous competitors list, related products horizontal carousel (click to switch), 2 CTAs (Generate Affiliate Link + Create AI Content).
+  3015→- Implemented SSR-safe, lint-clean localStorage persistence via custom `useLocalStorageState<T>` hook built on `useSyncExternalStore`. Solves `react-hooks/set-state-in-effect` lint rule properly: subscribe uses storage events filtered by key, getSnapshot returns cached parsed value (stable ref via useRef), getServerSnapshot returns frozen EMPTY_*_ARRAY module constant, setValue writes + updates cache + dispatches synthetic StorageEvent. Used for both watchList and alerts.
+  3016→- Color palette: red/orange (hot), amber/yellow (warm), slate (cool), emerald (commission), amber-600 (primary accent). NO indigo or blue primary anywhere.
+  3017→- Responsive: heat map 2/3/4 cols, competitor cards 1/2/3/5 cols, product grid 1/2/3/4 cols, charts 1/2 cols. Tab list grid-cols-3 on mobile, flex on desktop.
+  3018→- Framer Motion: card stagger entrance (delay = index × 0.03), AnimatePresence mode="wait" on tab transitions keyed by tab + categoryFilter.
+  3019→- Ran `bun run lint` — initially 1 error (set-state-in-effect for localStorage reads). Fixed by switching to useSyncExternalStore pattern. Then 1 warning (unused eslint-disable directive). Removed the directive. Final: 0 errors, 0 warnings for trends-page.tsx.
+  3020→
+  3021→Stage Summary:
+  3022→- File rewritten: `src/components/pages/trends-page.tsx` (210 → 1346 lines)
+  3023→- All 6 requirement sections (A-F) implemented and verified
+  3024→- 24 mock products × 12 categories × full rich data (sparkline, commission history, search volume, season, competitors)
+  3025→- 3 subcomponents: HeatMapCell, ProductCard, ProductDetailDialog, ManageAlertsDialog + Sparkline helper
+  3026→- SSR-safe localStorage persistence via useSyncExternalStore (no lint errors)
+  3027→- Lint status: 0 errors, 0 warnings on trends-page.tsx (project-wide lint exit code 0)
+  3028→- No new API routes needed — entirely client-side mock data
+  3029→- No indigo/blue primary colors used (amber/red/orange/emerald/slate palette only)
+  3030→- Agent context saved to `/home/z/my-project/agent-ctx/P1-d-fullstack-developer.md`
+  3031→
+  3032→---
+  3033→Task ID: P1-f
+  3034→Agent: full-stack-developer (Sidebar Restructure)
+  3035→Task: Restructure sidebar into collapsible sections (CORE/AI POWERED/PLATFORMS/ADVANCED/GROWTH), add favorites/pinned section, search bar, and keyboard shortcuts hook.
+  3036→
+  3037→Work Log:
+  3038→- Read worklog.md (tail), POLISH.md P1-f section, src/components/layout/sidebar.tsx (251 lines original), src/store/app-store.ts (PageId type — 36 pages total).
+  3039→- Confirmed sidebar.tsx was the only consumer of the local `navItems` array — no other file imports it, so a full rewrite was safe.
+  3040→- Reviewed eslint.config.mjs — most rules off, but `react-hooks/set-state-in-effect` and `react-hooks/refs` ARE enforced (Next.js 16 / React 19 compiler rules). This shaped the architecture (useSyncExternalStore instead of setState-in-effect; ref updates inside useEffect instead of during render).
+  3041→
+  3042→Created `/home/z/my-project/src/hooks/use-keyboard-shortcuts.ts` (172 lines):
+  3043→- `useKeyboardShortcuts(callbacks)` hook with typed `KeyboardShortcutCallbacks` map.
+  3044→- Single-key shortcuts: `/` (focus search), `?` (show help), `c` (create link), `Escape` (close overlay).
+  3045→- Two-key combos with 700ms window: `g`+`d|p|l|a|e|c|t|h` → navigate to Dashboard/Products/Links/Analytics/Earnings/AI Content/Trend Spy/HERMES.
+  3046→- Ignores modifier chords (Ctrl/Cmd/Alt) so native browser shortcuts aren't hijacked.
+  3047→- Ignores key presses inside INPUT/TEXTAREA/SELECT/contentEditable/role="textbox" — except Escape which always fires.
+  3048→- Latest-callback ref pattern (`cbRef.current = callbacks` inside `useEffect`, not during render) to satisfy the `react-hooks/refs` lint rule.
+  3049→
+  3050→Rewrote `/home/z/my-project/src/components/layout/sidebar.tsx` (251 → 945 lines):
+  3051→
+  3052→Section structure (5 collapsible + dynamic Pinned):
+  3053→  - 📌 Pinned (dynamic, only renders when user has pinned items)
+  3054→  - 📊 Core (7, default-open): Dashboard, Products, Links, Analytics, Calculator, Campaigns, Earnings
+  3055→  - 🤖 AI Powered (11, default-open): AI Content, Trend Spy, Profit Optimizer, Content Studio, Product Matcher, AI Recommender, AI Thumbnails, AI Calendar, Hashtag AI, Audience AI, A/B Testing
+  3056→  - 🛒 Platforms (5, default-collapsed): TikTok Shop [NEW], Lazada [NEW], Shopee Live, Unified Earnings, Compare
+  3057→  - ⚙️ Advanced (7, default-collapsed): Auto Post [NEW], XTRA Alerts, Pricing [PRO], Marketplace [NEW], Team Dashboard [NEW], White-Label [ENT], API Keys [API]
+  3058→    (XTRA Alerts was not in the task's section breakdown but is preserved from the original sidebar — placed in Advanced to keep all 36 nav items accessible.)
+  3059→  - 🏆 Growth (6, default-collapsed): Leaderboard, Achievements, Referrals, Hermes AI Hub, Notifications, Settings
+  3060→
+  3061→Section behavior:
+  3062→  - Each header: chevron icon (rotates -90° collapsed), uppercase 11px font-semibold muted-foreground title, item-count badge.
+  3063→  - Click header → toggles section. State persisted to `tvf_sidebar_sections` in localStorage.
+  3064→  - Expand/collapse animated with Framer Motion AnimatePresence + height: 0 → 'auto' (200ms easeInOut, overflow hidden).
+  3065→  - During search, all sections force-open and headers become non-interactive.
+  3066→
+  3067→Pinned section:
+  3068→  - Top of sidebar, only renders when `pinned.length > 0` AND not searching.
+  3069→  - Header: Pin icon (amber-500) + "Pinned" label (amber-600 / amber-400 dark) + count.
+  3070→  - Items appear in pinned order; each has a Pin indicator on the right.
+  3071→  - Default on first run: Dashboard, AI Content, Earnings.
+  3072→  - State persisted to `tvf_pinned_pages`.
+  3073→
+  3074→Star (pin/unpin) on every nav item:
+  3075→  - Top-right of each item button, subtle.
+  3076→  - Outline + opacity-0 by default; opacity-100 on `group-hover/nav`.
+  3077→  - Filled amber-500 + always visible when item is pinned.
+  3078→  - Click star → toggle pinned, stopPropagation so it doesn't navigate. Toast feedback "Pinned X" / "Unpinned X".
+  3079→
+  3080→Search bar (top, below logo):
+  3081→  - Input with Search icon (left), X clear button (right when query non-empty), `/` kbd hint (right when empty).
+  3082→  - Placeholder: "Search pages… (or press /)".
+  3083→  - Filters in real-time as user types — case-insensitive label match.
+  3084→  - Empty result state: "No pages found. Try another search." with Search icon.
+  3085→  - Pressing `/` anywhere (except inside text fields) focuses the search input. If sidebar is collapsed, expands it first then defers focus 60ms.
+  3086→
+  3087→NEW badges with red pulsing dot:
+  3088→  - Items with `isNew: true`: TikTok Shop, Lazada, Auto Post, Marketplace, Team Dashboard (5 items per task spec).
+  3089→  - Red dot = `bg-red-500` with `animate-ping` overlay (dual-span pattern).
+  3090→  - Click the item → marks as seen (adds to `tvf_seen_new_pages`), red dot disappears.
+  3091→  - When red dot is showing, the NEW badge is hidden to avoid redundancy.
+  3092→
+  3093→Keyboard shortcuts help dialog:
+  3094→  - Triggered by `?` key OR by the Command icon button next to Theme toggle (for discoverability).
+  3095→  - Categorized table: Navigation (g+x combos), Actions (c, ?, Esc), Search (/).
+  3096→  - "Got it" button (shopee-colored) to dismiss.
+  3097→  - On first run only: auto-opens after 900ms if `tvf_shortcut_help_seen` is false; dismiss sets the flag.
+  3098→  - State persisted to `tvf_shortcut_help_seen`.
+  3099→
+  3100→Persistent state architecture:
+  3101→  - All localStorage-backed state uses a custom `usePersistentState` hook built on `useSyncExternalStore` (inlined in sidebar.tsx).
+  3102→  - This gives SSR-safe initial render (server snapshot = default), no `setState`-in-effect (avoids the cascading-render lint rule), and cross-tab sync via the native `storage` event.
+  3103→  - Module-level `storageCache` Map ensures `getSnapshot` returns stable references for the same underlying localStorage value.
+  3104→  - Same-window updates dispatch a custom `tvf-storage` event (the native `storage` event only fires for OTHER windows).
+  3105→
+  3106→Toast feedback (sonner):
+  3107→  - Navigation via shortcut or click → toast with destination label (1.2s, bottom-right).
+  3108→  - Pin/unpin → toast "Pinned/Unpinned X" (1.2s, bottom-right).
+  3109→  - Create Link shortcut → toast "Create Link — Affiliate Links" (1.4s, bottom-right).
+  3110→
+  3111→Existing functionality preserved:
+  3112→  - Active page highlighting (shopee color for non-special items, special color classes for color-tagged items — matches legacy behaviour).
+  3113→  - Theme toggle (Moon/Sun, dark mode).
+  3114→  - User section (Avatar, name, plan, Sign out / Sign in).
+  3115→  - Collapse/expand sidebar button (ChevronLeft/Right, 264px ↔ 68px width).
+  3116→  - When sidebar is collapsed: shows flat icon-only list (all 36 items, scrollable) with active highlight and red dots for unseen NEW items.
+  3117→  - All 36 PageId values still navigable — no items removed.
+  3118→  - Mobile: sidebar still `hidden lg:flex` (mobile uses MobileNav + MobileSheet, unchanged).
+  3119→
+  3120→Color palette (NO indigo or blue):
+  3121→  - Active item: `bg-shopee/10 text-shopee dark:bg-shopee/20 nav-glow`.
+  3122→  - Pinned items: `bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300`.
+  3123→  - Section headers: `text-muted-foreground uppercase text-[11px] font-semibold`.
+  3124→  - Pinned section header: `text-amber-600 dark:text-amber-400`.
+  3125→  - Red dot: `bg-red-500 animate-ping` (overlay) + `bg-red-500` (solid).
+  3126→  - Help dialog primary button: `bg-shopee hover:bg-shopee-dark text-white`.
+  3127→
+  3128→Stage Summary:
+  3129→- Files created: 1 (`src/hooks/use-keyboard-shortcuts.ts`, 172 lines)
+  3130→- Files modified: 1 (`src/components/layout/sidebar.tsx`, 251 → 945 lines)
+  3131→- Lint: `bun run lint` → 0 errors, 0 warnings.
+  3132→- Dev server: `GET / 200` confirmed after rewrite (no compile errors).
+  3133→- All 36 nav items still accessible across 5 collapsible sections + dynamic Pinned section.
+  3134→- Keyboard shortcuts hook wired up inside AppSidebar (hook file is reusable; could also be called from page.tsx if additional app-level shortcuts are needed — left as a follow-up per task scope: "don't modify page.tsx").
+  3135→- Power-user UX delivered: search bar with `/` focus, `g`+key navigation combos, `c` create link, `?` help overlay, star-to-pin, persistent state, smooth Framer Motion section animations.
+  3136→- Work record saved to `/home/z/my-project/agent-ctx/P1-f-fullstack-developer.md`.
+  3137→
+  3138→---
+  3139→Task ID: P1-c
+  3140→Agent: full-stack-developer (Dashboard Upgrades)
+  3141→Task: Upgrade dashboard with animated KPI cards (count-up + sparklines), live activity feed with pulsing indicators, smart insights banner from HERMES AI, and gamified performance score with expandable sub-scores.
+  3142→
+  3143→Work Log:
+  3144→- Read worklog tail (whitelabel + Fasa 4.5 context), POLISH.md (Wave 1 P1-c requirements), existing dashboard-page.tsx (790 lines, static numbers, plain activity list, basic gauge).
+  3145→- Inventoried available dependencies: framer-motion (with `useReducedMotion` + `motion.circle` for SVG), recharts, shadcn Sheet/Tabs/Collapsible/Sonner, existing color tokens (`--shopee` orange, `--hermes` purple). No count-up hook existed.
+  3146→- Created `/src/hooks/use-count-up.ts` — animated number hook using requestAnimationFrame + ease-out cubic, with `formatCountUp` helper (thousand separators, prefix/suffix, decimals). All setState happens inside rAF/setTimeout callbacks (never synchronously in the effect body) so it complies with the project's `react-hooks/set-state-in-effect` lint rule. Honors `enabled=false` for reduced-motion users.
+  3147→- Rewrote `/src/components/pages/dashboard-page.tsx` (790 → 1374 lines):
+  3148→  • **Mock data** — converted stats from string values to numeric (`value`, `prefix`, `suffix`, `decimals`, `textColor`, `sparkData` 7-day array) so they can be count-up animated. Swapped "Total Conversions" card for "Active Links" per spec. Enriched `recentActivity` with `platform` (Shopee/TikTok/Lazada), `thumbnail` letter + `thumbnailColor`, and `bucket` (today/7d/30d) for the drawer filter.
+  3149→  • **Sparkline** component — inline SVG with gradient fill, uses `useId()` for stable gradient IDs (SSR-safe), `currentColor` so it inherits the card's text color.
+  3150→  • **AnimatedNumber** wrapper — combines `useCountUp` + `formatCountUp` with `useReducedMotion` to skip animation when needed.
+  3151→  • **A. Animated KPI Cards** — count-up values (1.5s ease-out), bounce-in trend badges (Framer Motion spring scale 0.8→1), corner sparkline that brightens on hover, hover lift (translateY -2px via spring) + border highlight (group-hover:border-shopee/40). Staggered entrance (0.08s per card).
+  3152→  • **B. Real-Time Activity Feed** — pulsing green dot (Tailwind `animate-ping` outer + solid inner) with "Live" badge, rich cards (colored thumbnail w/ first letter, bold green commission amount `text-emerald-600`, time-ago + platform badge). "See All Activity" button opens right-side Sheet drawer with Tabs (Today / 7 Days / 30 Days) using the `bucket` field for filtering. "+RM 30.00" floating text via AnimatePresence (appears 1.2s after mount, animates upward 36px + fades over 1.8s) — uses the latest conversion amount from the feed.
+  3153→  • **C. Smart Insights Banner (HERMES AI)** — purple gradient (`bg-hermes/10`), `Bot` robot icon with its own pulsing ring, "HERMES AI Insight" badge + date. AI-generated copy ("Your electronics links are converting 23% higher this week…"). "View Details" button fires `toast.success('HERMES insight expanded', …)` via sonner. "Dismiss" (X) button stores `tvf_insight_dismissed_<YYYY-MM-DD>` in localStorage (per-day so it returns next morning). Slide-down entrance via Framer Motion. Dismiss state read via `queueMicrotask` callback (NOT synchronous in effect body) to satisfy lint rule.
+  3154→  • **D. Gamified Performance Score** — circular SVG gauge now animates with `motion.circle` (strokeDashoffset from full circumference → target offset, 1.5s easeOut, 0.3s delay). Number counts up via `AnimatedNumber`. "Next milestone" prompt card with `Target` icon: "🎯 Next milestone: 80/100 (Good → Excellent)" + specific action ("Create 3 more links this week to reach Excellent tier") + progress bar from current → milestone. Expandable sub-scores via shadcn `Collapsible` (ChevronDown rotates 180° when open) — Click Rate 85%, Conversion Rate 72%, Engagement 68%, Consistency 81%, each with mini `Progress` bar and staggered fade-in.
+  3155→  • **E. Polish** — All sections keep existing Framer Motion entrance (opacity + y, staggered delays 0.4 → 0.9). Stat cards get hover-lift + border highlight. All animations wrapped with `useReducedMotion()` checks that fall back to opacity-only or instant. Number formatting via `tabular-nums` + `toLocaleString('en-MY')` for proper thousand separators ("RM 12,694"). Existing data flows preserved (1s loading skeleton, all original charts/TopProducts/QuickActions intact).
+  3156→- Lint iteration: first pass hit `react-hooks/set-state-in-effect` on `setDismissed(true)` in SmartInsightsBanner effect + unused `eslint-disable` in use-count-up. Fixed both: (1) moved localStorage read into `queueMicrotask` callback (setState now in callback, not effect body); (2) refactored useCountUp to remove synchronous `setDisplayValue(0)`/`setDisplayValue(target)` calls — now uses a `displayRef` to track current value across re-targets, all setState happens inside rAF tick only; (3) removed the unused eslint-disable directive. Also fixed a latent bug in RecentActivityList where the inner setTimeout cleanup was dead code (returned from inside another setTimeout callback) — restructured to use a single outer cleanup that clears both timers.
+  3157→
+  3158→Stage Summary:
+  3159→- **Files modified:**
+  3160→  - `src/hooks/use-count-up.ts` (NEW, 113 lines) — count-up hook + formatCountUp helper
+  3161→  - `src/components/pages/dashboard-page.tsx` (REWRITE, 790 → 1374 lines)
+  3162→- **Lint status:** 0 errors, 0 warnings on both my files (`npx eslint src/components/pages/dashboard-page.tsx src/hooks/use-count-up.ts` exits 0). Full project `bun run lint` shows 1 remaining error in `src/components/pages/trends-page.tsx` from P1-d agent's work (useCallback memoization issue) — not introduced by this task.
+  3163→- **TypeScript status:** 0 errors on my files (`bunx tsc --noEmit` clean for dashboard-page + use-count-up).
+  3164→- **Runtime:** GET / returns 200 in ~30ms after compile. Loading skeleton (1s) preserved, then animated dashboard renders. No console errors in dev.log from my modules.
+  3165→- **All 10 P1-c checklist items implemented:** count-up KPIs ✅, bounce-in trend badges ✅, sparkline mini-charts ✅, pulsing live dot ✅, rich activity cards (thumbnail + bold green commission) ✅, See All Activity Sheet drawer with Today/7d/30d filters ✅, HERMES Smart Insights banner (dismissible, localStorage) ✅, gamified score with expandable sub-scores ✅, Next milestone prompt with action ✅, animated circular gauge fill ✅.
+  3166→- **Bonus:** `prefers-reduced-motion` support across all new animations, "+RM 30.00" floating celebration text on activity feed mount, per-day dismissal (fresh insights each morning), platform badges (Shopee/TikTok/Lazada), proper RM currency formatting with thousand separators.
+  3167→
